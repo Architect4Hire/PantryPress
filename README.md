@@ -1,5 +1,9 @@
 # PantryPress
 
+<div>
+ <img src="doce/image/logo.png" />
+</div>
+
 A hosted food-blogging platform with everything built in. Bloggers write posts and structured recipes and
 publish them to a fast, search-friendly site with a real recipe card, ratings, comments, a subscriber list,
 ads, and analytics. There are no plugins, no theme hunting, no updates, and no servers to run.
@@ -40,16 +44,16 @@ SQL, so reader traffic survives a database outage.
 
 ## Tech stack
 
-| Area | Choice |
-| --- | --- |
-| Back end | .NET 10, ASP.NET Core, Aspire, EF Core 10 |
-| Data | Azure SQL, Redis, Azure Blob Storage (all PantryPress's own) |
-| Front end | Angular 22: admin SPA, public site with SSR on every request |
+| Area          | Choice                                                          |
+| ------------- | --------------------------------------------------------------- |
+| Back end      | .NET 10, ASP.NET Core, Aspire, EF Core 10                       |
+| Data          | Azure SQL, Redis, Azure Blob Storage (all PantryPress's own)    |
+| Front end     | Angular 22: admin SPA, public site with SSR on every request    |
 | Design system | `@pantrypress/ui` (admin) and `@pantrypress/ui/themes` (public) |
-| Edge | Azure Front Door Standard |
-| Auth | ASP.NET Core Identity behind a YARP BFF with `__Host-` cookies |
-| Billing | Stripe Checkout, customer portal, Stripe Tax |
-| Email | Azure Communication Services (transactional only) |
+| Edge          | Azure Front Door Standard                                       |
+| Auth          | ASP.NET Core Identity behind a YARP BFF with `__Host-` cookies  |
+| Billing       | Stripe Checkout, customer portal, Stripe Tax                    |
+| Email         | Azure Communication Services (transactional only)               |
 
 ## Repository layout
 
