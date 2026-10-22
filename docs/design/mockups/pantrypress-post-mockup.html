@@ -1,0 +1,1052 @@
+<title>PantryPress Post Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: a tool bar of blogger settings, then a browser frame holding the published post, with an extension-point legend beside it (below it when narrow). */
+:root {
+  --c-bg: #eef0f4;
+  --c-panel: #ffffff;
+  --c-ink: #161a24;
+  --c-muted: #586075;
+  --c-line: #d6dae3;
+  --c-pin: #4a35e8;
+  --c-pin-ink: #ffffff;
+  --c-pin-soft: rgba(74, 53, 232, 0.10);
+  --c-chrome: #e2e5ec;
+  --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-bg: #0f1117; --c-panel: #181b24; --c-ink: #e7e9f0; --c-muted: #9aa1b5; --c-line: #2b3040;
+    --c-pin: #9d8cff; --c-pin-ink: #120c33; --c-pin-soft: rgba(157, 140, 255, 0.14); --c-chrome: #222633;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --c-bg: #0f1117; --c-panel: #181b24; --c-ink: #e7e9f0; --c-muted: #9aa1b5; --c-line: #2b3040;
+  --c-pin: #9d8cff; --c-pin-ink: #120c33; --c-pin-soft: rgba(157, 140, 255, 0.14); --c-chrome: #222633;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--c-bg); color: var(--c-ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--c-pin); outline-offset: 2px; }
+
+/* ---------- Mockup chrome ---------- */
+.intro { max-width: 1480px; margin: 0 auto 16px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
+.intro h1 { font-size: 22px; margin: 0; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.intro p { margin: 4px 0 0; color: var(--c-muted); max-width: 70ch; }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-pin); }
+
+.controls { max-width: 1480px; margin: 0 auto 16px; background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 10px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; }
+.ctl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ctl > span { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-muted); }
+.seg { display: inline-flex; border: 1px solid var(--c-line); border-radius: 7px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; cursor: pointer; font-size: 13px; border-right: 1px solid var(--c-line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--c-ink); color: var(--c-panel); }
+.seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+.swatches { display: flex; gap: 6px; }
+.swatches button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--c-panel); box-shadow: 0 0 0 1px var(--c-line); cursor: pointer; padding: 0; }
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--c-ink); }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; padding: 4px 0; }
+.switch input { accent-color: var(--c-pin); width: 16px; height: 16px; }
+.switch input:disabled + span { opacity: 0.45; }
+.ctl-note { font-size: 12px; color: var(--c-muted); flex-basis: 100%; margin: 0; }
+
+.workspace { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+
+.browser { border: 1px solid var(--c-line); border-radius: 12px; overflow: hidden; background: var(--c-chrome); box-shadow: 0 12px 40px -24px rgba(10, 14, 30, 0.45); min-width: 0; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.dots { display: flex; gap: 6px; flex-shrink: 0; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--c-line); display: block; }
+.address { flex: 1; min-width: 0; background: var(--c-panel); border-radius: 7px; padding: 5px 12px; font-family: var(--f-mono); font-size: 12.5px; display: flex; gap: 6px; align-items: center; position: relative; }
+.address .host { font-weight: 500; }
+.address .path { color: var(--c-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.address svg { flex-shrink: 0; }
+
+/* ---------- Annotation pins ---------- */
+.ann { position: relative; }
+body.show-ann .ann { outline: 1.5px dashed var(--c-pin); outline-offset: 3px; }
+body.show-ann .ann-soft { outline-style: dotted; }
+.pin { display: none; position: absolute; top: -11px; left: -11px; z-index: 6; width: 22px; height: 22px; border-radius: 50%; background: var(--c-pin); color: var(--c-pin-ink); font: 600 11px/22px var(--f-mono); text-align: center; text-decoration: none; box-shadow: 0 0 0 3px var(--c-pin-soft), 0 2px 6px rgba(0,0,0,0.25); }
+.pin.r { left: auto; right: -11px; }
+body.show-ann .pin { display: block; }
+.pin:hover { transform: scale(1.12); }
+.ghost { display: none; }
+body.show-ann .ghost { display: flex; }
+
+/* ---------- Legend ---------- */
+.legend { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 12px; padding: 16px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; min-width: 0; }
+@media (max-width: 1100px) { .legend { position: static; max-height: none; } }
+.legend h2 { font-size: 15px; margin: 0 0 4px; }
+.legend > p { margin: 0 0 12px; color: var(--c-muted); font-size: 12.5px; }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ep { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding: 9px 8px; border-radius: 8px; scroll-margin-top: 16px; }
+.ep:target, .ep.flash { background: var(--c-pin-soft); }
+.ep .n { width: 22px; height: 22px; border-radius: 50%; background: var(--c-pin); color: var(--c-pin-ink); font: 600 11px/22px var(--f-mono); text-align: center; }
+.ep h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.ep p { margin: 3px 0 0; font-size: 12.5px; color: var(--c-muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.chip { font-family: var(--f-mono); font-size: 10.5px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--c-line); color: var(--c-muted); white-space: nowrap; }
+.chip.k-custom { border-color: var(--c-pin); color: var(--c-pin); }
+.chip.k-slot { background: var(--c-pin); border-color: var(--c-pin); color: var(--c-pin-ink); }
+.chip.k-auto { border-style: dashed; }
+.legend h4 { font-size: 11px; font-family: var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-muted); margin: 18px 0 6px; font-weight: 500; }
+.plain { margin: 0; padding-left: 18px; font-size: 12.5px; display: flex; flex-direction: column; gap: 5px; }
+.plain li::marker { color: var(--c-muted); }
+.plain b { font-weight: 600; }
+
+/* ---------- The published site (theme tokens) ---------- */
+.site {
+  container-type: inline-size;
+  --bg: var(--L-bg); --surface: var(--L-surface); --ink: var(--L-ink); --muted: var(--L-muted); --line: var(--L-line); --accent: var(--L-accent); --accent-ink: var(--L-accent-ink); --hl: var(--L-hl);
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.65; position: relative;
+}
+.site[data-mode="dark"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .site[data-mode="auto"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); }
+}
+:root[data-theme="dark"] .site[data-mode="auto"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); }
+
+.site[data-theme-name="market"] {
+  --L-bg: #ffffff; --L-surface: #f2f6f0; --L-ink: #1b231c; --L-muted: #586a5b; --L-line: #dce4d9; --L-accent: #2f6b3a; --L-accent-ink: #ffffff; --L-hl: #f2c94c;
+  --D-bg: #121712; --D-surface: #1b221c; --D-ink: #e8eee6; --D-muted: #9fb0a0; --D-line: #2c372d; --D-accent: #7cc48a; --D-accent-ink: #0d1a10; --D-hl: #e0b93f;
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif; --f-body: "Literata", Georgia, serif; --r: 10px; --display-weight: 800; --display-track: -0.02em;
+}
+.site[data-theme-name="hearth"] {
+  --L-bg: #fbf8f6; --L-surface: #f3ebe7; --L-ink: #2a1d22; --L-muted: #6e5a61; --L-line: #e8dcd6; --L-accent: #8a2f4b; --L-accent-ink: #ffffff; --L-hl: #e8a33d;
+  --D-bg: #1a1215; --D-surface: #251a1f; --D-ink: #f1e7ea; --D-muted: #b9a3aa; --D-line: #3b2a31; --D-accent: #e48aa6; --D-accent-ink: #2a0f19; --D-hl: #e8a33d;
+  --f-display: "Fraunces", Georgia, serif; --f-body: "Nunito Sans", system-ui, sans-serif; --r: 18px; --display-weight: 700; --display-track: -0.01em;
+}
+.site[data-theme-name="larder"] {
+  --L-bg: #f6f6f3; --L-surface: #ffffff; --L-ink: #14161f; --L-muted: #555a6e; --L-line: #d9dbe2; --L-accent: #2a3f8f; --L-accent-ink: #ffffff; --L-hl: #f4c430;
+  --D-bg: #0f1118; --D-surface: #181b25; --D-ink: #eceef5; --D-muted: #a2a7bb; --D-line: #2b2f3d; --D-accent: #a3b3ff; --D-accent-ink: #0f1430; --D-hl: #f4c430;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif; --f-body: "Source Serif 4", Georgia, serif; --r: 2px; --display-weight: 800; --display-track: -0.025em;
+}
+.site[data-fonts="serif"] { --f-display: "Fraunces", Georgia, serif; --f-body: "Source Serif 4", Georgia, serif; --display-weight: 700; }
+.site[data-fonts="sans"] { --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif; --f-body: "Nunito Sans", system-ui, sans-serif; --display-weight: 800; }
+
+.site a { color: var(--accent); }
+.site h1, .site h2, .site h3 { font-family: var(--f-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.12; text-wrap: balance; margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 28px; }
+@container (max-width: 560px) { .wrap { padding-inline: 18px; } .site { font-size: 16px; } }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r); padding: 8px 14px; font: 600 14px/1.2 var(--f-display); letter-spacing: 0; cursor: pointer; border: 1.5px solid var(--accent); text-decoration: none; }
+.btn.solid { background: var(--accent); color: var(--accent-ink); }
+.btn.outline { background: transparent; color: var(--accent); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.site input[type="email"], .site input[type="text"], .site textarea { border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: var(--r); padding: 9px 12px; font: 15px var(--f-body); min-width: 0; }
+
+/* Header variants */
+.s-header { border-bottom: 1px solid var(--line); }
+.s-header .wrap { display: flex; align-items: center; gap: 16px 28px; padding-block: 18px; flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink) !important; }
+.logo .mark { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 800 15px var(--f-display); flex-shrink: 0; }
+.logo .word { font: var(--display-weight) 22px/1 var(--f-display); letter-spacing: var(--display-track); }
+.logo .tag { display: block; font: 12px var(--f-body); color: var(--muted); margin-top: 3px; letter-spacing: 0; font-weight: 400; }
+.nav { display: flex; gap: 6px 20px; flex-wrap: wrap; font: 600 14.5px var(--f-display); margin-left: auto; align-items: center; }
+.nav a { color: var(--ink); text-decoration: none; }
+.nav a:hover { color: var(--accent); }
+.nav .search { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; color: var(--muted); font-weight: 400; font-family: var(--f-body); font-size: 13px; }
+.site[data-header="centered"] .s-header .wrap { flex-direction: column; text-align: center; }
+.site[data-header="centered"] .logo { flex-direction: column; }
+.site[data-header="centered"] .logo .mark { width: 54px; height: 54px; font-size: 19px; }
+.site[data-header="centered"] .logo .word { font-size: 34px; }
+.site[data-header="centered"] .nav { margin: 0 auto; justify-content: center; border-top: 1px solid var(--line); padding-top: 12px; width: 100%; }
+.site[data-header="minimal"] .s-header .wrap { padding-block: 12px; }
+.site[data-header="minimal"] .logo .mark, .site[data-header="minimal"] .logo .tag { display: none; }
+.site[data-header="minimal"] .logo .word { font-size: 19px; }
+.site[data-header="minimal"] .nav a:not(.menu) { display: none; }
+.menu { display: none !important; }
+.site[data-header="minimal"] .menu { display: inline-flex !important; gap: 6px; align-items: center; }
+
+/* Main grid */
+.s-main .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; padding-block: 28px 40px; }
+.site[data-layout="sidebar"] .s-main .wrap { grid-template-columns: minmax(0, 1fr) 280px; }
+@container (max-width: 860px) { .site[data-layout="sidebar"] .s-main .wrap { grid-template-columns: minmax(0, 1fr); } }
+.site[data-layout="single"] article { max-width: 720px; margin-inline: auto; width: 100%; }
+article { min-width: 0; }
+.crumbs { font: 13px var(--f-body); color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.crumbs a { color: var(--muted); }
+.post-title { font-size: clamp(30px, 5.2cqi, 50px); }
+.dek { font-size: 1.12em; color: var(--muted); margin: 12px 0 0; max-width: 60ch; }
+.byline { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 18px; font-size: 14px; color: var(--muted); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--hl); color: #2a1d05; display: grid; place-items: center; font: 700 13px var(--f-display); }
+.byline .who { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+.stars { color: var(--hl); letter-spacing: 1px; font-size: 15px; }
+.post-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.disclosure { margin: 22px 0 0; font-size: 13.5px; color: var(--muted); background: var(--surface); border-radius: var(--r); padding: 10px 14px; }
+.hero { margin: 22px 0 0; border-radius: var(--r); overflow: hidden; position: relative; }
+.hero svg, .gallery svg, .card-img svg, .related svg { display: block; width: 100%; height: auto; }
+.hero figcaption { font-size: 13px; color: var(--muted); padding-top: 8px; }
+.pinit { position: absolute; top: 12px; right: 12px; background: #e60023; color: #fff; border: 0; border-radius: 999px; padding: 6px 12px; font: 700 13px var(--f-ui); cursor: pointer; }
+.prose { margin-top: 26px; }
+.prose p { margin: 0 0 1.1em; max-width: 68ch; }
+.prose h2 { font-size: 28px; margin: 1.4em 0 0.5em; }
+.prose ul { padding-left: 1.2em; margin: 0 0 1.1em; }
+.prose li { margin-bottom: 0.35em; }
+.callout { border-radius: var(--r); background: var(--surface); padding: 14px 18px; margin: 0 0 1.3em; border: 1px solid var(--line); }
+.callout b { font-family: var(--f-display); color: var(--accent); display: block; margin-bottom: 2px; }
+.gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 1.3em; }
+.gallery figure { margin: 0; border-radius: var(--r); overflow: hidden; }
+.gallery figcaption { font-size: 12.5px; color: var(--muted); padding: 6px 2px 0; }
+.quote { margin: 0 0 1.3em; padding-left: 18px; border-left: 3px solid var(--accent); font-style: italic; }
+
+.ad { margin: 0 0 1.3em; border: 1px dashed var(--line); border-radius: var(--r); background: repeating-linear-gradient(135deg, transparent 0 10px, var(--surface) 10px 20px); min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font: 12.5px var(--f-ui); text-align: center; padding: 10px; }
+.ad b { font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10.5px; }
+.ad.tall { min-height: 260px; }
+.ad[data-off="true"] { display: none; }
+body.show-ann .ad[data-off="true"] { display: flex; opacity: 0.55; }
+
+.signup { border-radius: var(--r); background: var(--accent); color: var(--accent-ink); padding: 22px; margin: 0 0 1.4em; display: grid; gap: 10px; }
+.signup h3 { font-size: 22px; }
+.signup p { margin: 0; opacity: 0.9; font-size: 15px; }
+.signup form { display: flex; flex-wrap: wrap; gap: 8px; }
+.signup input { flex: 1 1 160px; border-color: transparent !important; }
+.signup .btn { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); }
+.signup small { font-size: 12px; opacity: 0.85; }
+.signup .ok { font-weight: 600; }
+.signup.alt { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+.signup.alt .btn { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.signup.alt input { border-color: var(--line) !important; }
+
+/* Recipe card */
+.recipe { border: 2px solid var(--accent); border-radius: calc(var(--r) + 4px); margin: 8px 0 1.5em; scroll-margin-top: 20px; background: var(--bg); }
+.recipe-head { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
+@container (max-width: 620px) { .recipe-head { grid-template-columns: minmax(0, 1fr); } .card-img { max-width: 220px; } }
+.recipe-head h2 { font-size: 30px; }
+.recipe-head p { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
+.card-img { border-radius: var(--r); overflow: hidden; align-self: start; }
+.r-rating { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.r-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.times { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+@container (max-width: 620px) { .times { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.times div { padding: 12px 14px; border-right: 1px solid var(--line); }
+.times div:last-child { border-right: 0; }
+.times span { display: block; font: 600 11px var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.times b { font-family: var(--f-display); font-size: 16px; }
+.r-tools { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 14px; }
+.r-tools .grp { display: flex; align-items: center; gap: 8px; position: relative; }
+.r-tools label { font: 600 12px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.pills { display: inline-flex; border: 1.5px solid var(--accent); border-radius: var(--r); overflow: hidden; }
+.pills button { border: 0; background: transparent; color: var(--accent); padding: 4px 11px; font: 600 13.5px var(--f-display); cursor: pointer; }
+.pills button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.cook { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.cook input { accent-color: var(--accent); width: 18px; height: 18px; }
+.cook-on { font-size: 12.5px; color: var(--accent); font-weight: 600; }
+.r-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0; }
+@container (max-width: 700px) { .r-body { grid-template-columns: minmax(0, 1fr); } }
+.r-body > section { padding: 20px 22px; min-width: 0; }
+.r-body > section + section { border-left: 1px solid var(--line); }
+@container (max-width: 700px) { .r-body > section + section { border-left: 0; border-top: 1px solid var(--line); } }
+.r-body h3 { font-size: 21px; margin-bottom: 10px; }
+.r-body h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.ing { list-style: none; margin: 0; padding: 0; }
+.ing li { padding: 6px 0 6px 26px; border-bottom: 1px dotted var(--line); position: relative; font-size: 15.5px; }
+.ing li::before { content: ""; position: absolute; left: 2px; top: 12px; width: 13px; height: 13px; border: 1.5px solid var(--accent); border-radius: 3px; }
+.ing .q { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ing .note { color: var(--muted); }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; padding: 0 0 14px 40px; position: relative; font-size: 15.5px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 13px/26px var(--f-display); text-align: center; }
+.scale-note { font-size: 13.5px; background: var(--surface); border-radius: var(--r); padding: 8px 12px; margin: 0 0 12px; }
+.r-foot { border-top: 1px solid var(--line); padding: 18px 22px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; font-size: 14.5px; }
+@container (max-width: 700px) { .r-foot { grid-template-columns: minmax(0, 1fr); } }
+.r-foot h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.r-foot ul { margin: 0; padding-left: 1.1em; }
+.nutri { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.nutri div { background: var(--surface); border-radius: var(--r); padding: 6px 8px; font-size: 13px; color: var(--muted); }
+.nutri b { display: block; color: var(--ink); font: 700 15px var(--f-display); font-variant-numeric: tabular-nums; }
+.disclaim { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.r-meta { padding: 12px 22px 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.r-meta b { color: var(--ink); font-weight: 600; }
+
+.share { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 1.6em; font-size: 14px; }
+.share span { color: var(--muted); margin-right: 4px; }
+.share a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; text-decoration: none; color: var(--ink); font: 600 13px var(--f-display); }
+
+.reviews h2 { font-size: 28px; margin-bottom: 12px; }
+.rate-box { background: var(--surface); border-radius: var(--r); padding: 16px 18px; margin-bottom: 18px; display: grid; gap: 10px; }
+.rate-stars { display: flex; gap: 2px; }
+.rate-stars button { background: none; border: 0; font-size: 26px; line-height: 1; color: var(--line); cursor: pointer; padding: 0 2px; }
+.rate-stars button.on { color: var(--hl); }
+.rate-box textarea { width: 100%; min-height: 70px; resize: vertical; }
+.comment { border-top: 1px solid var(--line); padding: 14px 0; }
+.comment .h { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+.comment .h b { font-family: var(--f-display); font-size: 15px; }
+.comment .h time { color: var(--muted); font-size: 13px; }
+.comment p { margin: 4px 0 0; font-size: 15.5px; }
+.comment.reply { margin-left: 34px; border-top: 1px dashed var(--line); }
+.badge { font: 700 11px var(--f-ui); background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 1px 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+aside.sidebar { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.site[data-layout="single"] aside.sidebar { display: none; }
+.widget { border-top: 3px solid var(--accent); padding-top: 12px; }
+.widget h3 { font-size: 18px; margin-bottom: 8px; }
+.about-w { display: grid; gap: 10px; font-size: 14.5px; }
+.about-w .ph { width: 88px; height: 88px; border-radius: 50%; background: var(--hl); display: grid; place-items: center; font: 800 28px var(--f-display); color: #2a1d05; }
+.about-w p { margin: 0; }
+.pop { list-style: none; margin: 0; padding: 0; counter-reset: p; font-size: 14.5px; }
+.pop li { counter-increment: p; display: grid; grid-template-columns: 26px 1fr; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.pop li::before { content: counter(p); font: 800 17px var(--f-display); color: var(--accent); }
+.pop a { color: var(--ink); text-decoration: none; }
+.side-search { display: flex; gap: 6px; }
+.side-search input { flex: 1; width: 100%; }
+.sticky-slot { position: sticky; top: 12px; }
+
+.related { border-top: 1px solid var(--line); background: var(--surface); }
+.related .wrap { padding-block: 30px; }
+.related .rh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.related h2 { font-size: 26px; }
+.rel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@container (max-width: 760px) { .rel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rel-grid a { text-decoration: none; color: var(--ink); display: grid; gap: 8px; }
+.rel-grid .im { border-radius: var(--r); overflow: hidden; }
+.rel-grid b { font: var(--display-weight) 16px/1.25 var(--f-display); }
+.rel-grid span { font-size: 13px; color: var(--muted); }
+
+.s-footer { border-top: 1px solid var(--line); }
+.s-footer .wrap { padding-block: 30px 22px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+@container (max-width: 760px) { .s-footer .wrap { grid-template-columns: minmax(0, 1fr); } }
+.s-footer h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.s-footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14.5px; }
+.s-footer ul a { color: var(--ink); text-decoration: none; }
+.s-footer .signup { margin: 0; }
+.legal { border-top: 1px solid var(--line); }
+.legal .wrap { padding-block: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.made { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--f-ui); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+
+.consent { position: sticky; bottom: 0; z-index: 5; background: var(--ink); color: var(--bg); }
+.consent .wrap { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; padding-block: 12px; font: 14px var(--f-ui); }
+.consent p { margin: 0; max-width: 70ch; }
+.consent .bx { display: flex; gap: 8px; }
+.consent button { border-radius: var(--r); padding: 6px 12px; font: 600 13px var(--f-ui); cursor: pointer; border: 1.5px solid var(--bg); background: transparent; color: var(--bg); }
+.consent button.yes { background: var(--bg); color: var(--ink); }
+
+/* Print preview overlay */
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(8, 10, 18, 0.55); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.paper { background: #ffffff; color: #111111; width: min(680px, 100%); max-height: 100%; overflow: auto; border-radius: 6px; padding: 28px 32px; font-family: Georgia, serif; font-size: 14px; line-height: 1.5; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.paper .ptools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; font: 13px var(--f-ui); background: #eef0f4; color: #161a24; margin: -28px -32px 18px; padding: 10px 16px; border-bottom: 1px solid #d6dae3; }
+.paper .ptools button { font: 600 13px var(--f-ui); border: 1px solid #586075; border-radius: 6px; background: #ffffff; color: #161a24; padding: 4px 10px; cursor: pointer; }
+.paper h2 { font: 700 24px Georgia, serif; margin: 0 0 4px; }
+.paper .pimg { width: 140px; float: right; margin: 0 0 10px 16px; }
+.paper h3 { font: 700 15px Georgia, serif; margin: 14px 0 4px; }
+.paper ul, .paper ol { margin: 0; padding-left: 1.3em; }
+.paper .purl { border-top: 1px solid #cccccc; margin-top: 16px; padding-top: 8px; font-size: 12px; color: #555555; }
+
+pre.ld { font: 11.5px/1.5 var(--f-mono); background: var(--c-bg); border: 1px solid var(--c-line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 340px; margin: 8px 0 0; color: var(--c-ink); }
+details.ldbox summary { cursor: pointer; font-size: 12.5px; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<header class="intro">
+  <div>
+    <div class="eyebrow">PantryPress · reader view of a published post</div>
+    <h1>What a published PantryPress recipe post looks like, and where bloggers can shape it</h1>
+    <p>Everything inside the browser frame is what a reader sees. Use the bar below to act as the blogger: switch canned themes, accents, fonts, header and layout, or change plan tier. Numbered pins mark each extension point; the legend explains what the blogger controls there.</p>
+  </div>
+</header>
+
+<section class="controls" aria-label="Blogger settings">
+  <div class="ctl"><span>Theme</span>
+    <div class="seg" id="ctl-theme">
+      <button type="button" data-v="market" aria-pressed="true">Market</button>
+      <button type="button" data-v="hearth" aria-pressed="false">Hearth</button>
+      <button type="button" data-v="larder" aria-pressed="false">Larder</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Accent</span><div class="swatches" id="ctl-accent"></div></div>
+  <div class="ctl"><span>Fonts</span>
+    <div class="seg" id="ctl-fonts">
+      <button type="button" data-v="theme" aria-pressed="true">Theme default</button>
+      <button type="button" data-v="serif" aria-pressed="false">Classic serif</button>
+      <button type="button" data-v="sans" aria-pressed="false">Modern sans</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Header</span>
+    <div class="seg" id="ctl-header">
+      <button type="button" data-v="split" aria-pressed="true">Split</button>
+      <button type="button" data-v="centered" aria-pressed="false">Centered</button>
+      <button type="button" data-v="minimal" aria-pressed="false">Minimal</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Layout</span>
+    <div class="seg" id="ctl-layout">
+      <button type="button" data-v="sidebar" aria-pressed="true">With sidebar</button>
+      <button type="button" data-v="single" aria-pressed="false">Single column</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Site mode</span>
+    <div class="seg" id="ctl-mode">
+      <button type="button" data-v="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-v="light" aria-pressed="false">Light</button>
+      <button type="button" data-v="dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Plan</span>
+    <div class="seg" id="ctl-tier">
+      <button type="button" data-v="starter" aria-pressed="false">Starter</button>
+      <button type="button" data-v="plus" aria-pressed="true">Plus</button>
+      <button type="button" data-v="pro" aria-pressed="false">Pro</button>
+    </div>
+  </div>
+  <div class="ctl"><span>Address</span>
+    <label class="switch"><input type="checkbox" id="ctl-domain"><span>Use custom domain</span></label>
+  </div>
+  <div class="ctl"><span>Mockup</span>
+    <label class="switch"><input type="checkbox" id="ctl-ann" checked><span>Show extension points</span></label>
+  </div>
+  <p class="ctl-note" id="tier-note"></p>
+</section>
+
+<div class="workspace">
+<div class="browser">
+  <div class="bar">
+    <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="address ann ann-soft">
+      <a class="pin" href="#ep-1">1</a>
+      <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 10V7a6 6 0 0 1 12 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2 0h8V7a4 4 0 0 0-8 0z"/></svg>
+      <span class="host" id="host">smallbatch.pantrypress.app</span><span class="path">/brown-butter-banana-bread/</span>
+    </div>
+  </div>
+
+  <div class="site ann ann-soft" id="site" data-theme-name="market" data-mode="auto" data-header="split" data-layout="sidebar" data-fonts="theme">
+    <a class="pin" href="#ep-2" style="top:8px;left:8px">2</a>
+
+    <header class="s-header ann ann-soft">
+      <a class="pin r" href="#ep-3" style="top:8px;right:8px">3</a>
+      <div class="wrap">
+        <a class="logo" href="#site" onclick="return false"><span class="mark">SB</span><span><span class="word">Small Batch Sundays</span><span class="tag">Baking for two to six, from Nadia's kitchen</span></span></a>
+        <nav class="nav" aria-label="Site">
+          <a href="#site" onclick="return false">Recipes</a>
+          <a href="#site" onclick="return false">Breads</a>
+          <a href="#site" onclick="return false">Weeknight</a>
+          <a href="#site" onclick="return false">About</a>
+          <span class="search"><svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 4a6 6 0 1 0 3.7 10.7l4.8 4.8 1.4-1.4-4.8-4.8A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>Search recipes</span>
+          <a class="menu" href="#site" onclick="return false">☰ Menu</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="s-main">
+      <div class="wrap">
+        <article>
+          <nav class="crumbs ann ann-soft" aria-label="Breadcrumb" style="display:inline-flex">
+            <a class="pin" href="#ep-4">4</a>
+            <a href="#site" onclick="return false">Home</a> › <a href="#site" onclick="return false">Breads &amp; Loaves</a> › <span>Brown Butter Banana Bread</span>
+          </nav>
+
+          <div class="ann">
+            <a class="pin" href="#ep-5">5</a>
+            <h1 class="post-title">Brown Butter Banana Bread with a Crackly Sugar Top</h1>
+            <p class="dek">Browning the butter takes six extra minutes and makes this loaf taste like toffee. Sour cream keeps it moist for days.</p>
+            <div class="byline">
+              <span class="who"><span class="avatar">NB</span><span>By <a href="#site" onclick="return false">Nadia Brooks</a></span></span>
+              <span>Published Oct 4, 2026 · Updated Oct 19, 2026</span>
+              <span><span class="stars" aria-hidden="true">★★★★★</span> 4.8 (126 ratings)</span>
+              <span>14 comments</span>
+            </div>
+          </div>
+
+          <div class="post-actions ann" style="display:inline-flex">
+            <a class="pin" href="#ep-6">6</a>
+            <button type="button" class="btn solid" id="jump">↓ Jump to recipe</button>
+            <button type="button" class="btn outline" data-print>Print recipe</button>
+          </div>
+
+          <p class="disclosure ann">
+            <a class="pin" href="#ep-7">7</a>
+            This post contains affiliate links. If you buy through them, I may earn a small commission at no cost to you. <a href="#site" onclick="return false">Read my disclosure policy.</a>
+          </p>
+
+          <figure class="hero ann">
+            <a class="pin" href="#ep-8">8</a>
+            <div data-art="hero"></div>
+            <button type="button" class="pinit">Save</button>
+            <figcaption>A slice of brown butter banana bread on a board, sugar crust shattered at the edges.</figcaption>
+          </figure>
+
+          <div class="prose ann ann-soft">
+            <a class="pin" href="#ep-9">9</a>
+            <p>I bake this on the Sunday after the bananas on the counter have gone fully freckled. It is the loaf my kids ask for by name, and the one I bring when a neighbor has a new baby.</p>
+            <p>The two upgrades over a standard banana bread are small. Browned butter adds a nutty, almost caramel depth, and a spoonful of sour cream keeps the crumb tender on day three. A handful of turbinado sugar on top bakes into a crackly crust.</p>
+
+            <div class="ad ann" data-ad="1"><a class="pin" href="#ep-10">10</a><b>Advertisement</b><span class="ad-label">In-content slot 1 · AdSense</span></div>
+
+            <h2>Why brown the butter?</h2>
+            <p>When butter melts, its milk solids sink. Keep cooking and those solids toast, and the butter goes from pale yellow to amber with a smell like hazelnuts. That flavor carries through the whole loaf.</p>
+            <div class="callout"><b>Tip</b>Use a light-colored saucepan so you can see the solids change color. Pull it off the heat the moment they turn hazelnut brown; they keep cooking in the hot pan.</div>
+
+            <div class="gallery">
+              <figure><div data-art="butter"></div><figcaption>Browned butter, solids and all.</figcaption></figure>
+              <figure><div data-art="batter"></div><figcaption>Fold until a few streaks remain.</figcaption></figure>
+              <figure><div data-art="crust"></div><figcaption>Turbinado before baking.</figcaption></figure>
+            </div>
+
+            <form class="signup" data-signup="inline">
+              <a class="pin r" href="#ep-11">11</a>
+              <h3>Get one small-batch bake every Sunday</h3>
+              <p>Recipes sized for real households, sent once a week.</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <input type="text" id="nl-inline-name" placeholder="First name (optional)" aria-label="First name">
+                <input type="email" id="nl-inline-email" placeholder="you@example.com" aria-label="Email" required>
+                <button class="btn" type="submit">Subscribe</button>
+              </div>
+              <small>You'll get a confirmation email first. Unsubscribe anytime.</small>
+            </form>
+
+            <h2>What you'll need</h2>
+            <ul>
+              <li><b>Very ripe bananas.</b> Heavily speckled, nearly black is best.</li>
+              <li><b>Sour cream.</b> Full-fat Greek yogurt works the same way.</li>
+              <li><b>A 9×5-inch loaf pan.</b> I use <a href="#site" onclick="return false" rel="sponsored nofollow">this light aluminum one</a> so the sides don't over-brown.</li>
+            </ul>
+            <blockquote class="quote">"Made this twice this week. The brown butter is the whole point." — Priya, a reader</blockquote>
+
+            <div class="ad" data-ad="2"><b>Advertisement</b><span class="ad-label">In-content slot 2 · AdSense</span></div>
+          </div>
+
+          <section class="recipe ann" id="recipe" aria-labelledby="r-title">
+            <a class="pin" href="#ep-12">12</a>
+            <div class="recipe-head">
+              <div>
+                <h2 id="r-title">Brown Butter Banana Bread</h2>
+                <p>A tender, toffee-scented banana loaf with browned butter, sour cream, and a crackly turbinado top.</p>
+                <div class="r-rating"><span class="stars">★★★★★</span> 4.8 from 126 ratings</div>
+                <div class="r-actions ann" style="display:inline-flex">
+                  <a class="pin r" href="#ep-14">14</a>
+                  <button type="button" class="btn solid small" data-print>Print</button>
+                  <button type="button" class="btn outline small" id="pin-recipe">Pin recipe</button>
+                  <button type="button" class="btn outline small" id="rate-jump">Rate it</button>
+                </div>
+              </div>
+              <div class="card-img"><div data-art="square"></div></div>
+            </div>
+            <div class="times">
+              <div><span>Prep</span><b>20 min</b></div>
+              <div><span>Cook</span><b>1 hr</b></div>
+              <div><span>Cool</span><b>1 hr</b></div>
+              <div><span>Total</span><b>2 hr 20 min</b></div>
+              <div><span>Yield</span><b id="yield">10 slices</b></div>
+            </div>
+            <div class="r-tools ann ann-soft">
+              <a class="pin" href="#ep-13">13</a>
+              <div class="grp"><label>Servings</label>
+                <div class="pills" id="scale">
+                  <button type="button" data-v="0.5" aria-pressed="false">½×</button>
+                  <button type="button" data-v="1" aria-pressed="true">1×</button>
+                  <button type="button" data-v="2" aria-pressed="false">2×</button>
+                  <button type="button" data-v="3" aria-pressed="false">3×</button>
+                </div>
+              </div>
+              <div class="grp"><label>Units</label>
+                <div class="pills" id="units">
+                  <button type="button" data-v="us" aria-pressed="true">US</button>
+                  <button type="button" data-v="metric" aria-pressed="false">Metric</button>
+                </div>
+              </div>
+              <label class="cook"><input type="checkbox" id="cookmode"><span>Cook mode</span><span class="cook-on" id="cook-on" hidden>Screen stays on</span></label>
+            </div>
+            <div class="r-body">
+              <section>
+                <h3>Ingredients</h3>
+                <div id="ingredients"></div>
+              </section>
+              <section>
+                <h3>Instructions</h3>
+                <p class="scale-note" id="scale-note" hidden></p>
+                <ol class="steps">
+                  <li>Heat the oven to <span data-u="350°F|175°C"></span>. Grease a <span data-u="9×5-inch|23×13 cm"></span> loaf pan and line it with parchment, leaving an overhang on the long sides.</li>
+                  <li>Melt the butter in a light-colored saucepan over medium heat, swirling, until the milk solids turn hazelnut brown and smell toasty, 5 to 7 minutes. Scrape into a large bowl, browned bits included, and cool 10 minutes.</li>
+                  <li>Whisk in the brown sugar, then the eggs one at a time, then the bananas, sour cream, and vanilla.</li>
+                  <li>In a second bowl, whisk the flour, baking soda, salt, and cinnamon. Fold into the wet ingredients until a few streaks of flour remain, then fold in the walnuts.</li>
+                  <li>Scrape into the pan, sprinkle with the turbinado sugar, and bake 55 to 65 minutes, until a skewer comes out with a few moist crumbs. Tent with foil at 40 minutes if the top browns fast.</li>
+                  <li>Cool 15 minutes in the pan, lift out by the parchment, and cool completely on a rack before slicing.</li>
+                </ol>
+              </section>
+            </div>
+            <div class="r-foot">
+              <div>
+                <h4>Equipment</h4>
+                <ul><li><span data-u="9×5-inch|23×13 cm"></span> loaf pan</li><li>Light-colored saucepan</li><li>Parchment paper</li></ul>
+                <h4 style="margin-top:14px">Notes</h4>
+                <ul><li>Keeps 3 days wrapped at room temperature, or 3 months frozen in slices.</li><li>No sour cream? Use the same amount of plain full-fat yogurt.</li></ul>
+              </div>
+              <div class="ann">
+                <a class="pin r" href="#ep-15">15</a>
+                <h4>Nutrition per slice</h4>
+                <div class="nutri">
+                  <div><b>312</b>kcal</div><div><b>14 g</b>fat</div><div><b>43 g</b>carbs</div><div><b>5 g</b>protein</div>
+                  <div><b>22 g</b>sugar</div><div><b>2 g</b>fiber</div><div><b>260 mg</b>sodium</div><div><b>48 mg</b>cholesterol</div>
+                </div>
+                <p class="disclaim">Nutrition is entered by the author and is an estimate. It is not provided or verified by PantryPress.</p>
+              </div>
+            </div>
+            <div class="r-meta"><span>Course <b>Breakfast, Snack</b></span><span>Cuisine <b>American</b></span><span>Diet <b>Vegetarian</b></span><span>Keywords <b>banana bread, brown butter, quick bread</b></span></div>
+          </section>
+
+          <div class="ad ann" data-ad="3"><a class="pin" href="#ep-10">10</a><b>Advertisement</b><span class="ad-label">After recipe card · AdSense</span></div>
+
+          <div class="share ann" style="display:inline-flex">
+            <a class="pin" href="#ep-16">16</a>
+            <span>Share</span>
+            <a href="#site" onclick="return false">Pinterest</a><a href="#site" onclick="return false">Facebook</a><a href="#site" onclick="return false">Email</a><a href="#site" onclick="return false" id="copylink">Copy link</a>
+          </div>
+
+          <form class="signup alt" data-signup="end">
+            <a class="pin r" href="#ep-11">11</a>
+            <h3>Liked this loaf?</h3>
+            <p>Get next Sunday's small-batch recipe in your inbox.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <input type="email" id="nl-end-email" placeholder="you@example.com" aria-label="Email" required>
+              <button class="btn" type="submit">Subscribe</button>
+            </div>
+            <small>Double opt-in. Your email is never shared.</small>
+          </form>
+
+          <section class="reviews ann" id="reviews">
+            <a class="pin" href="#ep-17">17</a>
+            <h2>Ratings &amp; comments</h2>
+            <form class="rate-box" id="rate-form">
+              <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center"><b style="font-family:var(--f-display)">Rate this recipe</b><div class="rate-stars" id="rate-stars"></div></div>
+              <textarea id="rv-text" placeholder="Tell other bakers how it went (optional)"></textarea>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                <input type="text" id="rv-name" placeholder="Your name" aria-label="Your name">
+                <button class="btn solid small" type="submit">Post review</button>
+                <span id="rate-msg" style="font-size:13.5px;color:var(--muted)"></span>
+              </div>
+            </form>
+            <div class="comment"><div class="h"><b>Marcus T.</b><span class="stars">★★★★★</span><time>Oct 18, 2026</time></div><p>Halved it using the ½× button and baked in a mini loaf pan for 38 minutes. Perfect.</p></div>
+            <div class="comment reply"><div class="h"><b>Nadia Brooks</b><span class="badge">Author</span><time>Oct 18, 2026</time></div><p>Love that! Thanks for sharing the bake time for the mini pan.</p></div>
+            <div class="comment"><div class="h"><b>Joanne</b><span class="stars">★★★★☆</span><time>Oct 12, 2026</time></div><p>Used yogurt instead of sour cream. Still moist on day three. I'd add a pinch more salt next time.</p></div>
+          </section>
+        </article>
+
+        <aside class="sidebar ann ann-soft" aria-label="Sidebar">
+          <a class="pin r" href="#ep-18">18</a>
+          <section class="widget about-w">
+            <div class="ph">NB</div>
+            <h3>Hi, I'm Nadia</h3>
+            <p>I bake for a family of four in a tiny Chicago kitchen. Every recipe here is sized so nothing goes stale on the counter.</p>
+            <a href="#site" onclick="return false">More about me →</a>
+          </section>
+          <section class="widget">
+            <h3>Search</h3>
+            <div class="side-search"><input type="text" id="side-q" placeholder="Try &quot;sourdough&quot;" aria-label="Search recipes"></div>
+          </section>
+          <section class="widget">
+            <h3>Most popular</h3>
+            <ol class="pop">
+              <li><a href="#site" onclick="return false">Six-Cookie Chocolate Chip Batch</a></li>
+              <li><a href="#site" onclick="return false">Overnight Focaccia for Two</a></li>
+              <li><a href="#site" onclick="return false">Brown Butter Banana Bread</a></li>
+              <li><a href="#site" onclick="return false">Tiny Lemon Drizzle Loaf</a></li>
+            </ol>
+          </section>
+          <div class="sticky-slot"><div class="ad tall" data-ad="side"><b>Advertisement</b><span class="ad-label">Sidebar sticky slot · Pro networks</span></div></div>
+        </aside>
+      </div>
+    </main>
+
+    <section class="related ann ann-soft">
+      <a class="pin" href="#ep-19" style="top:8px;left:8px">19</a>
+      <div class="wrap">
+        <div class="rh"><h2>More breads &amp; loaves</h2><a href="#site" onclick="return false">See all 24 →</a></div>
+        <div class="rel-grid">
+          <a href="#site" onclick="return false"><div class="im" data-art="r1"></div><b>Tiny Lemon Drizzle Loaf</b><span>★ 4.9 · 1 hr 10 min</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r2"></div><b>Overnight Focaccia for Two</b><span>★ 4.7 · 14 hr</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r3"></div><b>Pumpkin Bread Muffins</b><span>★ 4.8 · 45 min</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r4"></div><b>Honey Oat Sandwich Loaf</b><span>★ 4.6 · 3 hr</span></a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="s-footer ann ann-soft">
+      <a class="pin r" href="#ep-20" style="top:8px;right:8px">20</a>
+      <div class="wrap">
+        <form class="signup" data-signup="footer">
+          <h3>The Sunday bake</h3>
+          <p>One small-batch recipe a week.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <input type="email" id="nl-foot-email" placeholder="you@example.com" aria-label="Email" required>
+            <button class="btn" type="submit">Subscribe</button>
+          </div>
+        </form>
+        <div><h4>Site</h4><ul><li><a href="#site" onclick="return false">About</a></li><li><a href="#site" onclick="return false">Contact</a></li><li><a href="#site" onclick="return false">Privacy</a></li><li><a href="#site" onclick="return false">Disclosure</a></li><li><a href="#site" onclick="return false">Accessibility</a></li><li><a href="#site" onclick="return false">Terms</a></li></ul></div>
+        <div><h4>Follow</h4><ul><li><a href="#site" onclick="return false">Instagram</a></li><li><a href="#site" onclick="return false">Pinterest</a></li><li><a href="#site" onclick="return false">YouTube</a></li><li><a href="#site" onclick="return false">RSS feed</a></li></ul></div>
+      </div>
+      <div class="legal"><div class="wrap"><span>© 2026 Small Batch Sundays</span><span class="made" id="made">Made with PantryPress</span></div></div>
+    </footer>
+
+    <div class="consent ann" id="consent">
+      <a class="pin" href="#ep-21" style="top:-11px;left:8px">21</a>
+      <div class="wrap">
+        <p>We use cookies for ads and to measure them. You can accept or reject non-essential cookies.</p>
+        <div class="bx"><button type="button" data-consent>Reject</button><button type="button" class="yes" data-consent>Accept</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside class="legend" aria-label="Extension points">
+  <h2>Extension points</h2>
+  <p>What the blogger controls on a published post. Everything is a typed setting or a slot; nothing accepts custom code.</p>
+  <div class="kinds"><span class="chip k-custom">Setting</span><span class="chip k-slot">Slot</span><span class="chip k-auto">Automatic</span><span class="chip">Always on</span></div>
+  <ol class="ep-list" id="ep-list"></ol>
+
+  <h4>Under the hood, not visible on the page</h4>
+  <ul class="plain">
+    <li><b>Structured data.</b> schema.org Recipe, Article, BreadcrumbList, Person and WebSite JSON-LD, built from the recipe fields. <details class="ldbox"><summary>See this page's Recipe JSON-LD</summary><pre class="ld" id="ld-view"></pre></details></li>
+    <li><b>SEO fields.</b> SEO title, meta description, canonical override, Open Graph, X cards and Pinterest rich pins per post.</li>
+    <li><b>Feeds and indexes.</b> sitemap.xml with images, robots.txt, RSS per site and category, IndexNow on publish.</li>
+    <li><b>Permalinks.</b> Stable <code>/{slug}/</code> URLs, automatic 301 on slug change, redirect manager.</li>
+    <li><b>Verification.</b> Search Console and Pinterest verification fields.</li>
+    <li><b>ads.txt.</b> Generated for AdSense on Plus, editable on Pro.</li>
+    <li><b>Analytics.</b> Cookie-free page views by default; optional GA4 after consent.</li>
+    <li><b>Publishing source.</b> Posts come from the PantryPress editor, a WordPress import, or a connected tool such as CreatorPantry via the Publishing API key. Readers can't tell the difference.</li>
+  </ul>
+
+  <h4>Deliberately not extensible</h4>
+  <ul class="plain">
+    <li>No custom CSS, HTML, templates or theme uploads.</li>
+    <li>No plugins or third-party scripts, including share widgets.</li>
+    <li>No newsletter sending or email-service sync. Subscribers export to CSV.</li>
+    <li>No estimated nutrition and no AI features.</li>
+    <li>Ads never render inside ingredient or step lists.</li>
+  </ul>
+</aside>
+</div>
+
+<div class="overlay" id="print" hidden>
+  <div class="paper" role="dialog" aria-modal="true" aria-labelledby="p-title">
+    <div class="ptools">
+      <span>Print view preview · the live site opens the browser print dialog at <code>/brown-butter-banana-bread/print/</code></span>
+      <span style="display:flex;gap:10px;align-items:center"><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="p-img" checked>Images</label><button type="button" id="p-close">Close</button></span>
+    </div>
+    <div id="p-body"></div>
+  </div>
+</div>
+
+<script type="application/ld+json" id="ld-json"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var site = $("#site");
+
+  /* ---------- Illustrations (stand-ins for blogger photos) ---------- */
+  function art(kind) {
+    var w = 1200, h = 800;
+    if (kind === "square" || /^r\d/.test(kind)) { w = 800; h = 800; }
+    if (kind === "butter" || kind === "batter" || kind === "crust") { w = 600; h = 600; }
+    var bgs = { hero: ["#c9b79c", "#8f7656"], square: ["#d8cbb5", "#a48b69"], butter: ["#3b2a20", "#6a4a2e"], batter: ["#e9dcc4", "#c7ae86"], crust: ["#ddd2c0", "#b49c79"], r1: ["#f3e7a8", "#d9b84a"], r2: ["#d9cdb6", "#9c855f"], r3: ["#e6b98a", "#b9773f"], r4: ["#e5dccb", "#b8a17c"] };
+    var c = bgs[kind] || bgs.hero;
+    var id = "g" + kind;
+    var s = '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="Recipe photo placeholder"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset="1" stop-color="' + c[1] + '"/></linearGradient></defs><rect width="' + w + '" height="' + h + '" fill="url(#' + id + ')"/>';
+    var cx = w / 2, cy = h * 0.56;
+    if (kind === "butter") {
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="200" fill="#b7b9bf"/><circle cx="' + cx + '" cy="' + cy + '" r="170" fill="#b8792f"/><g fill="#5a3412">';
+      for (var i = 0; i < 26; i++) { var a = i * 2.4, rr = 30 + (i * 37) % 130; s += '<circle cx="' + (cx + Math.cos(a) * rr).toFixed(0) + '" cy="' + (cy + Math.sin(a) * rr).toFixed(0) + '" r="' + (5 + i % 4) + '"/>'; }
+      s += "</g>";
+    } else if (kind === "batter") {
+      s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="230" ry="200" fill="#ffffff" opacity="0.85"/><ellipse cx="' + cx + '" cy="' + cy + '" rx="190" ry="160" fill="#d6b27a"/><path d="M' + (cx - 120) + " " + (cy - 20) + " q60 -50 120 0 t120 0" + '" stroke="#f3e6c8" stroke-width="16" fill="none" stroke-linecap="round"/><path d="M' + (cx - 90) + " " + (cy + 50) + " q50 -30 100 0 t100 0" + '" stroke="#f3e6c8" stroke-width="12" fill="none" stroke-linecap="round"/>';
+    } else if (/^r\d/.test(kind) || kind === "crust") {
+      var loaf = { r1: "#e2b53a", r2: "#c9944b", r3: "#b8642a", r4: "#c49255", crust: "#a86b35" }[kind];
+      s += '<ellipse cx="' + cx + '" cy="' + (cy + 150) + '" rx="300" ry="40" fill="#000" opacity="0.15"/><rect x="' + (cx - 260) + '" y="' + (cy - 130) + '" width="520" height="270" rx="90" fill="' + loaf + '"/><path d="M' + (cx - 200) + " " + (cy - 80) + " Q" + cx + " " + (cy - 150) + " " + (cx + 200) + " " + (cy - 80) + '" stroke="#ffffff" stroke-opacity="0.35" stroke-width="18" fill="none" stroke-linecap="round"/>';
+      if (kind === "crust") { s += '<g fill="#f7ecd3">'; for (var k = 0; k < 40; k++) { s += '<rect x="' + (cx - 220 + (k * 53) % 440) + '" y="' + (cy - 110 + (k * 29) % 200) + '" width="9" height="7" rx="2"/>'; } s += "</g>"; }
+    } else {
+      // hero / square: board, loaf and a slice
+      s += '<ellipse cx="' + cx + '" cy="' + (cy + h * 0.18) + '" rx="' + w * 0.42 + '" ry="' + h * 0.12 + '" fill="#6b4a2c"/><ellipse cx="' + cx + '" cy="' + (cy + h * 0.16) + '" rx="' + w * 0.42 + '" ry="' + h * 0.12 + '" fill="#9a6d43"/>';
+      var lw = w * 0.46, lh = h * 0.3, lx = cx - lw * 0.75, ly = cy - lh * 0.55;
+      s += '<rect x="' + lx + '" y="' + ly + '" width="' + lw + '" height="' + lh + '" rx="' + lh * 0.35 + '" fill="#7a4a22"/><rect x="' + (lx + lw - 30) + '" y="' + ly + '" width="30" height="' + lh + '" fill="#e2c18e"/>';
+      s += '<path d="M' + (lx + 30) + " " + (ly + 20) + " Q" + (lx + lw / 2) + " " + (ly - 30) + " " + (lx + lw - 40) + " " + (ly + 20) + '" stroke="#4a2a10" stroke-width="10" fill="none"/>';
+      s += '<g fill="#f6ead0">'; for (var j = 0; j < 30; j++) { s += '<rect x="' + (lx + 30 + (j * 41) % (lw - 80)) + '" y="' + (ly + 10 + (j * 17) % 50) + '" width="8" height="6" rx="2"/>'; } s += "</g>";
+      var sx = cx + w * 0.08, sy = cy - lh * 0.35;
+      s += '<rect x="' + sx + '" y="' + sy + '" width="' + w * 0.2 + '" height="' + lh * 0.95 + '" rx="18" fill="#7a4a22"/><rect x="' + (sx + 10) + '" y="' + (sy + 12) + '" width="' + (w * 0.2 - 20) + '" height="' + (lh * 0.95 - 22) + '" rx="12" fill="#e4c28c"/>';
+      s += '<g fill="#b3874f">'; for (var m = 0; m < 14; m++) { s += '<circle cx="' + (sx + 26 + (m * 37) % (w * 0.2 - 50)) + '" cy="' + (sy + 30 + (m * 23) % (lh * 0.8)) + '" r="4"/>'; } s += "</g>";
+    }
+    return s + "</svg>";
+  }
+  $$("[data-art]").forEach(function (el) { el.innerHTML = art(el.getAttribute("data-art")); });
+
+  /* ---------- Recipe data (the live site precomputes every variant on the server) ---------- */
+  var groups = [
+    { name: "Brown butter", items: [
+      { us: [0.5, "cup"], m: [113, "g"], item: "unsalted butter" }
+    ]},
+    { name: "Batter", items: [
+      { count: 3, item: "very ripe bananas", note: "mashed", mExtra: [340, "g"] },
+      { us: [2/3, "cup"], m: [140, "g"], item: "light brown sugar", note: "packed" },
+      { count: 2, item: "large eggs", note: "room temperature", whole: true },
+      { us: [1/3, "cup"], m: [80, "g"], item: "sour cream" },
+      { us: [1, "tsp"], m: [5, "ml"], item: "vanilla extract" },
+      { us: [1.75, "cup"], m: [220, "g"], item: "all-purpose flour" },
+      { us: [1, "tsp"], m: [1, "tsp"], item: "baking soda" },
+      { us: [0.5, "tsp"], m: [0.5, "tsp"], item: "fine sea salt" },
+      { us: [0.5, "tsp"], m: [0.5, "tsp"], item: "ground cinnamon" },
+      { us: [0.5, "cup"], m: [60, "g"], item: "toasted walnuts", note: "chopped, optional" }
+    ]},
+    { name: "Topping", items: [
+      { us: [1, "tbsp"], m: [12, "g"], item: "turbinado sugar" }
+    ]}
+  ];
+  var FR = [[0, ""], [1/8, "⅛"], [1/4, "¼"], [1/3, "⅓"], [1/2, "½"], [2/3, "⅔"], [3/4, "¾"], [1, ""]];
+  function frac(x) {
+    var whole = Math.floor(x + 1e-9), rest = x - whole, best = FR[0];
+    FR.forEach(function (f) { if (Math.abs(f[0] - rest) < Math.abs(best[0] - rest)) best = f; });
+    if (best[0] === 1) { whole += 1; best = FR[0]; }
+    return (whole ? String(whole) : "") + best[1] || "0";
+  }
+  function usQty(q, unit) {
+    if (unit === "cup" && q < 0.25) { q = q * 16; unit = "tbsp"; }
+    if (unit === "tsp" && q >= 3) { q = q / 3; unit = "tbsp"; }
+    if (unit === "tbsp" && q >= 4) { q = q / 16; unit = "cup"; }
+    var label = unit === "cup" ? (q > 1 ? "cups" : "cup") : unit;
+    return frac(q) + " " + label;
+  }
+  function mQty(q, unit) {
+    if (unit === "tsp" || unit === "tbsp") return usQty(q, unit);
+    var r = q < 20 ? Math.round(q) : Math.round(q / 5) * 5;
+    if (unit === "g" && r >= 1000) return (r / 1000).toFixed(2).replace(/0$/, "") + " kg";
+    return r + " " + unit;
+  }
+  var rs = { scale: 1, units: "us" };
+  function line(it) {
+    var s = rs.scale, q;
+    if (it.count) {
+      var n = it.count * s;
+      n = it.whole ? Math.max(1, Math.round(n)) : n;
+      q = frac(n);
+      var extra = (rs.units === "metric" && it.mExtra) ? " (about " + mQty(it.mExtra[0] * s, it.mExtra[1]) + ")" : "";
+      return '<span class="q">' + q + "</span> " + it.item + extra + (it.note ? ', <span class="note">' + it.note + "</span>" : "");
+    }
+    var src = rs.units === "us" ? it.us : it.m;
+    q = rs.units === "us" ? usQty(src[0] * s, src[1]) : mQty(src[0] * s, src[1]);
+    return '<span class="q">' + q + "</span> " + it.item + (it.note ? ', <span class="note">' + it.note + "</span>" : "");
+  }
+  function renderRecipe() {
+    var html = "";
+    groups.forEach(function (g) {
+      html += "<h4>" + g.name + '</h4><ul class="ing">' + g.items.map(function (it) { return "<li>" + line(it) + "</li>"; }).join("") + "</ul>";
+    });
+    $("#ingredients").innerHTML = html;
+    var slices = 10 * rs.scale;
+    $("#yield").textContent = slices + " slices";
+    var note = $("#scale-note");
+    if (rs.scale === 1) { note.hidden = true; }
+    else {
+      note.hidden = false;
+      note.textContent = rs.scale === 0.5 ? "Scaled to ½×: bake in a mini loaf pan and start checking at 35 minutes." : "Scaled to " + rs.scale + "×: bake in " + rs.scale + " separate pans. Times stay the same.";
+    }
+    $$("[data-u]").forEach(function (el) { var p = el.getAttribute("data-u").split("|"); el.textContent = rs.units === "us" ? p[0] : p[1]; });
+  }
+  function pills(id, key, after) {
+    $$("#" + id + " button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        $$("#" + id + " button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        var v = b.getAttribute("data-v");
+        rs[key] = key === "scale" ? parseFloat(v) : v;
+        after();
+      });
+    });
+  }
+  pills("scale", "scale", renderRecipe);
+  pills("units", "units", renderRecipe);
+  renderRecipe();
+
+  /* ---------- Reader interactions ---------- */
+  $("#jump").addEventListener("click", function () { $("#recipe").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#rate-jump").addEventListener("click", function () { $("#reviews").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#pin-recipe").addEventListener("click", function () { this.textContent = "Saved to Pinterest (mock)"; });
+  $("#copylink").addEventListener("click", function () {
+    var a = this, url = "https://" + $("#host").textContent + "/brown-butter-banana-bread/";
+    try { navigator.clipboard.writeText(url).then(function () { a.textContent = "Link copied"; }, function () { a.textContent = url; }); }
+    catch (e) { a.textContent = url; }
+  });
+  var wake = null;
+  $("#cookmode").addEventListener("change", function () {
+    $("#cook-on").hidden = !this.checked;
+    if (this.checked) {
+      try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(function (w) { wake = w; }, function () {}); } catch (e) {}
+    } else if (wake) { try { wake.release(); } catch (e) {} wake = null; }
+  });
+  $$("form[data-signup]").forEach(function (f) {
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var row = f.querySelector("div");
+      row.innerHTML = '<span class="ok">Almost done. Check your inbox and tap the confirmation link.</span>';
+    });
+  });
+  var rating = 0;
+  var starsEl = $("#rate-stars");
+  for (var i = 1; i <= 5; i++) {
+    (function (n) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = "★"; b.setAttribute("aria-label", n + " star" + (n > 1 ? "s" : ""));
+      b.addEventListener("click", function () { rating = n; $$("button", starsEl).forEach(function (x, idx) { x.classList.toggle("on", idx < n); }); });
+      starsEl.appendChild(b);
+    })(i);
+  }
+  $("#rate-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("#rate-msg").textContent = rating ? "Thanks! Your " + rating + "-star review is waiting for approval." : "Pick a star rating first.";
+  });
+  $$("[data-consent]").forEach(function (b) { b.addEventListener("click", function () { $("#consent").hidden = true; }); });
+
+  /* ---------- Print preview ---------- */
+  function renderPrint() {
+    var img = $("#p-img").checked;
+    var ing = groups.map(function (g) { return "<h3>" + g.name + "</h3><ul>" + g.items.map(function (it) { return "<li>" + line(it).replace(/<[^>]+>/g, "") + "</li>"; }).join("") + "</ul>"; }).join("");
+    var steps = $$(".steps li").map(function (li) { return "<li>" + li.textContent + "</li>"; }).join("");
+    $("#p-body").innerHTML = (img ? '<div class="pimg">' + art("square") + "</div>" : "") +
+      '<h2 id="p-title">Brown Butter Banana Bread</h2><div>Prep 20 min · Cook 1 hr · Cool 1 hr · Total 2 hr 20 min · Yield ' + (10 * rs.scale) + " slices</div>" +
+      ing + "<h3>Instructions</h3><ol>" + steps + '</ol><div class="purl">Recipe by Nadia Brooks · https://' + $("#host").textContent + "/brown-butter-banana-bread/</div>";
+  }
+  $$("[data-print]").forEach(function (b) { b.addEventListener("click", function () { renderPrint(); $("#print").hidden = false; $("#p-close").focus(); }); });
+  $("#p-img").addEventListener("change", renderPrint);
+  $("#p-close").addEventListener("click", function () { $("#print").hidden = true; });
+  $("#print").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("#print").hidden = true; });
+
+  /* ---------- JSON-LD (what the RCP-008 generator would emit) ---------- */
+  (function () {
+    var saved = { scale: rs.scale, units: rs.units }; rs.scale = 1; rs.units = "us";
+    var ld = {
+      "@context": "https://schema.org", "@type": "Recipe",
+      name: "Brown Butter Banana Bread",
+      description: "A tender, toffee-scented banana loaf with browned butter, sour cream, and a crackly turbinado top.",
+      author: { "@type": "Person", name: "Nadia Brooks" },
+      datePublished: "2026-10-04", dateModified: "2026-10-19",
+      image: ["https://smallbatch.pantrypress.app/media/banana-bread-1x1.webp", "https://smallbatch.pantrypress.app/media/banana-bread-4x3.webp", "https://smallbatch.pantrypress.app/media/banana-bread-16x9.webp"],
+      prepTime: "PT20M", cookTime: "PT1H", totalTime: "PT2H20M",
+      recipeYield: ["10", "10 slices"], recipeCategory: ["Breakfast", "Snack"], recipeCuisine: "American",
+      suitableForDiet: "https://schema.org/VegetarianDiet",
+      keywords: "banana bread, brown butter, quick bread",
+      recipeIngredient: [].concat.apply([], groups.map(function (g) { return g.items.map(function (it) { return line(it).replace(/<[^>]+>/g, ""); }); })),
+      recipeInstructions: $$(".steps li").map(function (li, n) { return { "@type": "HowToStep", position: n + 1, text: li.textContent }; }),
+      nutrition: { "@type": "NutritionInformation", servingSize: "1 slice", calories: "312 calories", fatContent: "14 g", carbohydrateContent: "43 g", proteinContent: "5 g", sugarContent: "22 g", fiberContent: "2 g", sodiumContent: "260 mg" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "126" }
+    };
+    rs.scale = saved.scale; rs.units = saved.units;
+    var txt = JSON.stringify(ld, null, 2);
+    $("#ld-json").textContent = txt;
+    $("#ld-view").textContent = txt;
+  })();
+
+  /* ---------- Extension point legend ---------- */
+  var EP = [
+    ["Site address", "Every site gets {name}.pantrypress.app. Plus and Pro can attach a verified custom domain; it becomes canonical and the subdomain 301s to it.", ["custom", "Plus · Pro for custom domain", "DOM-001–005"]],
+    ["Theme, palette and fonts", "Pick one of three canned themes, each with light, dark and auto modes. Accent comes from pre-checked accessible pairs; fonts from a curated, self-hosted set. Changes preview on the blogger's own posts before applying.", ["custom", "Starter: 2 themes", "THM-001–004"]],
+    ["Header and navigation", "Logo, site name, tagline and favicon upload; header style (split, centered, minimal); menu built from pages and categories. Search and social links are toggles.", ["custom", "All plans", "THM-002"]],
+    ["Breadcrumbs", "Built from the post's primary category. Also emitted as BreadcrumbList JSON-LD.", ["auto", "All plans", "SEO-004"]],
+    ["Post header", "Title, dek (excerpt), author with bio link, published and updated dates, rating summary and comment count. The blogger edits the words; the layout is fixed by the theme.", ["custom", "All plans", "POST-004, POST-007"]],
+    ["Jump to recipe and print", "Appear on every post that contains a recipe card. Not removable, because readers expect them.", ["always", "All plans", "2.4 checklist"]],
+    ["Affiliate disclosure", "Inserted automatically above the first affiliate link. Affiliate links get rel=\"sponsored nofollow\". The blogger edits the disclosure text once in settings.", ["auto", "Plus · Pro", "MON-003"]],
+    ["Featured and pinnable image", "Featured image with alt text and focal point, plus an optional vertical 2:3 pinnable image used for Pinterest Save and rich pins. Responsive derivatives are generated.", ["custom", "All plans", "MED-002, POST-004"]],
+    ["Content blocks", "The post body uses only allow-listed blocks: paragraph, heading, image, gallery, list, quote, tip and note callouts, allow-listed video embed, recipe card and divider.", ["custom", "All plans", "POST-002"]],
+    ["Ad slots", "Standard slots fixed by the theme: in-content, after the recipe card, and a sticky sidebar slot. Plus uses AdSense; Pro adds allow-listed ad networks. Ads never go inside ingredients or steps.", ["slot", "Plus · Pro", "MON-001, MON-002"]],
+    ["Newsletter signup forms", "Inline, end-of-post and footer forms, each toggled on or off with editable heading and blurb. Double opt-in, consent stored, list exported as CSV. No sending.", ["slot", "Cap 500 / 5k / 25k", "ENG-005, ENG-006"]],
+    ["Recipe card", "Rendered from the structured recipe: times, yield, grouped ingredients, steps, equipment, notes, course, cuisine, diet and keywords. One recipe can appear in many posts. Card styling follows the theme.", ["custom", "All plans", "RCP-001, RCP-009"]],
+    ["Servings and units", "½×, 1×, 2×, 3× scaling and a US/metric toggle. Every variant is computed on the server at publish time; the page only switches between them.", ["always", "All plans", "RCP-004, RCP-005, RND-003"]],
+    ["Cook mode and print view", "Cook mode keeps the screen awake. Print view prints only the card, with or without images, plus the site URL.", ["always", "All plans", "RND-008"]],
+    ["Nutrition", "Shown only when the blogger enters it, per serving, always with a disclaimer. PantryPress never estimates nutrition or adds diet labels on its own.", ["custom", "All plans", "RCP-006, RND-004"]],
+    ["Share buttons", "Plain links with no third-party scripts. The blogger chooses which networks appear.", ["custom", "All plans", "2.4 checklist"]],
+    ["Ratings and comments", "Star ratings with optional reviews, one-level threaded comments, author badge and a moderation queue. Ratings feed AggregateRating only when real.", ["custom", "All plans", "ENG-001–004"]],
+    ["Sidebar", "Exists only in the sidebar layout variant. Fixed widget set the blogger can toggle and reorder: about-me card, search, most popular (from analytics), and the Pro ad slot.", ["custom", "All plans", "THM-001, THM-002"]],
+    ["Content sections", "Rows like \"More from this category\" and \"Latest\". The same section types build the homepage: featured recipe, latest, category rows, about strip and newsletter.", ["custom", "All plans", "THM-002"]],
+    ["Footer", "Footer signup, site pages (About, Contact, Privacy, Disclosure, Accessibility, Terms), social links and RSS. The \"Made with PantryPress\" badge is required on Starter and removable on paid plans.", ["custom", "Badge: Plus · Pro removable", "2.3 tiers"]],
+    ["Consent banner", "Appears automatically when ads or GA4 are enabled. EU and UK visitors get an IAB TCF consent flow. Non-essential scripts wait for consent.", ["auto", "Plus · Pro with ads", "MON-004, MON-005"]]
+  ];
+  var KIND = { custom: ["k-custom", "Setting"], slot: ["k-slot", "Slot"], auto: ["k-auto", "Automatic"], always: ["", "Always on"] };
+  $("#ep-list").innerHTML = EP.map(function (e, i) {
+    var k = KIND[e[2][0]];
+    return '<li class="ep" id="ep-' + (i + 1) + '"><span class="n">' + (i + 1) + "</span><div><h3>" + e[0] + "</h3><p>" + e[1] + '</p><div class="chips"><span class="chip ' + k[0] + '">' + k[1] + '</span><span class="chip">' + e[2][1] + '</span><span class="chip">' + e[2][2] + "</span></div></div></li>";
+  }).join("");
+  $$(".pin").forEach(function (p) {
+    p.addEventListener("click", function (e) {
+      var t = document.getElementById(p.getAttribute("href").slice(1));
+      if (!t) return;
+      e.preventDefault();
+      t.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      $$(".ep.flash").forEach(function (x) { x.classList.remove("flash"); });
+      t.classList.add("flash");
+    });
+  });
+
+  /* ---------- Blogger settings ---------- */
+  var ACCENTS = {
+    market: [["#2f6b3a", "#7cc48a", "#ffffff", "#0d1a10"], ["#1f5f7a", "#7cc3e0", "#ffffff", "#0b1d26"], ["#7a4b12", "#e2b06a", "#ffffff", "#24170a"]],
+    hearth: [["#8a2f4b", "#e48aa6", "#ffffff", "#2a0f19"], ["#9b3a1c", "#f09a77", "#ffffff", "#2a1108"], ["#3d5a2a", "#a7cf8a", "#ffffff", "#132008"]],
+    larder: [["#2a3f8f", "#a3b3ff", "#ffffff", "#0f1430"], ["#0f6b62", "#6fd8cb", "#ffffff", "#062421"], ["#8c1d2c", "#ff9aa6", "#ffffff", "#2b070c"]]
+  };
+  var st = { theme: "market", accent: 0, tier: "plus", domain: false };
+  function seg(id, fn) {
+    $$("#" + id + " button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (b.disabled) return;
+        $$("#" + id + " button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        fn(b.getAttribute("data-v"));
+      });
+    });
+  }
+  function applyAccent() {
+    var a = ACCENTS[st.theme][st.accent];
+    site.style.setProperty("--L-accent", a[0]); site.style.setProperty("--D-accent", a[1]);
+    site.style.setProperty("--L-accent-ink", a[2]); site.style.setProperty("--D-accent-ink", a[3]);
+    $("#ctl-accent").innerHTML = ACCENTS[st.theme].map(function (x, i) {
+      return '<button type="button" aria-label="Accent ' + (i + 1) + '" aria-pressed="' + (i === st.accent) + '" data-i="' + i + '" style="background:' + x[0] + '"></button>';
+    }).join("");
+    $$("#ctl-accent button").forEach(function (b) { b.addEventListener("click", function () { st.accent = +b.getAttribute("data-i"); applyAccent(); }); });
+  }
+  seg("ctl-theme", function (v) { st.theme = v; st.accent = 0; site.setAttribute("data-theme-name", v); applyAccent(); });
+  seg("ctl-fonts", function (v) { site.setAttribute("data-fonts", v); });
+  seg("ctl-header", function (v) { site.setAttribute("data-header", v); });
+  seg("ctl-layout", function (v) { site.setAttribute("data-layout", v); });
+  seg("ctl-mode", function (v) { site.setAttribute("data-mode", v); });
+  seg("ctl-tier", function (v) { st.tier = v; applyTier(); });
+  $("#ctl-domain").addEventListener("change", function () { st.domain = this.checked; applyTier(); });
+  $("#ctl-ann").addEventListener("change", function () { document.body.classList.toggle("show-ann", this.checked); });
+
+  function applyTier() {
+    var t = st.tier, paid = t !== "starter";
+    var dom = $("#ctl-domain");
+    dom.disabled = !paid;
+    if (!paid) { dom.checked = false; st.domain = false; }
+    $("#host").textContent = (paid && st.domain) ? "smallbatchsundays.com" : "smallbatch.pantrypress.app";
+    var larder = $('#ctl-theme button[data-v="larder"]');
+    larder.disabled = !paid;
+    if (!paid && st.theme === "larder") $('#ctl-theme button[data-v="market"]').click();
+    $$(".ad").forEach(function (ad) {
+      var slot = ad.getAttribute("data-ad"), off = !paid || (slot === "side" && t !== "pro");
+      ad.setAttribute("data-off", String(off));
+      var lab = ad.querySelector(".ad-label"), base = slot === "side" ? "Sidebar sticky slot" : slot === "3" ? "After recipe card" : "In-content slot " + slot;
+      lab.textContent = off ? base + " · hidden on " + (t === "starter" ? "Starter" : "Plus") : base + " · " + (t === "pro" ? "AdSense or allow-listed network" : "AdSense");
+    });
+    $("#consent").hidden = !paid;
+    $("#made").hidden = paid;
+    $(".disclosure").hidden = !paid;
+    var notes = {
+      starter: "Starter: subdomain only, two themes, no ads (so no consent banner), \"Made with PantryPress\" badge required, up to 500 subscribers.",
+      plus: "Plus: optional custom domain, full theme set, AdSense slots and affiliate links, badge removable, up to 5,000 subscribers.",
+      pro: "Pro: everything in Plus, plus allow-listed ad networks with an editable ads.txt and the sidebar sticky slot, up to 25,000 subscribers."
+    };
+    $("#tier-note").textContent = notes[t] + " Tier limits are a proposal (PP-D09).";
+  }
+
+  document.body.classList.add("show-ann");
+  applyAccent();
+  applyTier();
+})();
+</script>

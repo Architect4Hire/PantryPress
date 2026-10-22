@@ -1,0 +1,1048 @@
+<title>PantryPress Studio Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caprasimo&family=Caveat:wght@600&family=DM+Serif+Display&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Karla:wght@400;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=Lora:wght@400;600&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700&family=Playfair+Display:wght@700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Young+Serif&display=swap">
+<style>
+/* Layout: a sticky customizer rail on the left (stacks on top when narrow) drives a browser frame showing the published post. Pins on the post point back to the customizer group that controls each region. */
+:root {
+  --c-bg: #eef0f4;
+  --c-panel: #ffffff;
+  --c-ink: #161a24;
+  --c-muted: #586075;
+  --c-line: #d6dae3;
+  --c-pin: #4a35e8;
+  --c-pin-ink: #ffffff;
+  --c-pin-soft: rgba(74, 53, 232, 0.10);
+  --c-chrome: #e2e5ec;
+  --c-new: #b4430f;
+  --f-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-bg: #0f1117; --c-panel: #181b24; --c-ink: #e7e9f0; --c-muted: #9aa1b5; --c-line: #2b3040;
+    --c-pin: #9d8cff; --c-pin-ink: #120c33; --c-pin-soft: rgba(157, 140, 255, 0.14); --c-chrome: #222633; --c-new: #ff9c6b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --c-bg: #0f1117; --c-panel: #181b24; --c-ink: #e7e9f0; --c-muted: #9aa1b5; --c-line: #2b3040;
+  --c-pin: #9d8cff; --c-pin-ink: #120c33; --c-pin-soft: rgba(157, 140, 255, 0.14); --c-chrome: #222633; --c-new: #ff9c6b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--c-bg); color: var(--c-ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--c-pin); outline-offset: 2px; }
+
+.intro { max-width: 1520px; margin: 0 auto 16px; }
+.intro h1 { font-size: 22px; margin: 0; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.intro p { margin: 4px 0 0; color: var(--c-muted); max-width: 80ch; }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-pin); }
+.intro .scope { margin-top: 10px; font-size: 13px; border: 1px solid var(--c-line); border-left: 3px solid var(--c-new); background: var(--c-panel); border-radius: 8px; padding: 8px 12px; max-width: 100ch; color: var(--c-ink); }
+
+.workspace { max-width: 1520px; margin: 0 auto; display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Customizer ---------- */
+.cz { background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; min-width: 0; }
+@media (max-width: 1000px) { .cz { position: static; max-height: none; } }
+.cz-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--c-line); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cz-head h2 { font-size: 15px; margin: 0; }
+.cz-head .switch { font-size: 12.5px; }
+.grp { border-bottom: 1px solid var(--c-line); scroll-margin-top: 8px; }
+.grp.flash { background: var(--c-pin-soft); }
+.grp > summary { list-style: none; cursor: pointer; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13.5px; }
+.grp > summary::-webkit-details-marker { display: none; }
+.grp > summary::after { content: "+"; margin-left: auto; color: var(--c-muted); font-family: var(--f-mono); }
+.grp[open] > summary::after { content: "–"; }
+.grp .n { width: 22px; height: 22px; border-radius: 50%; background: var(--c-pin); color: var(--c-pin-ink); font: 600 11px/22px var(--f-mono); text-align: center; flex-shrink: 0; }
+.tagnew { font: 500 10px var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--c-new); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; }
+.tagv1 { font: 500 10px var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--c-muted); border: 1px dashed currentColor; border-radius: 4px; padding: 0 5px; }
+.grp-body { padding: 2px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f > span, .f > label.lab { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-muted); display: flex; justify-content: space-between; gap: 8px; }
+.f output { font-family: var(--f-mono); color: var(--c-ink); text-transform: none; letter-spacing: 0; }
+.f input[type="text"], .f select { border: 1px solid var(--c-line); background: var(--c-bg); border-radius: 7px; padding: 6px 9px; font-size: 13px; width: 100%; }
+.f input[type="range"] { width: 100%; accent-color: var(--c-pin); }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--c-line); border-radius: 7px; overflow: hidden; }
+.seg button { flex: 1 1 auto; border: 0; background: transparent; padding: 5px 8px; cursor: pointer; font-size: 12.5px; border-right: 1px solid var(--c-line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--c-ink); color: var(--c-panel); }
+.presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.presets button { border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-bg); padding: 6px; cursor: pointer; text-align: left; font-size: 12px; display: grid; gap: 4px; }
+.presets button[aria-pressed="true"] { border-color: var(--c-ink); box-shadow: 0 0 0 1px var(--c-ink); }
+.presets i { display: flex; height: 14px; border-radius: 3px; overflow: hidden; }
+.presets i b { flex: 1; }
+.color-row { display: flex; gap: 8px; align-items: center; }
+.color-row input[type="color"] { width: 38px; height: 30px; border: 1px solid var(--c-line); border-radius: 6px; padding: 2px; background: var(--c-bg); cursor: pointer; }
+.sw { display: flex; gap: 5px; flex-wrap: wrap; }
+.sw button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--c-panel); box-shadow: 0 0 0 1px var(--c-line); cursor: pointer; padding: 0; }
+.aa { font: 500 11px var(--f-mono); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.aa.ok { background: #1f7a3a; color: #ffffff; }
+.aa.fix { background: #9a5b00; color: #ffffff; }
+.hint { font-size: 12px; color: var(--c-muted); margin: 0; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.switch input { accent-color: var(--c-pin); width: 15px; height: 15px; }
+.checks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }
+.order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.order li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--c-line); border-radius: 7px; padding: 5px 8px; background: var(--c-bg); font-size: 13px; }
+.order li .nm { flex: 1; min-width: 0; }
+.order button { border: 1px solid var(--c-line); background: var(--c-panel); border-radius: 5px; width: 24px; height: 24px; cursor: pointer; padding: 0; font-size: 12px; }
+.order button:disabled { opacity: 0.35; cursor: default; }
+.order input { accent-color: var(--c-pin); }
+.cz-foot { padding: 14px 16px; font-size: 12.5px; }
+.cz-foot h3 { font-size: 11px; font-family: var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-muted); margin: 0 0 6px; font-weight: 500; }
+.cz-foot ul { margin: 0 0 12px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Browser frame ---------- */
+.browser { border: 1px solid var(--c-line); border-radius: 12px; overflow: hidden; background: var(--c-chrome); box-shadow: 0 12px 40px -24px rgba(10, 14, 30, 0.45); min-width: 0; }
+.bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.dots { display: flex; gap: 6px; flex-shrink: 0; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--c-line); display: block; }
+.address { flex: 1; min-width: 0; background: var(--c-panel); border-radius: 7px; padding: 5px 12px; font-family: var(--f-mono); font-size: 12.5px; display: flex; gap: 6px; align-items: center; overflow: hidden; }
+.address .path { color: var(--c-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ann { position: relative; }
+body.show-ann .ann { outline: 1.5px dashed var(--c-pin); outline-offset: 3px; }
+.pin { display: none; position: absolute; top: -11px; left: -11px; z-index: 6; width: 22px; height: 22px; border-radius: 50%; background: var(--c-pin); color: var(--c-pin-ink); font: 600 11px/22px var(--f-mono); text-align: center; text-decoration: none; box-shadow: 0 0 0 3px var(--c-pin-soft), 0 2px 6px rgba(0,0,0,0.25); }
+.pin.r { left: auto; right: -11px; }
+body.show-ann .pin { display: block; }
+
+/* ---------- The published site ---------- */
+.site {
+  container-type: inline-size;
+  --bg: var(--L-bg); --surface: var(--L-surface); --ink: var(--L-ink); --muted: var(--L-muted); --line: var(--L-line); --accent: var(--L-accent); --accent-text: var(--L-accent-text); --accent-ink: var(--L-accent-ink); --hl: var(--L-hl); --hl-ink: var(--L-hl-ink);
+  --L-bg: #ffffff; --L-surface: #f2f6f0; --L-ink: #1b231c; --L-muted: #586a5b; --L-line: #dce4d9; --L-accent: #2f6b3a; --L-accent-text: #2f6b3a; --L-accent-ink: #ffffff; --L-hl: #f2c94c; --L-hl-ink: #2a1d05;
+  --D-bg: #121712; --D-surface: #1b221c; --D-ink: #e8eee6; --D-muted: #9fb0a0; --D-line: #2c372d; --D-accent: #7cc48a; --D-accent-text: #7cc48a; --D-accent-ink: #0d1a10; --D-hl: #e0b93f; --D-hl-ink: #2a1d05;
+  --f-display: "Bricolage Grotesque", system-ui, sans-serif; --f-body: "Literata", Georgia, serif; --display-weight: 800; --display-track: -0.02em;
+  --r: 10px; --img-r: 10px; --base: 17px; --measure: 720px; --hscale: 1;
+  background-color: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: var(--base); line-height: 1.65; position: relative;
+}
+.site[data-mode="dark"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-text: var(--D-accent-text); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); --hl-ink: var(--D-hl-ink); color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .site[data-mode="auto"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-text: var(--D-accent-text); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); --hl-ink: var(--D-hl-ink); }
+}
+:root[data-theme="dark"] .site[data-mode="auto"] { --bg: var(--D-bg); --surface: var(--D-surface); --ink: var(--D-ink); --muted: var(--D-muted); --line: var(--D-line); --accent: var(--D-accent); --accent-text: var(--D-accent-text); --accent-ink: var(--D-accent-ink); --hl: var(--D-hl); --hl-ink: var(--D-hl-ink); }
+
+/* Background textures, drawn from tokens so they follow light and dark */
+.site[data-texture="dots"] { background-image: radial-gradient(var(--line) 1.2px, transparent 1.4px); background-size: 18px 18px; }
+.site[data-texture="gingham"] { background-image: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent) 50%, transparent 50%), linear-gradient(color-mix(in srgb, var(--accent) 7%, transparent) 50%, transparent 50%); background-size: 28px 28px; }
+.site[data-texture="lines"] { background-image: repeating-linear-gradient(0deg, transparent 0 31px, var(--line) 31px 32px); }
+.site[data-texture="grain"] { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 0.6px, transparent 0.8px), radial-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 0.6px, transparent 0.8px); background-size: 7px 7px, 11px 11px; background-position: 0 0, 3px 5px; }
+
+.site a { color: var(--accent-text); }
+.site h1, .site h2, .site h3 { font-family: var(--f-display); font-weight: var(--display-weight); letter-spacing: var(--display-track); line-height: 1.12; text-wrap: balance; margin: 0; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 28px; }
+@container (max-width: 560px) { .wrap { padding-inline: 18px; } }
+.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--r); padding: 8px 14px; font: 600 14px/1.2 var(--f-display); letter-spacing: 0; cursor: pointer; border: 1.5px solid var(--accent); text-decoration: none; }
+.btn.solid { background: var(--accent); color: var(--accent-ink); }
+.btn.outline { background: transparent; color: var(--accent-text); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.site[data-btn="pill"] .btn, .site[data-btn="pill"] .pills { border-radius: 999px; }
+.site[data-btn="outline"] .btn.solid { background: transparent; color: var(--accent-text); }
+.site[data-btn="shadow"] .btn { box-shadow: 3px 3px 0 var(--ink); border-color: var(--ink); }
+.site input[type="email"], .site input[type="text"], .site textarea { border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: var(--r); padding: 9px 12px; font: 15px var(--f-body); min-width: 0; }
+
+.announce { background: var(--hl); color: var(--hl-ink); text-align: center; font: 600 14px var(--f-display); padding: 8px 16px; }
+
+/* Header variants */
+.s-header { border-bottom: 1px solid var(--line); background: var(--bg); }
+.s-header .wrap { display: flex; align-items: center; gap: 16px 28px; padding-block: 18px; flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink) !important; }
+.mark { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 800 16px var(--f-display); flex-shrink: 0; }
+.site[data-mark="square"] .mark { border-radius: calc(var(--r) * 0.6); }
+.site[data-mark="stamp"] .mark { border-radius: 50%; background: transparent; color: var(--accent-text); box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 5px var(--bg), inset 0 0 0 6px var(--accent); }
+.site[data-mark="none"] .mark { display: none; }
+.word { font: var(--display-weight) 24px/1 var(--f-display); letter-spacing: var(--display-track); display: block; }
+.tag { display: block; font: 13px var(--f-body); color: var(--muted); margin-top: 4px; letter-spacing: 0; font-weight: 400; }
+.nav { display: flex; gap: 6px 20px; flex-wrap: wrap; font: 600 14.5px var(--f-display); margin-left: auto; align-items: center; }
+.nav a { color: var(--ink); text-decoration: none; }
+.nav .search { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; color: var(--muted); font-weight: 400; font-family: var(--f-body); font-size: 13px; }
+.site[data-header="centered"] .s-header .wrap { flex-direction: column; text-align: center; }
+.site[data-header="centered"] .logo { flex-direction: column; }
+.site[data-header="centered"] .word { font-size: 36px; }
+.site[data-header="centered"] .nav { margin: 0 auto; justify-content: center; border-top: 1px solid var(--line); padding-top: 12px; width: 100%; }
+.site[data-header="banner"] .s-header { background: var(--accent); border-bottom: 0; }
+.site[data-header="banner"] .s-header .wrap { padding-block: 34px 18px; flex-direction: column; align-items: flex-start; }
+.site[data-header="banner"] .logo, .site[data-header="banner"] .nav a, .site[data-header="banner"] .tag { color: var(--accent-ink) !important; }
+.site[data-header="banner"] .mark { background: var(--accent-ink); color: var(--accent); }
+.site[data-header="banner"] .word { font-size: clamp(32px, 6cqi, 56px); }
+.site[data-header="banner"] .nav { margin-left: 0; }
+.site[data-header="banner"] .nav .search { border-color: color-mix(in srgb, var(--accent-ink) 40%, transparent); color: var(--accent-ink); }
+.site[data-header="stacked"] .s-header .wrap { flex-direction: column; align-items: stretch; gap: 10px; padding-block: 22px 0; }
+.site[data-header="stacked"] .word { font-size: clamp(40px, 9cqi, 92px); line-height: 0.92; }
+.site[data-header="stacked"] .mark { display: none; }
+.site[data-header="stacked"] .nav { margin-left: 0; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding-block: 8px; justify-content: space-between; }
+.site[data-header="minimal"] .s-header .wrap { padding-block: 12px; }
+.site[data-header="minimal"] .mark, .site[data-header="minimal"] .tag { display: none; }
+.site[data-header="minimal"] .word { font-size: 20px; }
+.site[data-header="minimal"] .nav a:not(.menu) { display: none; }
+.menu { display: none !important; }
+.site[data-header="minimal"] .menu { display: inline-flex !important; }
+
+/* Post layouts */
+.s-main .wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; padding-block: 28px 40px; }
+.site[data-layout="right"] .s-main .wrap { grid-template-columns: minmax(0, 1fr) 280px; }
+.site[data-layout="left"] .s-main .wrap { grid-template-columns: 280px minmax(0, 1fr); }
+.site[data-layout="left"] aside.sidebar { order: -1; }
+@container (max-width: 860px) { .site[data-layout] .s-main .wrap { grid-template-columns: minmax(0, 1fr); } .site[data-layout="left"] aside.sidebar { order: 0; } }
+.site[data-layout="single"] aside.sidebar { display: none; }
+article { min-width: 0; max-width: var(--measure); width: 100%; }
+.site[data-layout="single"] article { margin-inline: auto; }
+.crumbs { font: 13px var(--f-body); color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.crumbs a { color: var(--muted); }
+.post-title { font-size: calc(clamp(30px, 5.2cqi, 50px) * var(--hscale)); }
+.dek { font-size: 1.12em; color: var(--muted); margin: 12px 0 0; max-width: 60ch; }
+.byline { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 18px; font-size: 14px; color: var(--muted); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--hl); color: var(--hl-ink); display: grid; place-items: center; font: 700 13px var(--f-display); }
+.who { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+.stars { color: var(--hl); letter-spacing: 1px; font-size: 15px; }
+.post-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.hero { margin: 22px 0 0; border-radius: var(--img-r); overflow: hidden; position: relative; }
+.hero svg, .gallery svg, .card-img svg, .rel-grid svg, .bighero svg { display: block; width: 100%; height: auto; }
+.hero figcaption { font-size: 13px; color: var(--muted); padding: 8px 0 0; }
+
+/* Hero variants: the post head is rebuilt into .bighero above the grid for full-bleed, overlay and split */
+.bighero { display: none; }
+.site[data-hero="fullbleed"] .bighero, .site[data-hero="overlay"] .bighero, .site[data-hero="split"] .bighero { display: block; }
+.site[data-hero="fullbleed"] .hero, .site[data-hero="overlay"] .hero, .site[data-hero="split"] .hero { display: none; }
+.site[data-hero="fullbleed"] .bighero .bh-img { max-height: 420px; overflow: hidden; }
+.site[data-hero="fullbleed"] .bighero .bh-img svg { margin-top: -8%; }
+.site[data-hero="fullbleed"] .bighero .bh-text { display: none; }
+.site[data-hero="overlay"] .bighero { position: relative; }
+.site[data-hero="overlay"] .bighero .bh-img { max-height: 520px; overflow: hidden; }
+.site[data-hero="overlay"] .bighero .bh-text { position: absolute; inset: auto 0 0 0; padding: 60px 0 28px; background: linear-gradient(transparent, rgba(10, 8, 6, 0.78)); color: #ffffff; }
+.site[data-hero="overlay"] .bighero .bh-text h1 { color: #ffffff; font-size: calc(clamp(30px, 5.6cqi, 60px) * var(--hscale)); max-width: 18ch; }
+.site[data-hero="overlay"] .bighero .bh-text p { color: rgba(255, 255, 255, 0.86); margin: 10px 0 0; max-width: 56ch; }
+.site[data-hero="overlay"] .post-head h1, .site[data-hero="overlay"] .post-head .dek { display: none; }
+.site[data-hero="split"] .bighero { background: var(--surface); border-bottom: 1px solid var(--line); }
+.site[data-hero="split"] .bighero .bh-in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 0; }
+@container (max-width: 700px) { .site[data-hero="split"] .bighero .bh-in { grid-template-columns: minmax(0, 1fr); } }
+.site[data-hero="split"] .bighero .bh-text { padding: 36px 40px; order: -1; }
+.site[data-hero="split"] .bighero .bh-text h1 { font-size: calc(clamp(30px, 4.6cqi, 52px) * var(--hscale)); }
+.site[data-hero="split"] .bighero .bh-text p { color: var(--muted); margin: 12px 0 0; }
+.site[data-hero="split"] .post-head h1, .site[data-hero="split"] .post-head .dek { display: none; }
+.bh-in { position: relative; }
+
+.prose { margin-top: 26px; }
+.prose p { margin: 0 0 1.1em; max-width: 68ch; }
+.prose h2 { font-size: calc(28px * var(--hscale)); margin: 1.4em 0 0.5em; }
+.prose ul { padding-left: 1.2em; margin: 0 0 1.1em; }
+.dropcap .prose > p:first-of-type::first-letter { font-family: var(--f-display); font-weight: var(--display-weight); float: left; font-size: 3.6em; line-height: 0.85; padding: 6px 10px 0 0; color: var(--accent-text); }
+.callout { border-radius: var(--r); background: var(--surface); padding: 14px 18px; margin: 0 0 1.3em; border: 1px solid var(--line); }
+.callout b { font-family: var(--f-display); color: var(--accent-text); display: block; margin-bottom: 2px; }
+.gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 1.3em; }
+.gallery figure { margin: 0; border-radius: var(--img-r); overflow: hidden; }
+.gallery figcaption { font-size: 12.5px; color: var(--muted); padding: 6px 2px 0; }
+.signoff { font: 600 30px/1.1 "Caveat", "Segoe Script", cursive; color: var(--accent-text); margin: 0.2em 0 1.2em; transform: rotate(-2deg); display: inline-block; }
+
+.ad { margin: 0 0 1.3em; border: 1px dashed var(--line); border-radius: var(--r); background: repeating-linear-gradient(135deg, transparent 0 10px, var(--surface) 10px 20px); min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font: 12.5px var(--f-ui); text-align: center; padding: 10px; }
+.ad b { letter-spacing: 0.06em; text-transform: uppercase; font-size: 10.5px; }
+
+.signup { border-radius: var(--r); background: var(--accent); color: var(--accent-ink); padding: 22px; margin: 0 0 1.4em; display: grid; gap: 10px; }
+.signup h3 { font-size: 22px; }
+.signup p { margin: 0; opacity: 0.9; font-size: 15px; }
+.signup .fr { display: flex; flex-wrap: wrap; gap: 8px; }
+.signup input { flex: 1 1 160px; border-color: transparent !important; }
+.signup .btn { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); box-shadow: none; }
+.signup small { font-size: 12px; opacity: 0.85; }
+.signup .ok { font-weight: 600; }
+.signup.alt { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+.signup.alt .btn { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.signup.alt input { border-color: var(--line) !important; }
+
+/* Recipe card styles */
+.recipe { border: 2px solid var(--accent); border-radius: calc(var(--r) + 4px); margin: 8px 0 1.5em; scroll-margin-top: 20px; background: var(--bg); overflow: hidden; }
+.recipe-head { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 20px; padding: 22px; border-bottom: 1px solid var(--line); }
+@container (max-width: 620px) { .recipe-head { grid-template-columns: minmax(0, 1fr); } .card-img { max-width: 220px; } }
+.recipe-head h2 { font-size: calc(30px * var(--hscale)); }
+.recipe-head p { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
+.card-img { border-radius: var(--img-r); overflow: hidden; align-self: start; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.badges span { font: 700 11.5px var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; background: var(--hl); color: var(--hl-ink); border-radius: 999px; padding: 3px 10px; }
+.r-rating { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.r-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.times { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+@container (max-width: 620px) { .times { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.times div { padding: 12px 14px; border-right: 1px solid var(--line); }
+.times div:last-child { border-right: 0; }
+.times span { display: block; font: 600 11px var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.times b { font-family: var(--f-display); font-size: 16px; }
+.r-tools { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 14px; }
+.r-tools .g { display: flex; align-items: center; gap: 8px; }
+.r-tools label { font: 600 12px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.pills { display: inline-flex; border: 1.5px solid var(--accent); border-radius: var(--r); overflow: hidden; }
+.pills button { border: 0; background: transparent; color: var(--accent-text); padding: 4px 11px; font: 600 13.5px var(--f-display); cursor: pointer; }
+.pills button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.cook { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.cook input { accent-color: var(--accent); width: 18px; height: 18px; }
+.r-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+@container (max-width: 700px) { .r-body { grid-template-columns: minmax(0, 1fr); } }
+.r-body > section { padding: 20px 22px; min-width: 0; }
+.r-body > section + section { border-left: 1px solid var(--line); }
+@container (max-width: 700px) { .r-body > section + section { border-left: 0; border-top: 1px solid var(--line); } }
+.r-body h3 { font-size: 21px; margin-bottom: 10px; }
+.r-body h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.ing { list-style: none; margin: 0; padding: 0; }
+.ing li { padding: 6px 0 6px 26px; border-bottom: 1px dotted var(--line); position: relative; font-size: 15.5px; }
+.ing li::before { content: ""; position: absolute; left: 2px; top: 12px; width: 13px; height: 13px; border: 1.5px solid var(--accent); border-radius: 3px; }
+.ing .q { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ing .note { color: var(--muted); }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; padding: 0 0 14px 40px; position: relative; font-size: 15.5px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 13px/26px var(--f-display); text-align: center; }
+.site[data-steps="numeral"] .steps li { padding-left: 48px; }
+.site[data-steps="numeral"] .steps li::before { background: none; color: var(--accent-text); font: var(--display-weight) 34px/1 var(--f-display); width: auto; top: -2px; }
+.site[data-steps="plain"] .steps li::before { background: none; color: var(--muted); font: 700 15px/1.65 var(--f-display); content: counter(s) "."; width: 24px; top: 0; text-align: left; }
+.site[data-steps="plain"] .steps li { padding-left: 28px; }
+.scale-note { font-size: 13.5px; background: var(--surface); border-radius: var(--r); padding: 8px 12px; margin: 0 0 12px; }
+.r-foot { border-top: 1px solid var(--line); padding: 18px 22px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; font-size: 14.5px; }
+@container (max-width: 700px) { .r-foot { grid-template-columns: minmax(0, 1fr); } }
+.r-foot h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.r-foot ul { margin: 0; padding-left: 1.1em; }
+.nutri { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.nutri div { background: var(--surface); border-radius: var(--r); padding: 6px 8px; font-size: 13px; color: var(--muted); }
+.nutri b { display: block; color: var(--ink); font: 700 15px var(--f-display); font-variant-numeric: tabular-nums; }
+.disclaim { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.chef-note { margin: 0; padding: 14px 22px 18px; border-top: 1px solid var(--line); font-size: 15px; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; }
+.chef-note .avatar { width: 44px; height: 44px; }
+.chef-note b { font-family: var(--f-display); display: block; }
+
+/* Magazine card: color header band */
+.site[data-card="magazine"] .recipe { border: 0; box-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.5); background: var(--bg); }
+.site[data-card="magazine"] .recipe-head { background: var(--accent); color: var(--accent-ink); border-bottom: 0; }
+.site[data-card="magazine"] .recipe-head p, .site[data-card="magazine"] .r-rating { color: var(--accent-ink); opacity: 0.9; }
+.site[data-card="magazine"] .recipe-head .btn.solid { background: var(--accent-ink); color: var(--accent); border-color: var(--accent-ink); }
+.site[data-card="magazine"] .recipe-head .btn.outline { color: var(--accent-ink); border-color: var(--accent-ink); }
+.site[data-card="magazine"] .times { background: var(--surface); }
+/* Index card: ruled lines, tape */
+.site[data-card="index"] .recipe { border: 1px solid var(--line); border-radius: 4px; background-color: var(--bg); background-image: repeating-linear-gradient(0deg, transparent 0 27px, color-mix(in srgb, var(--accent) 16%, transparent) 27px 28px); position: relative; overflow: visible; margin-top: 26px; }
+.site[data-card="index"] .recipe::before { content: ""; position: absolute; top: -12px; left: 50%; width: 120px; height: 24px; margin-left: -60px; background: color-mix(in srgb, var(--hl) 70%, transparent); transform: rotate(-2deg); }
+.site[data-card="index"] .recipe-head { border-bottom: 2px solid color-mix(in srgb, #d0443a 55%, transparent); }
+.site[data-card="index"] .recipe-head h2 { font-family: "Caveat", "Segoe Script", cursive; font-size: 44px; font-weight: 600; letter-spacing: 0; }
+.site[data-card="index"] .r-tools, .site[data-card="index"] .nutri div { background: transparent; }
+
+.share { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
+.share span { color: var(--muted); margin-right: 4px; }
+.share a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; text-decoration: none; color: var(--ink); font: 600 13px var(--f-display); background: var(--bg); }
+.modules { display: flex; flex-direction: column; gap: 24px; }
+.modules > * { margin: 0 !important; }
+
+.reviews h2 { font-size: calc(28px * var(--hscale)); margin-bottom: 12px; }
+.rate-box { background: var(--surface); border-radius: var(--r); padding: 16px 18px; margin-bottom: 18px; display: grid; gap: 10px; }
+.rate-stars { display: flex; gap: 2px; }
+.rate-stars button { background: none; border: 0; font-size: 26px; line-height: 1; color: var(--line); cursor: pointer; padding: 0 2px; }
+.rate-stars button.on { color: var(--hl); }
+.rate-box textarea { width: 100%; min-height: 70px; resize: vertical; }
+.comment { border-top: 1px solid var(--line); padding: 14px 0; }
+.comment .h { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+.comment .h b { font-family: var(--f-display); font-size: 15px; }
+.comment .h time { color: var(--muted); font-size: 13px; }
+.comment p { margin: 4px 0 0; font-size: 15.5px; }
+.comment.reply { margin-left: 34px; border-top: 1px dashed var(--line); }
+.badge { font: 700 11px var(--f-ui); background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 1px 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+aside.sidebar { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.widget { border-top: 3px solid var(--accent); padding-top: 12px; }
+.widget h3 { font-size: 18px; margin-bottom: 8px; }
+.about-w { display: grid; gap: 10px; font-size: 14.5px; }
+.about-w .ph { width: 88px; height: 88px; border-radius: 50%; background: var(--hl); display: grid; place-items: center; font: 800 28px var(--f-display); color: var(--hl-ink); }
+.about-w p { margin: 0; }
+.pop { list-style: none; margin: 0; padding: 0; counter-reset: p; font-size: 14.5px; }
+.pop li { counter-increment: p; display: grid; grid-template-columns: 26px 1fr; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.pop li::before { content: counter(p); font: 800 17px var(--f-display); color: var(--accent-text); }
+.pop a { color: var(--ink); text-decoration: none; }
+.side-search input { width: 100%; }
+
+.related { border-top: 1px solid var(--line); background: var(--surface); }
+.related .wrap { padding-block: 30px; }
+.related .rh { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.related h2 { font-size: calc(26px * var(--hscale)); }
+.rel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@container (max-width: 760px) { .rel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rel-grid a { text-decoration: none; color: var(--ink); display: grid; gap: 8px; }
+.rel-grid .im { border-radius: var(--img-r); overflow: hidden; }
+.rel-grid b { font: var(--display-weight) 16px/1.25 var(--f-display); }
+.rel-grid span { font-size: 13px; color: var(--muted); }
+
+.s-footer { border-top: 1px solid var(--line); background: var(--bg); }
+.s-footer .wrap { padding-block: 30px 22px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+@container (max-width: 760px) { .s-footer .wrap { grid-template-columns: minmax(0, 1fr); } }
+.s-footer h4 { font: 700 13px var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.s-footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14.5px; }
+.s-footer ul a { color: var(--ink); text-decoration: none; }
+.s-footer .signup { margin: 0; }
+.legal { border-top: 1px solid var(--line); }
+.legal .wrap { padding-block: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(8, 10, 18, 0.55); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.paper { background: #ffffff; color: #111111; width: min(680px, 100%); max-height: 100%; overflow: auto; border-radius: 6px; padding: 28px 32px; font-family: Georgia, serif; font-size: 14px; line-height: 1.5; }
+.paper .ptools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; font: 13px var(--f-ui); background: #eef0f4; color: #161a24; margin: -28px -32px 18px; padding: 10px 16px; border-bottom: 1px solid #d6dae3; }
+.paper .ptools button { font: 600 13px var(--f-ui); border: 1px solid #586075; border-radius: 6px; background: #ffffff; color: #161a24; padding: 4px 10px; cursor: pointer; }
+.paper h2 { font: 700 24px Georgia, serif; margin: 0 0 4px; }
+.paper .pimg { width: 140px; float: right; margin: 0 0 10px 16px; }
+.paper h3 { font: 700 15px Georgia, serif; margin: 14px 0 4px; }
+.paper ul, .paper ol { margin: 0; padding-left: 1.3em; }
+.paper .purl { border-top: 1px solid #cccccc; margin-top: 16px; padding-top: 8px; font-size: 12px; color: #555555; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+
+<header class="intro">
+  <div class="eyebrow">PantryPress · mockup 2 · "Studio" personalization</div>
+  <h1>The same recipe post, with a much deeper customizer</h1>
+  <p>Every control on the left changes the live post on the right. Start from a preset look, then change the brand color, logo, fonts, shapes, background, header, post layout, recipe card, section order and personal touches. Numbered pins on the post open the group that controls that region.</p>
+  <p class="scope"><b>Scope note.</b> Controls tagged <span class="tagnew">beyond v1</span> go past the current "canned themes, light customization" decision (THM-002). They are still typed settings with guardrails (contrast is checked and fixed automatically, fonts come from a curated list), so there is still no custom CSS, HTML or plugins. Adopting them would mean amending the closed feature set.</p>
+</header>
+
+<div class="workspace">
+<aside class="cz" aria-label="Site customizer">
+  <div class="cz-head">
+    <h2>Customize Small Batch Sundays</h2>
+    <label class="switch"><input type="checkbox" id="ctl-ann" checked><span>Show pins</span></label>
+  </div>
+
+  <details class="grp" id="cz-1" open>
+    <summary><span class="n">1</span>Starting look <span class="tagv1">v1</span></summary>
+    <div class="grp-body">
+      <div class="presets" id="presets"></div>
+      <p class="hint">A preset sets every control below at once. Change anything afterwards.</p>
+      <div class="f"><span>Site mode</span>
+        <div class="seg" id="ctl-mode"><button type="button" data-v="auto" aria-pressed="true">Auto</button><button type="button" data-v="light" aria-pressed="false">Light</button><button type="button" data-v="dark" aria-pressed="false">Dark</button></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-2" open>
+    <summary><span class="n">2</span>Brand and logo <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><label class="lab" for="in-name">Site name</label><input type="text" id="in-name" value="Small Batch Sundays"></div>
+      <div class="f"><label class="lab" for="in-tag">Tagline</label><input type="text" id="in-tag" value="Baking for two to six, from Nadia's kitchen"></div>
+      <div class="row2">
+        <div class="f"><label class="lab" for="in-mono">Monogram</label><input type="text" id="in-mono" value="SB" maxlength="3"></div>
+        <div class="f"><span>Mark shape</span><select id="in-mark" aria-label="Mark shape"><option value="circle">Circle</option><option value="square">Rounded square</option><option value="stamp">Stamp ring</option><option value="none">Wordmark only</option></select></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-3">
+    <summary><span class="n">3</span>Color <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><span>Brand color <output id="aa-brand"></output></span>
+        <div class="color-row"><input type="color" id="in-brand" value="#2f6b3a" aria-label="Brand color"><div class="sw" id="sw-brand"></div></div>
+      </div>
+      <div class="f"><span>Highlight (stars, badges, banner)</span>
+        <div class="color-row"><input type="color" id="in-hl" value="#f2c94c" aria-label="Highlight color"><div class="sw" id="sw-hl"></div></div>
+      </div>
+      <div class="f"><span>Background tone</span>
+        <div class="seg" id="ctl-tone"><button type="button" data-v="white" aria-pressed="true">White</button><button type="button" data-v="paper" aria-pressed="false">Paper</button><button type="button" data-v="cool" aria-pressed="false">Cool</button><button type="button" data-v="blush" aria-pressed="false">Blush</button><button type="button" data-v="sage" aria-pressed="false">Sage</button></div>
+      </div>
+      <p class="hint">Any brand color is allowed. PantryPress checks text contrast against WCAG AA and darkens link text or lightens it in dark mode when needed, so a pale brand color can't make the site unreadable.</p>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-4">
+    <summary><span class="n">4</span>Typography <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><span>Heading font</span><select id="in-hfont" aria-label="Heading font"></select></div>
+      <div class="f"><span>Body font</span><select id="in-bfont" aria-label="Body font"></select></div>
+      <div class="f"><label class="lab" for="in-base">Body size <output id="o-base">17 px</output></label><input type="range" id="in-base" min="15" max="20" step="1" value="17"></div>
+      <div class="f"><label class="lab" for="in-hscale">Heading scale <output id="o-hscale">100%</output></label><input type="range" id="in-hscale" min="85" max="130" step="5" value="100"></div>
+      <label class="switch"><input type="checkbox" id="in-drop"><span>Drop cap on first paragraph</span></label>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-5">
+    <summary><span class="n">5</span>Shape and surface <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><label class="lab" for="in-radius">Corner radius <output id="o-radius">10 px</output></label><input type="range" id="in-radius" min="0" max="28" step="1" value="10"></div>
+      <div class="f"><label class="lab" for="in-imgr">Photo corners <output id="o-imgr">10 px</output></label><input type="range" id="in-imgr" min="0" max="40" step="2" value="10"></div>
+      <div class="f"><span>Buttons</span>
+        <div class="seg" id="ctl-btn"><button type="button" data-v="solid" aria-pressed="true">Solid</button><button type="button" data-v="pill" aria-pressed="false">Pill</button><button type="button" data-v="outline" aria-pressed="false">Outline</button><button type="button" data-v="shadow" aria-pressed="false">Offset</button></div>
+      </div>
+      <div class="f"><span>Background texture</span>
+        <div class="seg" id="ctl-texture"><button type="button" data-v="none" aria-pressed="true">None</button><button type="button" data-v="grain" aria-pressed="false">Grain</button><button type="button" data-v="dots" aria-pressed="false">Dots</button><button type="button" data-v="gingham" aria-pressed="false">Gingham</button><button type="button" data-v="lines" aria-pressed="false">Ruled</button></div>
+      </div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-6">
+    <summary><span class="n">6</span>Header <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><span>Header style</span>
+        <div class="seg" id="ctl-header"><button type="button" data-v="split" aria-pressed="true">Split</button><button type="button" data-v="centered" aria-pressed="false">Centered</button><button type="button" data-v="banner" aria-pressed="false">Banner</button><button type="button" data-v="stacked" aria-pressed="false">Masthead</button><button type="button" data-v="minimal" aria-pressed="false">Minimal</button></div>
+      </div>
+      <label class="switch"><input type="checkbox" id="in-announce" checked><span>Announcement bar</span></label>
+      <div class="f"><label class="lab" for="in-announce-text">Announcement text</label><input type="text" id="in-announce-text" value="New: my small-batch holiday cookie guide is live"></div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-7">
+    <summary><span class="n">7</span>Post layout <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><span>Hero image</span>
+        <div class="seg" id="ctl-hero"><button type="button" data-v="standard" aria-pressed="true">In column</button><button type="button" data-v="fullbleed" aria-pressed="false">Full width</button><button type="button" data-v="overlay" aria-pressed="false">Title overlay</button><button type="button" data-v="split" aria-pressed="false">Split</button></div>
+      </div>
+      <div class="f"><span>Sidebar</span>
+        <div class="seg" id="ctl-layout"><button type="button" data-v="right" aria-pressed="true">Right</button><button type="button" data-v="left" aria-pressed="false">Left</button><button type="button" data-v="single" aria-pressed="false">None</button></div>
+      </div>
+      <div class="f"><label class="lab" for="in-measure">Text column width <output id="o-measure">720 px</output></label><input type="range" id="in-measure" min="600" max="860" step="20" value="720"></div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-8">
+    <summary><span class="n">8</span>Recipe card <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <div class="f"><span>Card style</span>
+        <div class="seg" id="ctl-card"><button type="button" data-v="classic" aria-pressed="true">Classic</button><button type="button" data-v="magazine" aria-pressed="false">Magazine</button><button type="button" data-v="index" aria-pressed="false">Index card</button></div>
+      </div>
+      <div class="f"><span>Step numbers</span>
+        <div class="seg" id="ctl-steps"><button type="button" data-v="circle" aria-pressed="true">Circles</button><button type="button" data-v="numeral" aria-pressed="false">Big numerals</button><button type="button" data-v="plain" aria-pressed="false">Plain</button></div>
+      </div>
+      <div class="f"><span>Badges on this recipe</span>
+        <div class="checks" id="badges-in">
+          <label class="switch"><input type="checkbox" value="Kitchen-tested" checked><span>Kitchen-tested</span></label>
+          <label class="switch"><input type="checkbox" value="Freezer-friendly" checked><span>Freezer-friendly</span></label>
+          <label class="switch"><input type="checkbox" value="One bowl"><span>One bowl</span></label>
+          <label class="switch"><input type="checkbox" value="Kid favorite"><span>Kid favorite</span></label>
+        </div>
+      </div>
+      <label class="switch"><input type="checkbox" id="in-chef" checked><span>"From my kitchen" note on the card</span></label>
+      <div class="f"><label class="lab" for="in-jump">Jump button label</label><input type="text" id="in-jump" value="Jump to recipe"></div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-9">
+    <summary><span class="n">9</span>Sections and order <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <p class="hint">Turn sections on or off and reorder what follows the recipe card.</p>
+      <ul class="order" id="order"></ul>
+      <div class="checks">
+        <label class="switch"><input type="checkbox" id="in-gallery" checked><span>Photo gallery</span></label>
+        <label class="switch"><input type="checkbox" id="in-inline" checked><span>Inline signup</span></label>
+        <label class="switch"><input type="checkbox" id="in-ads" checked><span>Ad slots</span></label>
+        <label class="switch"><input type="checkbox" id="in-related" checked><span>More recipes row</span></label>
+      </div>
+    </div>
+  </details>
+
+  <details class="grp" id="cz-10">
+    <summary><span class="n">10</span>Personal touches <span class="tagnew">beyond v1</span></summary>
+    <div class="grp-body">
+      <label class="switch"><input type="checkbox" id="in-signoff" checked><span>Handwritten sign-off</span></label>
+      <div class="f"><label class="lab" for="in-signoff-text">Sign-off text</label><input type="text" id="in-signoff-text" value="Happy baking, Nadia"></div>
+      <div class="f"><label class="lab" for="in-nl-head">Newsletter heading</label><input type="text" id="in-nl-head" value="Get one small-batch bake every Sunday"></div>
+      <div class="f"><label class="lab" for="in-nl-btn">Newsletter button</label><input type="text" id="in-nl-btn" value="Subscribe"></div>
+    </div>
+  </details>
+
+  <div class="cz-foot">
+    <h3>Guardrails that stay</h3>
+    <ul>
+      <li>No custom CSS, HTML, templates or plugins.</li>
+      <li>Text contrast is enforced to WCAG AA on every color choice.</li>
+      <li>Fonts come from a curated, self-hosted list.</li>
+      <li>Ads never go inside ingredients or steps.</li>
+      <li>Jump to recipe, print, scaling and units can't be removed.</li>
+    </ul>
+    <h3>Cost to build</h3>
+    <ul>
+      <li>Each setting becomes a typed field on the site's theme record and a CSS variable or layout flag at render time.</li>
+      <li>More combinations to test for accessibility and the 100 KB page budget.</li>
+    </ul>
+  </div>
+</aside>
+
+<div class="browser">
+  <div class="bar">
+    <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="address"><span>smallbatchsundays.com</span><span class="path">/brown-butter-banana-bread/</span></div>
+  </div>
+
+  <div class="site" id="site" data-mode="auto" data-header="split" data-layout="right" data-hero="standard" data-card="classic" data-steps="circle" data-btn="solid" data-texture="none" data-mark="circle">
+    <div class="announce ann" id="announce"><a class="pin" href="#cz-6" style="top:4px;left:8px">6</a><span id="announce-text">New: my small-batch holiday cookie guide is live</span> →</div>
+
+    <header class="s-header ann">
+      <a class="pin r" href="#cz-2" style="top:8px;right:8px">2</a>
+      <div class="wrap">
+        <a class="logo" href="#site" onclick="return false"><span class="mark" id="mark">SB</span><span><span class="word" id="word">Small Batch Sundays</span><span class="tag" id="tagline">Baking for two to six, from Nadia's kitchen</span></span></a>
+        <nav class="nav" aria-label="Site">
+          <a href="#site" onclick="return false">Recipes</a><a href="#site" onclick="return false">Breads</a><a href="#site" onclick="return false">Weeknight</a><a href="#site" onclick="return false">About</a>
+          <span class="search">Search recipes</span>
+          <a class="menu" href="#site" onclick="return false">☰ Menu</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="bighero ann">
+      <a class="pin" href="#cz-7" style="top:8px;left:8px">7</a>
+      <div class="bh-in">
+        <div class="bh-img" data-art="hero"></div>
+        <div class="bh-text"><div class="wrap"><h1>Brown Butter Banana Bread with a Crackly Sugar Top</h1><p>Browning the butter takes six extra minutes and makes this loaf taste like toffee. Sour cream keeps it moist for days.</p></div></div>
+      </div>
+    </div>
+
+    <main class="s-main">
+      <div class="wrap">
+        <article>
+          <nav class="crumbs" aria-label="Breadcrumb"><a href="#site" onclick="return false">Home</a> › <a href="#site" onclick="return false">Breads &amp; Loaves</a> › <span>Brown Butter Banana Bread</span></nav>
+          <div class="post-head ann">
+            <a class="pin" href="#cz-4">4</a>
+            <h1 class="post-title">Brown Butter Banana Bread with a Crackly Sugar Top</h1>
+            <p class="dek">Browning the butter takes six extra minutes and makes this loaf taste like toffee. Sour cream keeps it moist for days.</p>
+            <div class="byline">
+              <span class="who"><span class="avatar">NB</span><span>By <a href="#site" onclick="return false">Nadia Brooks</a></span></span>
+              <span>Published Oct 4, 2026 · Updated Oct 19, 2026</span>
+              <span><span class="stars" aria-hidden="true">★★★★★</span> 4.8 (126 ratings)</span>
+            </div>
+            <div class="post-actions">
+              <button type="button" class="btn solid" id="jump">↓ <span id="jump-label">Jump to recipe</span></button>
+              <button type="button" class="btn outline" data-print>Print recipe</button>
+            </div>
+          </div>
+
+          <figure class="hero ann">
+            <a class="pin" href="#cz-7">7</a>
+            <div data-art="hero"></div>
+            <figcaption>A slice of brown butter banana bread on a board, sugar crust shattered at the edges.</figcaption>
+          </figure>
+
+          <div class="prose">
+            <p>I bake this on the Sunday after the bananas on the counter have gone fully freckled. It is the loaf my kids ask for by name, and the one I bring when a neighbor has a new baby.</p>
+            <p>The two upgrades over a standard banana bread are small. Browned butter adds a nutty, almost caramel depth, and a spoonful of sour cream keeps the crumb tender on day three. A handful of turbinado sugar on top bakes into a crackly crust.</p>
+            <div class="ad" data-ad><b>Advertisement</b>In-content slot</div>
+            <h2>Why brown the butter?</h2>
+            <p>When butter melts, its milk solids sink. Keep cooking and those solids toast, and the butter goes from pale yellow to amber with a smell like hazelnuts. That flavor carries through the whole loaf.</p>
+            <div class="callout"><b>Tip</b>Use a light-colored saucepan so you can see the solids change color. Pull it off the heat the moment they turn hazelnut brown.</div>
+            <div class="gallery" id="gallery">
+              <figure><div data-art="butter"></div><figcaption>Browned butter, solids and all.</figcaption></figure>
+              <figure><div data-art="batter"></div><figcaption>Fold until a few streaks remain.</figcaption></figure>
+              <figure><div data-art="crust"></div><figcaption>Turbinado before baking.</figcaption></figure>
+            </div>
+            <form class="signup ann" data-signup id="inline-signup">
+              <a class="pin r" href="#cz-10">10</a>
+              <h3 data-nl-head>Get one small-batch bake every Sunday</h3>
+              <p>Recipes sized for real households, sent once a week.</p>
+              <div class="fr"><input type="email" id="nl-inline-email" placeholder="you@example.com" aria-label="Email" required><button class="btn" type="submit" data-nl-btn>Subscribe</button></div>
+              <small>You'll get a confirmation email first. Unsubscribe anytime.</small>
+            </form>
+            <p>Use very ripe bananas, heavily speckled or nearly black, and a light aluminum 9×5-inch pan so the sides don't over-brown.</p>
+            <p class="signoff ann" id="signoff"><a class="pin" href="#cz-10">10</a><span id="signoff-text">Happy baking, Nadia</span></p>
+          </div>
+
+          <section class="recipe ann" id="recipe" aria-labelledby="r-title">
+            <a class="pin" href="#cz-8">8</a>
+            <div class="recipe-head">
+              <div>
+                <h2 id="r-title">Brown Butter Banana Bread</h2>
+                <p>A tender, toffee-scented banana loaf with browned butter, sour cream, and a crackly turbinado top.</p>
+                <div class="badges" id="badges"></div>
+                <div class="r-rating"><span class="stars">★★★★★</span> 4.8 from 126 ratings</div>
+                <div class="r-actions">
+                  <button type="button" class="btn solid small" data-print>Print</button>
+                  <button type="button" class="btn outline small" id="rate-jump">Rate it</button>
+                </div>
+              </div>
+              <div class="card-img"><div data-art="square"></div></div>
+            </div>
+            <div class="times">
+              <div><span>Prep</span><b>20 min</b></div><div><span>Cook</span><b>1 hr</b></div><div><span>Cool</span><b>1 hr</b></div><div><span>Total</span><b>2 hr 20 min</b></div><div><span>Yield</span><b id="yield">10 slices</b></div>
+            </div>
+            <div class="r-tools">
+              <div class="g"><label>Servings</label>
+                <div class="pills" id="scale"><button type="button" data-v="0.5" aria-pressed="false">½×</button><button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="2" aria-pressed="false">2×</button><button type="button" data-v="3" aria-pressed="false">3×</button></div>
+              </div>
+              <div class="g"><label>Units</label>
+                <div class="pills" id="units"><button type="button" data-v="us" aria-pressed="true">US</button><button type="button" data-v="metric" aria-pressed="false">Metric</button></div>
+              </div>
+              <label class="cook"><input type="checkbox" id="cookmode"><span>Cook mode</span></label>
+            </div>
+            <div class="r-body">
+              <section><h3>Ingredients</h3><div id="ingredients"></div></section>
+              <section>
+                <h3>Instructions</h3>
+                <p class="scale-note" id="scale-note" hidden></p>
+                <ol class="steps">
+                  <li>Heat the oven to <span data-u="350°F|175°C"></span>. Grease a <span data-u="9×5-inch|23×13 cm"></span> loaf pan and line it with parchment, leaving an overhang on the long sides.</li>
+                  <li>Melt the butter in a light-colored saucepan over medium heat, swirling, until the milk solids turn hazelnut brown and smell toasty, 5 to 7 minutes. Scrape into a large bowl and cool 10 minutes.</li>
+                  <li>Whisk in the brown sugar, then the eggs one at a time, then the bananas, sour cream, and vanilla.</li>
+                  <li>In a second bowl, whisk the flour, baking soda, salt, and cinnamon. Fold into the wet ingredients until a few streaks remain, then fold in the walnuts.</li>
+                  <li>Scrape into the pan, sprinkle with turbinado sugar, and bake 55 to 65 minutes, until a skewer comes out with a few moist crumbs.</li>
+                  <li>Cool 15 minutes in the pan, lift out by the parchment, and cool completely before slicing.</li>
+                </ol>
+              </section>
+            </div>
+            <div class="r-foot">
+              <div><h4>Notes</h4><ul><li>Keeps 3 days wrapped, or 3 months frozen in slices.</li><li>No sour cream? Use plain full-fat yogurt.</li></ul></div>
+              <div><h4>Nutrition per slice</h4>
+                <div class="nutri"><div><b>312</b>kcal</div><div><b>14 g</b>fat</div><div><b>43 g</b>carbs</div><div><b>5 g</b>protein</div></div>
+                <p class="disclaim">Entered by the author and an estimate. Not provided or verified by PantryPress.</p>
+              </div>
+            </div>
+            <p class="chef-note" id="chef-note"><span class="avatar">NB</span><span><b>From my kitchen</b>Freeze slices with parchment between them and toast straight from frozen. It's my weekday breakfast all winter.</span></p>
+          </section>
+
+          <div class="modules ann" id="modules">
+            <a class="pin" href="#cz-9">9</a>
+            <div class="ad" data-ad data-mod="ad"><b>Advertisement</b>After recipe card</div>
+            <div class="share" data-mod="share"><span>Share</span><a href="#site" onclick="return false">Pinterest</a><a href="#site" onclick="return false">Facebook</a><a href="#site" onclick="return false">Email</a></div>
+            <form class="signup alt" data-signup data-mod="signup">
+              <h3 data-nl-head>Get one small-batch bake every Sunday</h3>
+              <p>Get next Sunday's small-batch recipe in your inbox.</p>
+              <div class="fr"><input type="email" id="nl-end-email" placeholder="you@example.com" aria-label="Email" required><button class="btn" type="submit" data-nl-btn>Subscribe</button></div>
+            </form>
+            <section class="reviews" id="reviews" data-mod="reviews">
+              <h2>Ratings &amp; comments</h2>
+              <form class="rate-box" id="rate-form">
+                <div style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center"><b style="font-family:var(--f-display)">Rate this recipe</b><div class="rate-stars" id="rate-stars"></div></div>
+                <textarea id="rv-text" placeholder="Tell other bakers how it went (optional)"></textarea>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="btn solid small" type="submit">Post review</button><span id="rate-msg" style="font-size:13.5px;color:var(--muted)"></span></div>
+              </form>
+              <div class="comment"><div class="h"><b>Marcus T.</b><span class="stars">★★★★★</span><time>Oct 18, 2026</time></div><p>Halved it with the ½× button and baked in a mini loaf pan for 38 minutes. Perfect.</p></div>
+              <div class="comment reply"><div class="h"><b>Nadia Brooks</b><span class="badge">Author</span><time>Oct 18, 2026</time></div><p>Love that! Thanks for sharing the mini pan time.</p></div>
+            </section>
+            <section class="widget about-w" data-mod="about" style="border-top:3px solid var(--accent)">
+              <h3>About Nadia</h3>
+              <p>I bake for a family of four in a tiny Chicago kitchen. Every recipe here is sized so nothing goes stale on the counter.</p>
+            </section>
+          </div>
+        </article>
+
+        <aside class="sidebar ann" aria-label="Sidebar">
+          <a class="pin r" href="#cz-7">7</a>
+          <section class="widget about-w"><div class="ph">NB</div><h3>Hi, I'm Nadia</h3><p>Small-batch baking for real households.</p></section>
+          <section class="widget side-search"><h3>Search</h3><input type="text" id="side-q" placeholder="Try &quot;focaccia&quot;" aria-label="Search recipes"></section>
+          <section class="widget"><h3>Most popular</h3><ol class="pop"><li><a href="#site" onclick="return false">Six-Cookie Chocolate Chip Batch</a></li><li><a href="#site" onclick="return false">Overnight Focaccia for Two</a></li><li><a href="#site" onclick="return false">Tiny Lemon Drizzle Loaf</a></li></ol></section>
+          <div class="ad" data-ad style="min-height:240px"><b>Advertisement</b>Sidebar slot</div>
+        </aside>
+      </div>
+    </main>
+
+    <section class="related ann" id="related">
+      <a class="pin" href="#cz-9" style="top:8px;left:8px">9</a>
+      <div class="wrap">
+        <div class="rh"><h2>More breads &amp; loaves</h2><a href="#site" onclick="return false">See all 24 →</a></div>
+        <div class="rel-grid">
+          <a href="#site" onclick="return false"><div class="im" data-art="r1"></div><b>Tiny Lemon Drizzle Loaf</b><span>★ 4.9 · 1 hr 10 min</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r2"></div><b>Overnight Focaccia for Two</b><span>★ 4.7 · 14 hr</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r3"></div><b>Pumpkin Bread Muffins</b><span>★ 4.8 · 45 min</span></a>
+          <a href="#site" onclick="return false"><div class="im" data-art="r4"></div><b>Honey Oat Sandwich Loaf</b><span>★ 4.6 · 3 hr</span></a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="s-footer ann">
+      <a class="pin r" href="#cz-3" style="top:8px;right:8px">3</a>
+      <div class="wrap">
+        <form class="signup" data-signup>
+          <h3 data-nl-head>Get one small-batch bake every Sunday</h3>
+          <div class="fr"><input type="email" id="nl-foot-email" placeholder="you@example.com" aria-label="Email" required><button class="btn" type="submit" data-nl-btn>Subscribe</button></div>
+        </form>
+        <div><h4>Site</h4><ul><li><a href="#site" onclick="return false">About</a></li><li><a href="#site" onclick="return false">Contact</a></li><li><a href="#site" onclick="return false">Privacy</a></li><li><a href="#site" onclick="return false">Disclosure</a></li><li><a href="#site" onclick="return false">Accessibility</a></li></ul></div>
+        <div><h4>Follow</h4><ul><li><a href="#site" onclick="return false">Instagram</a></li><li><a href="#site" onclick="return false">Pinterest</a></li><li><a href="#site" onclick="return false">RSS feed</a></li></ul></div>
+      </div>
+      <div class="legal"><div class="wrap"><span>© 2026 <span id="foot-name">Small Batch Sundays</span></span><span>Powered by PantryPress</span></div></div>
+    </footer>
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="print" hidden>
+  <div class="paper" role="dialog" aria-modal="true" aria-labelledby="p-title">
+    <div class="ptools"><span>Print view preview</span><span style="display:flex;gap:10px;align-items:center"><label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="p-img" checked>Images</label><button type="button" id="p-close">Close</button></span></div>
+    <div id="p-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var site = $("#site");
+
+  /* ---------- Illustrations (stand-ins for the blogger's photos) ---------- */
+  function art(kind) {
+    var w = 1200, h = 800;
+    if (kind === "square" || /^r\d/.test(kind)) { w = 800; h = 800; }
+    if (kind === "butter" || kind === "batter" || kind === "crust") { w = 600; h = 600; }
+    var bgs = { hero: ["#c9b79c", "#8f7656"], square: ["#d8cbb5", "#a48b69"], butter: ["#3b2a20", "#6a4a2e"], batter: ["#e9dcc4", "#c7ae86"], crust: ["#ddd2c0", "#b49c79"], r1: ["#f3e7a8", "#d9b84a"], r2: ["#d9cdb6", "#9c855f"], r3: ["#e6b98a", "#b9773f"], r4: ["#e5dccb", "#b8a17c"] };
+    var c = bgs[kind] || bgs.hero, id = "g" + kind + Math.random().toString(36).slice(2, 6);
+    var s = '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="Recipe photo placeholder"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c[0] + '"/><stop offset="1" stop-color="' + c[1] + '"/></linearGradient></defs><rect width="' + w + '" height="' + h + '" fill="url(#' + id + ')"/>';
+    var cx = w / 2, cy = h * 0.56, i;
+    if (kind === "butter") {
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="200" fill="#b7b9bf"/><circle cx="' + cx + '" cy="' + cy + '" r="170" fill="#b8792f"/><g fill="#5a3412">';
+      for (i = 0; i < 26; i++) { var a = i * 2.4, rr = 30 + (i * 37) % 130; s += '<circle cx="' + (cx + Math.cos(a) * rr).toFixed(0) + '" cy="' + (cy + Math.sin(a) * rr).toFixed(0) + '" r="' + (5 + i % 4) + '"/>'; }
+      s += "</g>";
+    } else if (kind === "batter") {
+      s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="230" ry="200" fill="#ffffff" opacity="0.85"/><ellipse cx="' + cx + '" cy="' + cy + '" rx="190" ry="160" fill="#d6b27a"/><path d="M' + (cx - 120) + " " + (cy - 20) + ' q60 -50 120 0 t120 0" stroke="#f3e6c8" stroke-width="16" fill="none" stroke-linecap="round"/>';
+    } else if (/^r\d/.test(kind) || kind === "crust") {
+      var loaf = { r1: "#e2b53a", r2: "#c9944b", r3: "#b8642a", r4: "#c49255", crust: "#a86b35" }[kind];
+      s += '<ellipse cx="' + cx + '" cy="' + (cy + 150) + '" rx="300" ry="40" fill="#000000" opacity="0.15"/><rect x="' + (cx - 260) + '" y="' + (cy - 130) + '" width="520" height="270" rx="90" fill="' + loaf + '"/><path d="M' + (cx - 200) + " " + (cy - 80) + " Q" + cx + " " + (cy - 150) + " " + (cx + 200) + " " + (cy - 80) + '" stroke="#ffffff" stroke-opacity="0.35" stroke-width="18" fill="none" stroke-linecap="round"/>';
+      if (kind === "crust") { s += '<g fill="#f7ecd3">'; for (i = 0; i < 40; i++) { s += '<rect x="' + (cx - 220 + (i * 53) % 440) + '" y="' + (cy - 110 + (i * 29) % 200) + '" width="9" height="7" rx="2"/>'; } s += "</g>"; }
+    } else {
+      s += '<ellipse cx="' + cx + '" cy="' + (cy + h * 0.18) + '" rx="' + w * 0.42 + '" ry="' + h * 0.12 + '" fill="#6b4a2c"/><ellipse cx="' + cx + '" cy="' + (cy + h * 0.16) + '" rx="' + w * 0.42 + '" ry="' + h * 0.12 + '" fill="#9a6d43"/>';
+      var lw = w * 0.46, lh = h * 0.3, lx = cx - lw * 0.75, ly = cy - lh * 0.55;
+      s += '<rect x="' + lx + '" y="' + ly + '" width="' + lw + '" height="' + lh + '" rx="' + lh * 0.35 + '" fill="#7a4a22"/><rect x="' + (lx + lw - 30) + '" y="' + ly + '" width="30" height="' + lh + '" fill="#e2c18e"/>';
+      s += '<path d="M' + (lx + 30) + " " + (ly + 20) + " Q" + (lx + lw / 2) + " " + (ly - 30) + " " + (lx + lw - 40) + " " + (ly + 20) + '" stroke="#4a2a10" stroke-width="10" fill="none"/><g fill="#f6ead0">';
+      for (i = 0; i < 30; i++) { s += '<rect x="' + (lx + 30 + (i * 41) % (lw - 80)) + '" y="' + (ly + 10 + (i * 17) % 50) + '" width="8" height="6" rx="2"/>'; }
+      var sx = cx + w * 0.08, sy = cy - lh * 0.35;
+      s += '</g><rect x="' + sx + '" y="' + sy + '" width="' + w * 0.2 + '" height="' + lh * 0.95 + '" rx="18" fill="#7a4a22"/><rect x="' + (sx + 10) + '" y="' + (sy + 12) + '" width="' + (w * 0.2 - 20) + '" height="' + (lh * 0.95 - 22) + '" rx="12" fill="#e4c28c"/><g fill="#b3874f">';
+      for (i = 0; i < 14; i++) { s += '<circle cx="' + (sx + 26 + (i * 37) % (w * 0.2 - 50)) + '" cy="' + (sy + 30 + (i * 23) % (lh * 0.8)) + '" r="4"/>'; }
+      s += "</g>";
+    }
+    return s + "</svg>";
+  }
+  $$("[data-art]").forEach(function (el) { el.innerHTML = art(el.getAttribute("data-art")); });
+
+  /* ---------- Recipe (the live site precomputes every variant on the server) ---------- */
+  var groups = [
+    { name: "Brown butter", items: [{ us: [0.5, "cup"], m: [113, "g"], item: "unsalted butter" }] },
+    { name: "Batter", items: [
+      { count: 3, item: "very ripe bananas", note: "mashed", mExtra: [340, "g"] },
+      { us: [2/3, "cup"], m: [140, "g"], item: "light brown sugar", note: "packed" },
+      { count: 2, item: "large eggs", note: "room temperature", whole: true },
+      { us: [1/3, "cup"], m: [80, "g"], item: "sour cream" },
+      { us: [1, "tsp"], m: [5, "ml"], item: "vanilla extract" },
+      { us: [1.75, "cup"], m: [220, "g"], item: "all-purpose flour" },
+      { us: [1, "tsp"], m: [1, "tsp"], item: "baking soda" },
+      { us: [0.5, "tsp"], m: [0.5, "tsp"], item: "fine sea salt" },
+      { us: [0.5, "tsp"], m: [0.5, "tsp"], item: "ground cinnamon" },
+      { us: [0.5, "cup"], m: [60, "g"], item: "toasted walnuts", note: "chopped, optional" }
+    ]},
+    { name: "Topping", items: [{ us: [1, "tbsp"], m: [12, "g"], item: "turbinado sugar" }] }
+  ];
+  var FR = [[0, ""], [1/8, "⅛"], [1/4, "¼"], [1/3, "⅓"], [1/2, "½"], [2/3, "⅔"], [3/4, "¾"], [1, ""]];
+  function frac(x) {
+    var whole = Math.floor(x + 1e-9), rest = x - whole, best = FR[0];
+    FR.forEach(function (f) { if (Math.abs(f[0] - rest) < Math.abs(best[0] - rest)) best = f; });
+    if (best[0] === 1) { whole += 1; best = FR[0]; }
+    return ((whole ? String(whole) : "") + best[1]) || "0";
+  }
+  function usQty(q, unit) {
+    if (unit === "cup" && q < 0.25) { q = q * 16; unit = "tbsp"; }
+    if (unit === "tsp" && q >= 3) { q = q / 3; unit = "tbsp"; }
+    if (unit === "tbsp" && q >= 4) { q = q / 16; unit = "cup"; }
+    return frac(q) + " " + (unit === "cup" ? (q > 1 ? "cups" : "cup") : unit);
+  }
+  function mQty(q, unit) {
+    if (unit === "tsp" || unit === "tbsp") return usQty(q, unit);
+    return (q < 20 ? Math.round(q) : Math.round(q / 5) * 5) + " " + unit;
+  }
+  var rs = { scale: 1, units: "us" };
+  function line(it) {
+    var s = rs.scale, q, tail = it.note ? ', <span class="note">' + it.note + "</span>" : "";
+    if (it.count) {
+      var n = it.count * s; n = it.whole ? Math.max(1, Math.round(n)) : n;
+      var extra = (rs.units === "metric" && it.mExtra) ? " (about " + mQty(it.mExtra[0] * s, it.mExtra[1]) + ")" : "";
+      return '<span class="q">' + frac(n) + "</span> " + it.item + extra + tail;
+    }
+    q = rs.units === "us" ? usQty(it.us[0] * s, it.us[1]) : mQty(it.m[0] * s, it.m[1]);
+    return '<span class="q">' + q + "</span> " + it.item + tail;
+  }
+  function renderRecipe() {
+    $("#ingredients").innerHTML = groups.map(function (g) { return "<h4>" + g.name + '</h4><ul class="ing">' + g.items.map(function (it) { return "<li>" + line(it) + "</li>"; }).join("") + "</ul>"; }).join("");
+    $("#yield").textContent = (10 * rs.scale) + " slices";
+    var note = $("#scale-note");
+    note.hidden = rs.scale === 1;
+    note.textContent = rs.scale === 0.5 ? "Scaled to ½×: bake in a mini loaf pan and start checking at 35 minutes." : "Scaled to " + rs.scale + "×: bake in " + rs.scale + " separate pans. Times stay the same.";
+    $$("[data-u]").forEach(function (el) { var p = el.getAttribute("data-u").split("|"); el.textContent = rs.units === "us" ? p[0] : p[1]; });
+  }
+  function pills(id, key) {
+    $$("#" + id + " button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        $$("#" + id + " button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        rs[key] = key === "scale" ? parseFloat(b.getAttribute("data-v")) : b.getAttribute("data-v");
+        renderRecipe();
+      });
+    });
+  }
+  pills("scale", "scale"); pills("units", "units"); renderRecipe();
+
+  $("#jump").addEventListener("click", function () { $("#recipe").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#rate-jump").addEventListener("click", function () { $("#reviews").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("#cookmode").addEventListener("change", function () { if (this.checked) { try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(function () {}); } catch (e) {} } });
+  $$("form[data-signup]").forEach(function (f) { f.addEventListener("submit", function (e) { e.preventDefault(); f.querySelector(".fr").innerHTML = '<span class="ok">Almost done. Check your inbox and tap the confirmation link.</span>'; }); });
+  var rating = 0, starsEl = $("#rate-stars");
+  [1, 2, 3, 4, 5].forEach(function (n) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "★"; b.setAttribute("aria-label", n + " star" + (n > 1 ? "s" : ""));
+    b.addEventListener("click", function () { rating = n; $$("button", starsEl).forEach(function (x, i) { x.classList.toggle("on", i < n); }); });
+    starsEl.appendChild(b);
+  });
+  $("#rate-form").addEventListener("submit", function (e) { e.preventDefault(); $("#rate-msg").textContent = rating ? "Thanks! Your " + rating + "-star review is waiting for approval." : "Pick a star rating first."; });
+
+  function renderPrint() {
+    var img = $("#p-img").checked;
+    var ing = groups.map(function (g) { return "<h3>" + g.name + "</h3><ul>" + g.items.map(function (it) { return "<li>" + line(it).replace(/<[^>]+>/g, "") + "</li>"; }).join("") + "</ul>"; }).join("");
+    var steps = $$(".steps li").map(function (li) { return "<li>" + li.textContent + "</li>"; }).join("");
+    $("#p-body").innerHTML = (img ? '<div class="pimg">' + art("square") + "</div>" : "") + '<h2 id="p-title">Brown Butter Banana Bread</h2><div>Prep 20 min · Cook 1 hr · Total 2 hr 20 min · Yield ' + (10 * rs.scale) + " slices</div>" + ing + "<h3>Instructions</h3><ol>" + steps + '</ol><div class="purl">' + $("#word").textContent + " · https://smallbatchsundays.com/brown-butter-banana-bread/</div>";
+  }
+  $$("[data-print]").forEach(function (b) { b.addEventListener("click", function () { renderPrint(); $("#print").hidden = false; $("#p-close").focus(); }); });
+  $("#p-img").addEventListener("change", renderPrint);
+  $("#p-close").addEventListener("click", function () { $("#print").hidden = true; });
+  $("#print").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("#print").hidden = true; });
+
+  /* ---------- Color with enforced contrast ---------- */
+  function rgb(hex) { hex = hex.replace("#", ""); return [0, 2, 4].map(function (i) { return parseInt(hex.substr(i, 2), 16); }); }
+  function hex(c) { return "#" + c.map(function (v) { return ("0" + Math.round(Math.max(0, Math.min(255, v))).toString(16)).slice(-2); }).join(""); }
+  function lum(h) { return rgb(h).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }).reduce(function (a, v, i) { return a + v * [0.2126, 0.7152, 0.0722][i]; }, 0); }
+  function ratio(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function mix(a, b, t) { var p = rgb(a), q = rgb(b); return hex(p.map(function (v, i) { return v + (q[i] - v) * t; })); }
+  function towards(c, target, bg, min) { var out = c, t = 0; while (ratio(out, bg) < min && t < 1) { t += 0.05; out = mix(c, target, t); } return out; }
+  function inkOn(c) { return ratio(c, "#ffffff") >= ratio(c, "#141414") ? "#ffffff" : "#141414"; }
+
+  var TONES = {
+    white: { L: ["#ffffff", "#f4f4f1", "#1c1c1c", "#5c5c5c", "#e2e2de"], D: ["#131313", "#1d1d1d", "#ececec", "#a3a3a3", "#2e2e2e"] },
+    paper: { L: ["#fbf7ef", "#f2ead9", "#2b2318", "#6b5d48", "#e6dcc8"], D: ["#17140f", "#221d16", "#efe8dc", "#b3a68f", "#363024"] },
+    cool:  { L: ["#f5f8fb", "#e8eff6", "#152230", "#4f6173", "#d6e0ea"], D: ["#0f141a", "#18202a", "#e6edf5", "#9eb0c2", "#2a3542"] },
+    blush: { L: ["#fdf6f5", "#f7e6e3", "#2d1a1a", "#6e5250", "#ecd6d2"], D: ["#1a1213", "#251a1c", "#f4e8e8", "#bba2a2", "#3b2a2c"] },
+    sage:  { L: ["#f4f7f1", "#e6eedf", "#1b2618", "#55654f", "#d6e1cd"], D: ["#11160f", "#1a2117", "#e7eee3", "#a1b09a", "#2c3828"] }
+  };
+  var KEYS = ["bg", "surface", "ink", "muted", "line"];
+  var S = { brand: "#2f6b3a", hl: "#f2c94c", tone: "white" };
+  function applyColor() {
+    var t = TONES[S.tone];
+    KEYS.forEach(function (k, i) { site.style.setProperty("--L-" + k, t.L[i]); site.style.setProperty("--D-" + k, t.D[i]); });
+    var Lbg = t.L[0], Dbg = t.D[0];
+    var dAccent = towards(S.brand, "#ffffff", Dbg, 3);
+    site.style.setProperty("--L-accent", S.brand);
+    site.style.setProperty("--L-accent-ink", inkOn(S.brand));
+    site.style.setProperty("--L-accent-text", towards(S.brand, "#000000", Lbg, 4.5));
+    site.style.setProperty("--D-accent", dAccent);
+    site.style.setProperty("--D-accent-ink", inkOn(dAccent));
+    site.style.setProperty("--D-accent-text", towards(S.brand, "#ffffff", Dbg, 4.5));
+    site.style.setProperty("--L-hl", S.hl); site.style.setProperty("--D-hl", S.hl);
+    site.style.setProperty("--L-hl-ink", inkOn(S.hl)); site.style.setProperty("--D-hl-ink", inkOn(S.hl));
+    var r = ratio(S.brand, Lbg);
+    $("#aa-brand").innerHTML = r >= 4.5 ? '<span class="aa ok">AA ' + r.toFixed(1) + ":1</span>" : '<span class="aa fix">' + r.toFixed(1) + ":1 · text auto-darkened</span>";
+    $("#in-brand").value = S.brand; $("#in-hl").value = S.hl;
+  }
+  var BRANDS = ["#2f6b3a", "#1f5f7a", "#8a2f4b", "#c2410c", "#6d28d9", "#d9a400", "#0f766e"];
+  var HLS = ["#f2c94c", "#ffb4a2", "#9ad0ec", "#c8e6a0", "#f6a5c0"];
+  function swatches(el, list, key) {
+    el.innerHTML = list.map(function (c) { return '<button type="button" aria-label="' + c + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join("");
+    $$("button", el).forEach(function (b) { b.addEventListener("click", function () { S[key] = b.getAttribute("data-c"); applyColor(); }); });
+  }
+  swatches($("#sw-brand"), BRANDS, "brand"); swatches($("#sw-hl"), HLS, "hl");
+  $("#in-brand").addEventListener("input", function () { S.brand = this.value; applyColor(); });
+  $("#in-hl").addEventListener("input", function () { S.hl = this.value; applyColor(); });
+
+  /* ---------- Fonts ---------- */
+  var HF = { "Bricolage Grotesque": ['"Bricolage Grotesque", system-ui, sans-serif', 800, "-0.02em"], "Fraunces": ['"Fraunces", Georgia, serif', 700, "-0.01em"], "Archivo": ['"Archivo", "Helvetica Neue", Arial, sans-serif', 800, "-0.025em"], "Playfair Display": ['"Playfair Display", Georgia, serif', 800, "-0.01em"], "DM Serif Display": ['"DM Serif Display", Georgia, serif', 400, "0"], "Caprasimo": ['"Caprasimo", Georgia, serif', 400, "0"], "Young Serif": ['"Young Serif", Georgia, serif', 400, "-0.01em"] };
+  var BF = { "Literata": '"Literata", Georgia, serif', "Source Serif 4": '"Source Serif 4", Georgia, serif', "Lora": '"Lora", Georgia, serif', "Nunito Sans": '"Nunito Sans", system-ui, sans-serif', "Karla": '"Karla", system-ui, sans-serif' };
+  $("#in-hfont").innerHTML = Object.keys(HF).map(function (k) { return "<option>" + k + "</option>"; }).join("");
+  $("#in-bfont").innerHTML = Object.keys(BF).map(function (k) { return "<option>" + k + "</option>"; }).join("");
+  function applyFonts() {
+    var h = HF[$("#in-hfont").value];
+    site.style.setProperty("--f-display", h[0]); site.style.setProperty("--display-weight", h[1]); site.style.setProperty("--display-track", h[2]);
+    site.style.setProperty("--f-body", BF[$("#in-bfont").value]);
+  }
+  $("#in-hfont").addEventListener("change", applyFonts); $("#in-bfont").addEventListener("change", applyFonts);
+
+  /* ---------- Generic controls ---------- */
+  function setSeg(id, v) { $$("#" + id + " button").forEach(function (x) { x.setAttribute("aria-pressed", String(x.getAttribute("data-v") === v)); }); }
+  function seg(id, fn) { $$("#" + id + " button").forEach(function (b) { b.addEventListener("click", function () { setSeg(id, b.getAttribute("data-v")); fn(b.getAttribute("data-v")); clearPreset(); }); }); }
+  function attrSeg(id, attr) { seg(id, function (v) { site.setAttribute(attr, v); }); }
+  seg("ctl-mode", function (v) { site.setAttribute("data-mode", v); });
+  seg("ctl-tone", function (v) { S.tone = v; applyColor(); });
+  attrSeg("ctl-btn", "data-btn"); attrSeg("ctl-texture", "data-texture"); attrSeg("ctl-header", "data-header");
+  attrSeg("ctl-hero", "data-hero"); attrSeg("ctl-layout", "data-layout"); attrSeg("ctl-card", "data-card"); attrSeg("ctl-steps", "data-steps");
+  function range(id, out, fmt, fn) { var el = $("#" + id); var go = function () { $("#" + out).textContent = fmt(el.value); fn(el.value); }; el.addEventListener("input", go); go(); return go; }
+  var rBase = range("in-base", "o-base", function (v) { return v + " px"; }, function (v) { site.style.setProperty("--base", v + "px"); });
+  var rH = range("in-hscale", "o-hscale", function (v) { return v + "%"; }, function (v) { site.style.setProperty("--hscale", v / 100); });
+  var rR = range("in-radius", "o-radius", function (v) { return v + " px"; }, function (v) { site.style.setProperty("--r", v + "px"); });
+  var rI = range("in-imgr", "o-imgr", function (v) { return v + " px"; }, function (v) { site.style.setProperty("--img-r", v + "px"); });
+  range("in-measure", "o-measure", function (v) { return v + " px"; }, function (v) { site.style.setProperty("--measure", v + "px"); });
+  function bindText(id, fn) { var el = $("#" + id); el.addEventListener("input", function () { fn(el.value); }); fn(el.value); }
+  bindText("in-name", function (v) { $("#word").textContent = v || "Untitled site"; $("#foot-name").textContent = v; });
+  bindText("in-tag", function (v) { $("#tagline").textContent = v; $("#tagline").hidden = !v; });
+  bindText("in-mono", function (v) { $("#mark").textContent = v; });
+  bindText("in-announce-text", function (v) { $("#announce-text").textContent = v; });
+  bindText("in-signoff-text", function (v) { $("#signoff-text").textContent = v; });
+  bindText("in-jump", function (v) { $("#jump-label").textContent = v || "Jump to recipe"; });
+  bindText("in-nl-head", function (v) { $$("[data-nl-head]").forEach(function (h) { h.textContent = v; }); });
+  bindText("in-nl-btn", function (v) { $$("[data-nl-btn]").forEach(function (h) { h.textContent = v || "Subscribe"; }); });
+  $("#in-mark").addEventListener("change", function () { site.setAttribute("data-mark", this.value); });
+  function toggle(id, fn) { var el = $("#" + id); el.addEventListener("change", function () { fn(el.checked); }); fn(el.checked); }
+  toggle("in-drop", function (on) { site.classList.toggle("dropcap", on); });
+  toggle("in-announce", function (on) { $("#announce").hidden = !on; });
+  toggle("in-signoff", function (on) { $("#signoff").hidden = !on; });
+  toggle("in-chef", function (on) { $("#chef-note").hidden = !on; });
+  toggle("in-gallery", function (on) { $("#gallery").hidden = !on; });
+  toggle("in-inline", function (on) { $("#inline-signup").hidden = !on; });
+  toggle("in-ads", function (on) { $$("[data-ad]").forEach(function (a) { a.hidden = !on; }); });
+  toggle("in-related", function (on) { $("#related").hidden = !on; });
+  function badges() { $("#badges").innerHTML = $$("#badges-in input:checked").map(function (i) { return "<span>" + i.value + "</span>"; }).join(""); }
+  $$("#badges-in input").forEach(function (i) { i.addEventListener("change", badges); }); badges();
+  $("#ctl-ann").addEventListener("change", function () { document.body.classList.toggle("show-ann", this.checked); });
+
+  /* ---------- Section order ---------- */
+  var MODS = [["ad", "After-card ad", true], ["share", "Share buttons", true], ["signup", "End-of-post signup", true], ["reviews", "Ratings & comments", true], ["about", "About the author box", false]];
+  function renderOrder() {
+    var box = $("#modules");
+    MODS.forEach(function (m) { var el = $('[data-mod="' + m[0] + '"]', box); box.appendChild(el); el.hidden = !m[2] || (m[0] === "ad" && !$("#in-ads").checked); });
+    $("#order").innerHTML = MODS.map(function (m, i) {
+      return '<li><input type="checkbox" aria-label="Show ' + m[1] + '" data-i="' + i + '"' + (m[2] ? " checked" : "") + '><span class="nm">' + m[1] + '</span><button type="button" data-up="' + i + '" aria-label="Move up"' + (i === 0 ? " disabled" : "") + '>↑</button><button type="button" data-down="' + i + '" aria-label="Move down"' + (i === MODS.length - 1 ? " disabled" : "") + ">↓</button></li>";
+    }).join("");
+  }
+  $("#order").addEventListener("click", function (e) {
+    var t = e.target, i;
+    if (t.hasAttribute("data-up")) { i = +t.getAttribute("data-up"); MODS.splice(i - 1, 0, MODS.splice(i, 1)[0]); renderOrder(); }
+    else if (t.hasAttribute("data-down")) { i = +t.getAttribute("data-down"); MODS.splice(i + 1, 0, MODS.splice(i, 1)[0]); renderOrder(); }
+  });
+  $("#order").addEventListener("change", function (e) { var i = +e.target.getAttribute("data-i"); MODS[i][2] = e.target.checked; renderOrder(); });
+  $("#in-ads").addEventListener("change", renderOrder);
+  renderOrder();
+
+  /* ---------- Presets ---------- */
+  var PRESETS = {
+    "Market":   { brand: "#2f6b3a", hl: "#f2c94c", tone: "white", h: "Bricolage Grotesque", b: "Literata", r: 10, img: 10, btn: "solid", tex: "none", header: "split", hero: "standard", layout: "right", card: "classic", steps: "circle", mark: "circle", hs: 100 },
+    "Hearth":   { brand: "#8a2f4b", hl: "#f6a5c0", tone: "blush", h: "Fraunces", b: "Nunito Sans", r: 18, img: 24, btn: "pill", tex: "none", header: "centered", hero: "standard", layout: "single", card: "classic", steps: "circle", mark: "circle", hs: 105 },
+    "Larder":   { brand: "#1f3f9a", hl: "#f2c94c", tone: "cool", h: "Archivo", b: "Source Serif 4", r: 0, img: 0, btn: "shadow", tex: "lines", header: "stacked", hero: "split", layout: "right", card: "magazine", steps: "numeral", mark: "none", hs: 115 },
+    "Farmhouse": { brand: "#b23a2e", hl: "#f2c94c", tone: "paper", h: "Young Serif", b: "Lora", r: 6, img: 4, btn: "solid", tex: "gingham", header: "banner", hero: "overlay", layout: "right", card: "index", steps: "plain", mark: "stamp", hs: 105 },
+    "Sunny":    { brand: "#c2410c", hl: "#ffd166", tone: "white", h: "Caprasimo", b: "Karla", r: 24, img: 32, btn: "pill", tex: "dots", header: "banner", hero: "fullbleed", layout: "single", card: "magazine", steps: "numeral", mark: "square", hs: 110 },
+    "Supper Club": { brand: "#0f766e", hl: "#e9b872", tone: "sage", h: "DM Serif Display", b: "Source Serif 4", r: 2, img: 2, btn: "outline", tex: "grain", header: "centered", hero: "split", layout: "left", card: "classic", steps: "numeral", mark: "stamp", hs: 120 }
+  };
+  function clearPreset() { $$("#presets button").forEach(function (b) { b.setAttribute("aria-pressed", "false"); }); }
+  function applyPreset(name) {
+    var p = PRESETS[name];
+    S.brand = p.brand; S.hl = p.hl; S.tone = p.tone; setSeg("ctl-tone", p.tone); applyColor();
+    $("#in-hfont").value = p.h; $("#in-bfont").value = p.b; applyFonts();
+    $("#in-radius").value = p.r; rR(); $("#in-imgr").value = p.img; rI(); $("#in-hscale").value = p.hs; rH();
+    [["ctl-btn", "data-btn", p.btn], ["ctl-texture", "data-texture", p.tex], ["ctl-header", "data-header", p.header], ["ctl-hero", "data-hero", p.hero], ["ctl-layout", "data-layout", p.layout], ["ctl-card", "data-card", p.card], ["ctl-steps", "data-steps", p.steps]].forEach(function (x) { setSeg(x[0], x[2]); site.setAttribute(x[1], x[2]); });
+    $("#in-mark").value = p.mark; site.setAttribute("data-mark", p.mark);
+    $$("#presets button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-p") === name)); });
+  }
+  $("#presets").innerHTML = Object.keys(PRESETS).map(function (k) {
+    var p = PRESETS[k], t = TONES[p.tone].L;
+    return '<button type="button" data-p="' + k + '" aria-pressed="false"><i><b style="background:' + t[0] + '"></b><b style="background:' + p.brand + '"></b><b style="background:' + p.hl + '"></b></i><span style="font-family:' + HF[p.h][0].replace(/"/g, "'") + '">' + k + "</span></button>";
+  }).join("");
+  $$("#presets button").forEach(function (b) { b.addEventListener("click", function () { applyPreset(b.getAttribute("data-p")); }); });
+  ["in-base", "in-hscale", "in-radius", "in-imgr", "in-measure", "in-hfont", "in-bfont", "in-brand", "in-hl"].forEach(function (id) { $("#" + id).addEventListener("input", clearPreset); });
+
+  /* ---------- Pins open the matching customizer group ---------- */
+  $$(".pin").forEach(function (p) {
+    p.addEventListener("click", function (e) {
+      var g = document.getElementById(p.getAttribute("href").slice(1));
+      if (!g) return;
+      e.preventDefault();
+      g.open = true;
+      g.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      $$(".grp.flash").forEach(function (x) { x.classList.remove("flash"); });
+      g.classList.add("flash");
+    });
+  });
+
+  document.body.classList.add("show-ann");
+  applyPreset("Market");
+})();
+</script>
