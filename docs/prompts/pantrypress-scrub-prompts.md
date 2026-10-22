@@ -12,7 +12,7 @@ PantryPress is its own repository and Aspire application. It shares **no code** 
 borrows CreatorPantry's delivery discipline: one seam per prompt, plan first, explicit restrictions,
 checkpoints, and separate audit prompts.
 
-**These are deliberately small.** The document has **21 phases (PP0–PP20) and 261 microprompts**. Run one
+**These are deliberately small.** The document has **21 phases (PP0–PP20) and 257 microprompts**. Run one
 prompt at a time. A prompt may cross layers only when it is explicitly a vertical-integration or
 verification prompt.
 
@@ -86,7 +86,7 @@ BEHAVIOR:     inspect, plan, wait for approval, implement, test, and report
 
 | After | Demonstrable result |
 | --- | --- |
-| **PP0.12** | `aspire run` shows SQL, Redis, blob, migration service, API, site API, gateway, worker, and both Angular apps healthy |
+| **PP0.8** | `aspire run` shows SQL, Redis, blob, migration service, API, site API, gateway, worker, and both Angular apps healthy |
 | **PP1.12** | A blogger can register, verify email, sign in through the BFF, refresh, and sign out without exposing a token |
 | **PP2.14** | Two sites cannot see each other; `demo.localhost` resolves through the site API; members have the right powers |
 | **PP3.10** | The `@pantrypress/ui` showcase and the admin shell render in light and dark themes and pass an accessibility smoke test |
@@ -118,65 +118,29 @@ BEHAVIOR:     inspect, plan, wait for approval, implement, test, and report
 
 ```text
 SCOPE: Create docs/architecture-decisions/pantrypress.md recording PP-D01 through PP-D18 and the owner
-decisions in requirements section 1.2, and copy the requirements and the customization spec into
-docs/requirements/. Do not write code.
+decisions in requirements section 1.2. The requirements, customization spec, and prompts are already in
+docs/ from the repo starter; confirm they match the latest versions. Do not write code.
 CONSTRAINT: Requirements sections 1, 3, and 8.
 RESTRICTION: Do NOT silently resolve a DECIDE item. Record options, impact, and the default later prompts assume.
 BEHAVIOR: Show the decision table, wait for approval, then write the record and link it from
 docs/architecture.md.
 ```
 
-### PP0.2 CLAUDE.md constitution
+### PP0.2 Toolkit alignment
 
 ```text
-SCOPE: Write CLAUDE.md in SCRUB form for PantryPress: scope and out-of-bounds, stack, solution layout,
-request seam, data zones, site isolation, public-tier rules, no-AI rule, and usage commands.
-CONSTRAINT: Requirements section 6 item 1; PP-D01 to PP-D18.
-RESTRICTION: Under 250 lines. Detail belongs in rule files, not CLAUDE.md. No CreatorPantry-specific rules.
-BEHAVIOR: Show the draft, wait for approval, write it.
+SCOPE: The repository starts from the PantryPress repo starter, which already contains CLAUDE.md,
+README.md, and the .claude/ toolkit (17 rules, 12 skills, 7 reviewer agents, hooks, settings). Check them
+against the PP0.1 decisions record and fix only what the record changed, such as a DECIDE item resolved
+differently from its default.
+CONSTRAINT: Requirements section 6; PP0.1 decisions record; .claude/README.md toolkit map.
+RESTRICTION: No rewrite. CLAUDE.md stays under 250 lines and each rule file under 150. No product code.
+UTILIZATION: architecture-reviewer.
+BEHAVIOR: List each mismatch with the decision it conflicts with, wait for approval, apply the edits, then
+prove the hooks run: a sample secret and an AI SDK reference are both blocked.
 ```
 
-### PP0.3 Rule files: back end and tenancy
-
-```text
-SCOPE: Create .claude/rules/backend.md, tenancy.md (site isolation), auth.md, gateway.md, api-contract.md,
-external.md, and aspire.md.
-CONSTRAINT: Requirements section 6 item 2; PP-D01, PP-D03, PP-D06.
-RESTRICTION: Rules only. Each file under 150 lines; cross-reference rather than repeat.
-BEHAVIOR: Draft, show, wait for approval, write, and add a .claude/README.md toolkit map.
-```
-
-### PP0.4 Rule files: content, public tier, and billing
-
-```text
-SCOPE: Create .claude/rules/recipes.md, content.md, media.md, sites.md, rendering.md, public-endpoints.md,
-publishing-api.md, billing.md, frontend.md, and design-system.md.
-CONSTRAINT: Requirements section 6 item 2; PP-D02, PP-D04, PP-D05, PP-D07, PP-D08, PP-D11, PP-D12, PP-D15.
-RESTRICTION: Rules only. Each file under 150 lines.
-BEHAVIOR: Draft, show, wait for approval, write, and update the toolkit map.
-```
-
-### PP0.5 Skills
-
-```text
-SCOPE: Create the section 6 item 3 skills under .claude/skills/, each a procedure and checklist for one kind
-of seam.
-CONSTRAINT: PP0.3 and PP0.4 rules.
-RESTRICTION: Skills contain procedure, not product code.
-BEHAVIOR: Show each outline, wait for approval, write, and dry-run one skill against an imaginary prompt.
-```
-
-### PP0.6 Reviewer agents and hooks
-
-```text
-SCOPE: Create the section 6 item 4 read-only reviewer agents and item 5 hooks (secret scanning, formatting).
-CONSTRAINT: Rules and skills from PP0.3–PP0.5.
-RESTRICTION: Reviewers have read-only tools; findings need file, line, test, or output evidence. Hooks are
-conservative and fast.
-BEHAVIOR: Show definitions, wait for approval, write, make hooks executable, and dry-run one reviewer.
-```
-
-### PP0.7 Solution skeleton
+### PP0.3 Solution skeleton
 
 ```text
 SCOPE: Create the .NET 10 solution with the PP-D01 projects (AppHost, ServiceDefaults, Gateway, ApiService,
@@ -186,7 +150,7 @@ RESTRICTION: No entities, endpoints, auth, or feature code. Domain references no
 BEHAVIOR: Show commands and the reference graph, wait for approval, execute, and confirm the build succeeds.
 ```
 
-### PP0.8 SQL, Redis, and blob resources
+### PP0.4 SQL, Redis, and blob resources
 
 ```text
 SCOPE: Declare PantryPress's own SQL Server database, Redis, and blob storage in the AppHost with secret
@@ -197,7 +161,7 @@ UTILIZATION: add-aspire-resource.
 BEHAVIOR: Plan names and persistence, wait for approval, implement, and show each resource healthy.
 ```
 
-### PP0.9 ServiceDefaults, health, and application clock
+### PP0.5 ServiceDefaults, health, and application clock
 
 ```text
 SCOPE: Wire ServiceDefaults into every executable with /health and /alive, and add one injectable clock and
@@ -207,7 +171,7 @@ RESTRICTION: Liveness never calls SQL, Redis, blob, or providers. No DateTime.Ut
 BEHAVIOR: Implement with fixed-clock and DST boundary tests and report per-process health behavior.
 ```
 
-### PP0.10 Migration service and DbContext
+### PP0.6 Migration service and DbContext
 
 ```text
 SCOPE: Add PantryPressDbContext (empty model) and MigrationService as a one-shot worker that applies
@@ -217,7 +181,7 @@ RESTRICTION: Host apps never apply migrations at startup.
 BEHAVIOR: Show loop and failure behavior, wait for approval, implement, and prove an empty run exits cleanly.
 ```
 
-### PP0.11 Angular 22 workspace
+### PP0.7 Angular 22 workspace
 
 ```text
 SCOPE: Scaffold the src/web Angular 22 workspace with three projects: pantrypress-ui (library),
@@ -228,7 +192,7 @@ RESTRICTION: No feature screens, no auth, no second CSS framework, no hard-coded
 BEHAVIOR: Plan dev and production paths, wait for approval, implement, and build all three projects.
 ```
 
-### PP0.12 First complete local run
+### PP0.8 First complete local run
 
 ```text
 SCOPE: Run the empty system and repair only wiring that blocks startup.
@@ -996,7 +960,7 @@ BEHAVIOR: Plan, wait for approval, implement with hash stability tests.
 ### PP7.2 Angular SSR site application and budget spike
 
 ```text
-SCOPE: Build out projects/pantrypress-site (scaffolded in PP0.11) as a zoneless Angular 22 application served
+SCOPE: Build out projects/pantrypress-site (scaffolded in PP0.7) as a zoneless Angular 22 application served
 per request by @angular/ssr's Node app engine, with one hello-world route whose resolver loads page data from
 a fake source, and one @defer (hydrate on interaction) island. Measure the compressed JavaScript and CSS it
 ships and the SSR render time.
