@@ -1,7 +1,7 @@
 # PantryPress
 
 <div>
- <img src="doce/image/logo.png" />
+ <img src="docs/images/logo.png" />
 </div>
 
 A hosted food-blogging platform with everything built in. Bloggers write posts and structured recipes and
