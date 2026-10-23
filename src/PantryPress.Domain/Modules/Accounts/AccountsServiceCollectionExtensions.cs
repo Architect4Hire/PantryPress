@@ -1,5 +1,15 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Modules.Accounts.Business;
+using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Accounts.DataLayer;
+using PantryPress.Domain.Modules.Accounts.Facades;
+using PantryPress.Domain.Modules.Accounts.Repositories;
+using PantryPress.Domain.Modules.Accounts.Validation;
 
 namespace PantryPress.Domain.Modules.Accounts;
 
@@ -12,6 +22,9 @@ public static class AccountsServiceCollectionExtensions
 
     /// <summary>Version 2's key length when none is set; pinned so a host setting cannot widen the key columns.</summary>
     public const int IdentityMaxLengthForKeys = 128;
+
+    /// <summary>The issuer authenticator apps show next to the account.</summary>
+    public const string AuthenticatorIssuer = "PantryPress";
 
     /// <summary>
     /// Pins the store options that shape Identity's tables. Identity builds its part of the model from
@@ -28,4 +41,78 @@ public static class AccountsServiceCollectionExtensions
             options.Stores.MaxLengthForKeys = IdentityMaxLengthForKeys;
             options.Stores.ProtectPersonalData = false;
         });
+
+    /// <summary>
+    /// Registers the Accounts module (ACCT-001, ACCT-003): Identity over <see cref="AccountUserStore"/>, the token
+    /// providers, the facades, and their validators. The host also registers <c>PantryPressDbContext</c>, the clock,
+    /// data protection, and the email queue. The <paramref name="configuration"/> section binds
+    /// <see cref="AccountsOptions"/>, checked at startup.
+    /// </summary>
+    public static IServiceCollection AddAccounts(
+        this IServiceCollection services,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
+    {
+        services.AddOptions<AccountsOptions>()
+            .Bind(configuration)
+            .Validate(o => o.IsValid(), "Accounts:AppBaseUrl must be the admin app's absolute HTTPS origin.")
+            .ValidateOnStart();
+
+        services.AddAccountsIdentitySchema();
+        services.AddIdentityCore<ApplicationUser>(ConfigureIdentity)
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<PantryPressDbContext>()
+            .AddUserManager<AccountUserManager>()
+            .AddTokenProvider<EmailConfirmationTokenProvider>(EmailConfirmationTokenProvider.Name)
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.Name)
+            .AddTokenProvider<AuthenticatorCodeProvider>(AuthenticatorCodeProvider.Name);
+        services.Replace(ServiceDescriptor.Scoped<IUserStore<ApplicationUser>, AccountUserStore>());
+
+        services.AddScoped<AccountsUnitOfWork>();
+        services.AddScoped<AccountsDataLayer>();
+        services.AddSingleton(sp => new AccountEmails(sp.GetRequiredService<IOptions<AccountsOptions>>().Value.AppBaseUrl));
+
+        services.AddScoped<IValidator<RegisterAccountRequest>, RegisterAccountRequestValidator>();
+        services.AddScoped<IValidator<VerifyEmailRequest>, VerifyEmailRequestValidator>();
+        services.AddScoped<IValidator<ResendVerificationRequest>, ResendVerificationRequestValidator>();
+        services.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
+        services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
+        services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
+        services.AddScoped<IValidator<ConfirmPasswordRequest>, ConfirmPasswordRequestValidator>();
+        services.AddScoped<IValidator<EnableTwoFactorRequest>, EnableTwoFactorRequestValidator>();
+        services.AddScoped<IValidator<SecondFactorRequest>, SecondFactorRequestValidator>();
+
+        services.AddScoped<IAccountRegistrationFacade, AccountRegistrationFacade>();
+        services.AddScoped<IPasswordFacade, PasswordFacade>();
+        services.AddScoped<ITwoFactorFacade, TwoFactorFacade>();
+        services.AddScoped<IAccountPublishingEligibility, AccountPublishingEligibility>();
+        return services;
+    }
+
+    // Approved at PP1.2 and PP1.3: 12–128 characters with no composition rules, unique emails that double as user
+    // names, sign-in before confirmation (publishing waits for it instead), and lockout after five wrong passwords or
+    // codes for 15 minutes.
+    private static void ConfigureIdentity(IdentityOptions options)
+    {
+        options.Password.RequiredLength = PasswordRules.MinLength;
+        options.Password.RequiredUniqueChars = 1;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+
+        options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = string.Empty;
+
+        options.SignIn.RequireConfirmedEmail = false;
+        options.SignIn.RequireConfirmedAccount = false;
+
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+
+        options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProvider.Name;
+        options.Tokens.PasswordResetTokenProvider = PasswordResetTokenProvider.Name;
+        options.Tokens.AuthenticatorTokenProvider = AuthenticatorCodeProvider.Name;
+        options.Tokens.AuthenticatorIssuer = AuthenticatorIssuer;
+    }
 }

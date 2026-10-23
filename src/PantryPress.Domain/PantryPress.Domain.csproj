@@ -1,11 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.2.0" />
+    <!-- PP1.2: token and secret protection for Accounts. The abstractions only; each host configures the key ring. -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="10.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.13" />
     <PackageReference Include="NodaTime" Version="3.3.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CC0 list from github.com/disposable-email-domains/disposable-email-domains (ACCT-003). -->
+    <EmbeddedResource Include="Modules\Accounts\Business\disposable-email-domains.txt" LogicalName="PantryPress.Accounts.DisposableEmailDomains" />
   </ItemGroup>
 
   <ItemGroup>

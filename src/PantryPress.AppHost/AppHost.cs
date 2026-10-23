@@ -44,7 +44,8 @@ var migrations = builder.AddProject<Projects.PantryPress_MigrationService>("migr
     .WaitFor(db);
 
 // Long-running projects report readiness through /health (ServiceDefaults).
-builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
+var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
+    .WithReference(db)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
 builder.AddProject<Projects.PantryPress_Site>("site")
@@ -65,12 +66,20 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
         }
     });
 
+// Links in account emails open the admin app (PP1.2). The origin is set here, never taken from a request's Host header:
+// locally the gateway at app.localhost, elsewhere the deployed admin origin from a parameter.
+var isLocalDevelopment = builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment();
+if (!isLocalDevelopment)
+{
+    apiService.WithEnvironment("Accounts__AppBaseUrl", builder.AddParameter("app-base-url"));
+}
+
 // The admin SPA's dev server (PP-D08: client-rendered). Browsers are meant to reach it through the gateway's catch-all
 // YARP route, so cookies and antiforgery behave as they will in production. That route lives in the gateway's
 // appsettings.Development.json and names this resource ("admin"), so both exist only in local Development runs: in
 // production the gateway serves the built files, and publishing must not produce an admin container. The gateway does
 // not wait for the dev server, so an admin compile error never blocks the gateway's own routes.
-if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
+if (isLocalDevelopment)
 {
     var admin = builder.AddJavaScriptApp("admin", "../web", "start:admin")
         .WithHttpEndpoint()
@@ -88,14 +97,26 @@ if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
 
     gateway.WithReference(admin);
 
+    // Locally, email links open the admin app through the gateway at app.localhost.
+    apiService.WithEnvironment(
+        "Accounts__AppBaseUrl",
+        ReferenceExpression.Create($"https://app.localhost:{gateway.GetEndpoint("https").Property(EndpointProperty.Port)}"));
+
     // The development email sink's catcher (external.md: every provider has a local fake). Mail sent by the local
     // gateway lands here and is read in its web UI; nothing leaves the machine. Messages live only as long as the
     // container. Azure Communication Services replaces it outside Development (PP13.1).
-    builder.AddContainer("mail", "axllent/mailpit", "v1.31.2")
+    var mail = builder.AddContainer("mail", "axllent/mailpit", "v1.31.2")
         .WithEnvironment("MP_DISABLE_VERSION_CHECK", "true")
         .WithHttpEndpoint(targetPort: 8025, name: "http")
         .WithEndpoint(targetPort: 1025, name: "smtp")
         .WithHttpHealthCheck("/readyz", endpointName: "http");
+
+    // ApiService sends account email through the sink (PP1.2). It does not wait for the catcher: sends retry, and a
+    // missed confirmation email is recovered by asking for another.
+    var smtp = mail.GetEndpoint("smtp");
+    apiService
+        .WithEnvironment("DevelopmentMail__Host", smtp.Property(EndpointProperty.Host))
+        .WithEnvironment("DevelopmentMail__Port", smtp.Property(EndpointProperty.Port));
 }
 
 builder.Build().Run();

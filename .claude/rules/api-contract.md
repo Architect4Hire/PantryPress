@@ -3,6 +3,8 @@
 Applies to admin API, public site API, and publishing API.
 
 - Routes: admin `/api/v1/sites/{siteSlug}/…`; public `/api/public/v1/…`; publishing `/api/publishing/v1/…`.
+  The signed-in person's own account (sign-up, password, two-factor) is account-scoped at `/api/v1/account/…` and
+  never takes a site (PP1.2).
 - Request and response types are records in `Contracts/` per module, never EF entities.
 - Errors are RFC 9457 problem details with a stable `code` and a plain-language `title`.
 - Pagination is cursor-based with `limit` (max 100).

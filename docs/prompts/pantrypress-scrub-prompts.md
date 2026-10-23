@@ -333,7 +333,7 @@ RESTRICTION: No endpoints yet. Migration reviewed before it is applied.
 BEHAVIOR: Plan, wait for approval, implement, apply through MigrationService, test.
 ```
 
-### PP1.2 Registration and email verification
+### PP1.2 Registration and email verification - done
 
 ```text
 SCOPE: Add registration and email verification through the request seam, with a development email sink.
@@ -385,13 +385,123 @@ Verification: `dotnet build` (0 warnings), `dotnet test` (121 passed, including 
 text, HTML, and `Message-ID`), `dotnet format --verify-no-changes`. Reviewer: integration-reviewer; the five
 should-fix items were fixed and the rest is recorded above.
 
-### PP1.3 Password management and two-factor
+*PP1.2b delivery note (done):* the shared kernel gains `Managers/Results` (`Result` and `Result<T>`, sealed classes so
+an unset result is never read as success, and `Error` with a kind, a stable code, a plain title, and field messages)
+and `Managers/Validation` (FluentValidation at the facade edge, errors keyed by the JSON field name). ApiService now
+has:
+- the database through the Aspire client (`WithReference(db)` in the AppHost), with the Identity schema pinned;
+- controllers with camel-case JSON and strict kebab-case enums;
+- RFC 9457 problem details with a `code` on every failure, including framework failures (404, 405, 415, 429, 500)
+  and binding errors, which get plain messages instead of parser text, and 500s that never carry exception details;
+- `Cache-Control: no-store` on every response by default;
+- the OpenAPI document in Development only, with `code` declared on the problem schemas and 429 and 500 on every route;
+- data protection with the application name `PantryPress`.
+
+*PP1.2c delivery note (done):* `POST /api/v1/account/register`, `/email/verify`, and `/email/resend` through
+`AccountController` → `IAccountRegistrationFacade` → `AccountsDataLayer` → `AccountUserStore`. Approved defaults apply.
+These differ from the approved text or add to it:
+- **Link tokens:** a PantryPress token provider replaces Identity's default. Same 24 hours, same protection, bound to
+  the account, purpose, and security stamp, but timed by `IClock`, because Identity's provider reads the system clock.
+- **Links:** the admin app origin comes from `Accounts:AppBaseUrl`, set by the AppHost (the gateway at
+  `https://app.localhost:{port}` locally; the `app-base-url` parameter elsewhere), never from a Host header. Tokens
+  sit in the URL fragment (`/verify-email#account=…&token=…`), so they never reach server or gateway logs.
+- **Unit of work:** `AccountUserStore` turns off Identity's auto-save, and `AccountsUnitOfWork` commits once per facade
+  call. Identity's own `UpdateAsync` re-attaches the user and breaks the concurrency check on a second update, so the
+  store overrides it.
+- **Email:** sent after commit through an in-process `IEmailQueue` (`Managers/Email`) drained by a background worker
+  that retries transient failures twice. A crash loses queued mail; resend is the recovery until PP1.10. The
+  per-address throttle (1 a minute, 5 an hour, per kind) is stored in Identity's user-token table, so no migration.
+- **Disposable domains:** the CC0 blocklist from `disposable-email-domains` (commit b5e699f, 9,925 domains),
+  embedded; parent domains are matched.
+- **Publishing check:** `IAccountPublishingEligibility` returns `email-not-verified` for PP5.
+
+Recorded for later prompts:
+- **PP1.5:** route `/api/v1/account/*` through the gateway, and add per-IP limits: the anonymous account routes share
+  one global bucket (120 a minute), which one caller could exhaust.
+- **PP1.9:** a client's `Idempotency-Key` is ignored today.
+- **PP1.10:** replace `InProcessEmailQueue`, then forbid `Microsoft.Extensions.Hosting` in Domain's boundary test.
+- **PP2:** add a module boundary test: other modules use only `Modules.Accounts.Contracts`.
+- **PP5:** publish and schedule call `IAccountPublishingEligibility`.
+- **PP12.3:** sign-up for a new address does more database work than for a registered one; review timing before
+  public sign-up opens.
+- **PP19:** set `app-base-url`, and keep the data protection key ring persistent (see PP1.3b).
+- Validation errors about the whole body use the key `""` in `errors`; the admin client must handle it.
+
+Verification for PP1.2b and PP1.2c, together with PP1.3 below: `dotnet build` (0 warnings), `dotnet test` (243
+passed), and `dotnet format --verify-no-changes`. The tests include:
+- account API tests through the real stack on SQL in a container, with recorded email and a fake clock;
+- concurrent sign-ups for one address;
+- an end-to-end run under the AppHost, where a sign-up on the running ApiService lands in Mailpit with a gateway
+  link;
+- AppHost wiring tests for run and publish modes;
+- OpenAPI checks on statuses, problem content types, and `code`.
+
+Reviewers: architecture-reviewer and api-contract-checker. Neither reported a blocking finding. Should-fix items
+fixed:
+- the publish-mode link origin, now a parameter;
+- EF Core moved out of the data layer;
+- the throttle decision moved to the facades;
+- `Result` as classes;
+- undeclared 404, 409, and validation statuses;
+- `code` added to the OpenAPI schema;
+- plain titles for 400, 405, 413, and 415.
+
+The rest is recorded above and under PP1.3.
+
+### PP1.3 Password management and two-factor - done
 
 ```text
 SCOPE: Add password reset and change, and optional TOTP two-factor with recovery codes.
 CONSTRAINT: ACCT-001; auth.md.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*Split (owner-approved 2026-10-23):* **PP1.3a** password reset and change, and **PP1.3b** authenticator two-factor
+with recovery codes. Approved defaults: reset links last 1 hour and work once; a reset also confirms the email;
+recovery codes are stored hashed; the authenticator key is encrypted at rest; a code is accepted once; lockout after
+5 failures for 15 minutes. Sign-in itself, and its code step, belong to PP1.6.
+
+*PP1.3a delivery note (done):*
+- **Routes:** `POST /api/v1/account/password/forgot` always answers 202, throttled per address like resend.
+  `/password/reset` takes `{accountId, token, newPassword}` from the link fragment, not the email address the plan
+  named, which keeps the address out of links. `/password/change` is for a signed-in caller.
+- **Reset effects:** a reset confirms the email and also clears lockout; the plan did not name the lockout part.
+- **Notices:** both reset and change rotate the security stamp, which voids outstanding links, and email a "password
+  was changed" notice.
+- **Lockout:** a wrong current password counts toward lockout.
+- **Signed-in caller:** controllers read the account from the name-identifier claim, not through the planned
+  `ICurrentAccount`. Until PP1.6, a `PendingSession` scheme authenticates nobody, so these routes answer 401 in real
+  runs; tests sign in with their own scheme.
+
+*PP1.3b delivery note (done):*
+- **Routes:** `GET /api/v1/account/two-factor`, and `POST` to `/setup`, `/enable`, `/disable`, and `/recovery-codes`.
+- **Setup:** makes a fresh key each time and refuses while two-step sign-in is on. Turning it on needs a valid code
+  and returns 10 recovery codes once. Turning it off, or replacing the codes, needs the password. Each change emails
+  a notice, and a used recovery code emails how many are left.
+- **Codes:** RFC 6238 with a one-step window (Identity allows two). The accepted step is stored, so a code works once,
+  and concurrent uses let exactly one through (tested).
+- **Storage:** authenticator keys are encrypted with data protection. Recovery codes are 10 characters (50 bits) with
+  no look-alike characters, stored as HMAC-SHA256 with a per-account salt, never as Identity's plain text.
+- **Sign-in step for PP1.6:** `ITwoFactorFacade.VerifySecondFactorAsync` takes an authenticator or recovery code; it
+  has no route.
+
+Recorded for later prompts:
+- **PP1.4:** require two-step sign-in for `PlatformAdmin` (auth.md).
+- **PP1.6:**
+  - replace `PendingSession` and put the account id in the name-identifier claim;
+  - validate the security stamp, so a password or two-step change ends other sessions;
+  - decide 401 or 404 for a session whose account is gone;
+  - route sign-in through the Accounts facades, not `SignInManager` directly, because the store does not save on its
+    own;
+  - Identity's lockout reads the system clock, so lockout expiry is not `IClock`-testable.
+- **PP1.9:** `password/change`, `password/reset`, and `two-factor/enable` fail on a retried request after a lost
+  response; make them opt-in targets. `setup`, `enable`, and `recovery-codes` return secrets: never store their
+  replayed responses in readable form.
+- **PP1.11:** audit password reset and change, two-step on and off, recovery codes replaced, and recovery codes used.
+- **PP19:**
+  - the data protection key ring must be persistent and protected by Key Vault before any deployed account turns on
+    two-step sign-in, or stored authenticator keys become unreadable; recovery codes still work;
+  - lockout's 429 has no `Retry-After`; consider adding one.
 
 ### PP1.4 PlatformAdmin role and policy
 
