@@ -114,7 +114,7 @@ BEHAVIOR:     inspect, plan, wait for approval, implement, test, and report
 
 ## PP0 — Repository and runtime foundation
 
-### PP0.1 Decisions record
+### PP0.1 Decisions record - done
 
 ```text
 SCOPE: Create docs/architecture-decisions/pantrypress.md recording PP-D01 through PP-D18 and the owner
@@ -125,6 +125,10 @@ RESTRICTION: Do NOT silently resolve a DECIDE item. Record options, impact, and 
 BEHAVIOR: Show the decision table, wait for approval, then write the record and link it from
 docs/architecture.md.
 ```
+
+*Delivery note (2026-10-23):* docs/architecture.md did not exist and was created as an index. With owner
+approval, the customization spec and one requirements line were also reconciled (Starter gating, stale v1
+wording, file paths); see section 5 of the decisions record.
 
 ### PP0.2 Toolkit alignment
 

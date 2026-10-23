@@ -4,12 +4,12 @@ Version 1.2, 2026-10-22. Adopted by the owner as PP-D17, with sections and pages
 
 Source mockups:
 
-- Mockup 1, "light customization" (current requirements, THM-001 to THM-004): `pantrypress-post-mockup.html`
+- Mockup 1, "light customization" (the superseded v1 option set): `pantrypress-post-mockup.html`
 - Mockup 2, "Studio" (expanded personalization): `pantrypress-studio-mockup.html`
 
-Both live in `/mnt/project-files/pantrypress/mockup/`. This spec defines every option in both mockups, with the allowed values, defaults, render contract, validation rules and acceptance tests. Claude Code should be able to rebuild both mockups' behavior from this spec in the real PantryPress stack (ASP.NET Core + Aspire, Angular 22 SSR, `@pantrypress/ui` with a `/themes` entry point).
+Both live in `docs/design/mockups/`. This spec defines every option in both mockups, with the allowed values, defaults, render contract, validation rules and acceptance tests. Claude Code should be able to rebuild both mockups' behavior from this spec in the real PantryPress stack (ASP.NET Core + Aspire, Angular 22 SSR, `@pantrypress/ui` with a `/themes` entry point).
 
-> **Status.** Studio customization is adopted (PP-D17, 2026-10-22). Options marked **Studio** are in scope. Options marked **v1** describe the first mockup's smaller option set; under PP-D17 the v1 themes become presets and the v1-only fields (`theme`, `accentIndex`, `fontPair`, v1 `header` and `layout`) are not built. The `level` field stays so Starter can be limited to presets (section 15).
+> **Status.** Studio customization is adopted (PP-D17, 2026-10-22). Options marked **Studio** are in scope. Options marked **v1** describe the first mockup's smaller option set; under PP-D17 the v1 themes become presets and the v1-only fields (`theme`, `accentIndex`, `fontPair`, v1 `header` and `layout`) are not built. The `level` field stays so Starter can be limited (section 15).
 
 ---
 
@@ -547,13 +547,13 @@ Sign-off renders at the end of the post body, before the recipe card, in Caveat 
 
 | Capability | Starter | Plus | Pro |
 | --- | --- | --- | --- |
-| v1 options | 2 themes (Market, Hearth) | All | All |
-| Studio options (if PP-D17 adopted) | Presets only | All except textures and stacked/banner headers (DECIDE) | All |
+| Studio options | 2 presets (Market, Hearth), mode, logo, tagline, brand and highlight color | All presets and options except textures and the Banner and Masthead (`stacked`) headers (DECIDE) | All |
 | Custom domain | No | Yes | Yes |
 | Ads master switch | Hidden | AdSense slots | AdSense or allow-listed network, plus sidebar slot |
 | "Made with PantryPress" badge | Required | Removable | Removable |
 
-The Studio split between Plus and Pro is a proposal; record it with PP-D17.
+The Studio split between Plus and Pro is a proposal, recorded as open item D-17 in
+`docs/architecture-decisions/pantrypress.md`.
 
 ---
 
@@ -616,6 +616,6 @@ Each is one seam, plan first, verified before marking done.
 ## 19. Open decisions
 
 - Which Studio options are Plus versus Pro (default in section 15).
-- Final theme names (THM-001) and whether v1 themes become Studio presets once PP-D17 is adopted.
+- Final preset names and looks (THM-001).
 - Whether `reviews` may be hidden on posts without a recipe card.
 - Logo upload: allow SVG (needs a strict sanitizer) or raster only.

@@ -15,8 +15,7 @@ prompts in `docs/prompts/pantrypress-scrub-prompts.md`.
 **DECIDE** is an open choice with a stated default; later prompts assume the default until PP0.1 records a
 different answer.*
 
-Companion spec: `docs/requirements/pantrypress-customization-spec.md` (in the project files as
-`pantrypress/pantrypress-customization-spec.md`) defines every design option, value, default, token, contrast
+Companion spec: `docs/requirements/pantrypress-customization-spec.md` defines every design option, value, default, token, contrast
 rule, preset, and acceptance test referenced by THM-001 to THM-013, and the section library, page blocks, and
 page templates referenced by SITE-011, SITE-012, and POST-011.
 
