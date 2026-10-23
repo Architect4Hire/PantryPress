@@ -132,6 +132,7 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | 2026-10-23 | PP0.3: solution file is `PantryPress.slnx`; tests use xUnit. No decision changed. |
 | 2026-10-23 | PP0.4: own SQL, Redis, and blob storage declared with `pantrypress-` volumes (PP-D16 locally). No decision changed. |
 | 2026-10-23 | PP0.5: IANA time zones from NodaTime's embedded database; system clock APIs banned at build time. Two prompt-local defaults recorded (section 3): daylight saving scheduling (PP5.16) and production health probes (PP19.2). No decision changed. |
+| 2026-10-23 | PP0.6: one `PantryPressDbContext` in `Domain/Managers/Persistence`; migrations compiled into and applied only by `PantryPress.MigrationService` (OPS-003); `Migrate` and `EnsureCreated` banned at build time elsewhere. No decision changed. |
 
 ---
 

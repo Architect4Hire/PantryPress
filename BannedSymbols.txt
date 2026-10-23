@@ -23,3 +23,25 @@ M:System.TimeZoneInfo.ConvertTimeToUtc(System.DateTime);Reads the server time zo
 M:System.DateTime.ToUniversalTime;Reads the server time zone for non-UTC kinds; use ITimeZoneService.ToUtc
 M:System.DateTime.ToLocalTime;Use ITimeZoneService.ToLocal with the site time zone
 M:System.DateTimeOffset.ToLocalTime;Use ITimeZoneService.ToLocal with the site time zone
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.Migrate(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.Migrate(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.Threading.CancellationToken);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Threading.CancellationToken);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.Migrations.IMigrator.Migrate(System.String);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.Migrations.IMigrator.MigrateAsync(System.String,System.Threading.CancellationToken);Only PantryPress.MigrationService applies migrations (OPS-003)
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureCreated;Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureCreatedAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureDeleted;Destroys the database; never from application code
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureDeletedAsync(System.Threading.CancellationToken);Destroys the database; never from application code
+M:Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator.EnsureCreated;Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator.EnsureCreatedAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator.EnsureDeleted;Destroys the database; never from application code
+M:Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator.EnsureDeletedAsync(System.Threading.CancellationToken);Destroys the database; never from application code
+M:Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator.CreateTables;Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator.CreateTablesAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.CreateTables;Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.CreateTablesAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureCreated;Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureCreatedAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureDeleted;Destroys the database; never from application code
+M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureDeletedAsync(System.Threading.CancellationToken);Destroys the database; never from application code

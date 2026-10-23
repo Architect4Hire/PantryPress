@@ -20,7 +20,7 @@ var sql = builder.AddSqlServer("sql", sqlPasswordParameter)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume("pantrypress-sql-data");
 
-sql.AddDatabase("pantrypress");
+var db = sql.AddDatabase("pantrypress");
 
 builder.AddRedis("redis", password: redisPasswordParameter)
     .WithLifetime(ContainerLifetime.Persistent)
@@ -33,14 +33,26 @@ builder.AddAzureStorage("storage")
         .WithDataVolume("pantrypress-azurite-data"))
     .AddBlobs("blobs");
 
-// References and WaitFor arrive with their consumers: PP0.6 wires the migration service to SQL and makes every
-// project wait for it.
-// Long-running projects report readiness through /health (ServiceDefaults). The migration service is one-shot and
-// has no endpoints; from PP0.6 its exit code is its health signal.
-builder.AddProject<Projects.PantryPress_MigrationService>("migrationservice");
-builder.AddProject<Projects.PantryPress_ApiService>("apiservice").WithHttpHealthCheck("/health");
-builder.AddProject<Projects.PantryPress_Site>("site").WithHttpHealthCheck("/health");
-builder.AddProject<Projects.PantryPress_Worker>("worker").WithHttpHealthCheck("/health");
-builder.AddProject<Projects.PantryPress_Gateway>("gateway").WithHttpHealthCheck("/health");
+// The migration service applies migrations once the database exists (waiting on the database also waits on the
+// server), then exits. It has no endpoints: its exit code is its health signal. Everything else starts only after it
+// finishes with exit code 0 (OPS-003); a failed run leaves dependents unstarted. Other references arrive with their
+// consumers.
+var migrations = builder.AddProject<Projects.PantryPress_MigrationService>("migrationservice")
+    .WithReference(db)
+    .WaitFor(db);
+
+// Long-running projects report readiness through /health (ServiceDefaults).
+builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
+    .WithHttpHealthCheck("/health")
+    .WaitForCompletion(migrations);
+builder.AddProject<Projects.PantryPress_Site>("site")
+    .WithHttpHealthCheck("/health")
+    .WaitForCompletion(migrations);
+builder.AddProject<Projects.PantryPress_Worker>("worker")
+    .WithHttpHealthCheck("/health")
+    .WaitForCompletion(migrations);
+builder.AddProject<Projects.PantryPress_Gateway>("gateway")
+    .WithHttpHealthCheck("/health")
+    .WaitForCompletion(migrations);
 
 builder.Build().Run();

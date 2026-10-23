@@ -206,7 +206,7 @@ local time moves forward by the gap and a repeated one takes its first occurrenc
 `BannedSymbols.txt` (`Microsoft.CodeAnalysis.BannedApiAnalyzers`, every project) makes system clock and server
 time zone APIs build errors; `TimeProvider` stays injectable for timers only.
 
-### PP0.6 Migration service and DbContext
+### PP0.6 Migration service and DbContext - done
 
 ```text
 SCOPE: Add PantryPressDbContext (empty model) and MigrationService as a one-shot worker that applies
@@ -215,6 +215,19 @@ CONSTRAINT: backend.md and aspire.md.
 RESTRICTION: Host apps never apply migrations at startup.
 BEHAVIOR: Show loop and failure behavior, wait for approval, implement, and prove an empty run exits cleanly.
 ```
+
+*Delivery note (2026-10-23):* With owner approval, `PantryPressDbContext` lives in `Domain/Managers/Persistence`
+with no provider, and migrations compile into `PantryPress.MigrationService`, so no other host can find them. The
+migration service waits on the `pantrypress` database rather than the bare `sql` server; that wait includes the
+server. ApiService, Site, Worker, and Gateway `WaitForCompletion` on it with exit code 0. The exit code defaults to
+failure and becomes 0 only after `MigrateAsync` succeeds inside the retrying execution strategy. Transient errors
+retry, other errors fail at once, and a stop mid-run exits 1. `BannedSymbols.txt` makes `Migrate`,
+`EnsureCreated`, `EnsureDeleted`, and `CreateTables` build errors everywhere except one suppression in the worker.
+A design-time factory with no connection string and a pinned `dotnet-ef` (root `dotnet-tools.json`, the .NET 10
+default location) support PP1.1. `dotnet ef database update --connection …` is unsupported; only the migration
+service applies migrations. The EF SQL Server provider is pinned to 10.0.13 to match Domain, because Aspire 13.6.3
+brings 10.0.12. Known limitation for PP19: `Microsoft.EntityFrameworkCore.Design` copies Roslyn build hosts into
+the migration service output; trim them in the container step.
 
 ### PP0.7 Angular 22 workspace
 

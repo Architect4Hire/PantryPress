@@ -116,6 +116,8 @@ aspire run                                  # whole system: SQL, Redis, blob, AP
 dotnet build PantryPress.slnx
 dotnet test PantryPress.slnx                # unit, integration, two-site, golden files
 dotnet format PantryPress.slnx --verify-no-changes
+dotnet tool restore                         # pinned dotnet-ef
+dotnet ef migrations add <Name> --project src/PantryPress.MigrationService  # applied only by MigrationService
 cd src/web && npm ci
 npm run lint && npm test
 npm run build:site && npm run budget        # SSR build plus the RND-007 first-party budget check
