@@ -44,14 +44,17 @@ var migrations = builder.AddProject<Projects.PantryPress_MigrationService>("migr
     .WaitFor(db);
 
 // Who holds PlatformAdmin (ACCT-005): email addresses the operator keeps in their own secret store, passed only to
-// the migration job, which is the one process that can assign the role. Locally it comes from this AppHost's
-// user-secrets or environment ("Platform:Admins"); PP19's IaC supplies it from Key Vault. With nothing configured the
-// job leaves platform roles exactly as they are, so a lost secret can never lock the operators out.
-var platformAdmins = builder.Configuration["Platform:Admins"];
-if (!string.IsNullOrWhiteSpace(platformAdmins))
-{
-    migrations.WithEnvironment("Platform__Admins", platformAdmins);
-}
+// the migration job, which is the one process that can assign the role. A secret parameter, so the list is masked in
+// the dashboard and published as a parameter rather than baked into the manifest: locally its value comes from this
+// AppHost's user-secrets or environment ("Platform:Admins"), and PP19's IaC supplies it from Key Vault. The job always
+// gets the variable; an empty list leaves platform roles exactly as they are, so a lost secret can never lock the
+// operators out.
+var platformAdminsParameter = builder.AddParameter(
+    "platform-admins",
+    () => builder.Configuration["Platform:Admins"] ?? string.Empty,
+    secret: true);
+
+migrations.WithEnvironment("Platform__Admins", platformAdminsParameter);
 
 // Long-running projects report readiness through /health (ServiceDefaults).
 var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
@@ -64,7 +67,11 @@ builder.AddProject<Projects.PantryPress_Site>("site")
 builder.AddProject<Projects.PantryPress_Worker>("worker")
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
+// The gateway forwards the admin app's /api/v1 calls to ApiService (PP1.5), so it needs the reference for service
+// discovery and reports whether the API is reachable in its own /health. It does not wait for the API: an API restart
+// must not keep the admin app from loading, exactly as it does not wait for the admin dev server.
 var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
+    .WithReference(apiService)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations)
     .WithUrls(context =>
@@ -106,6 +113,13 @@ if (isLocalDevelopment)
     });
 
     gateway.WithReference(admin);
+
+    // The API's own documentation, from the Aspire dashboard (PP1.5). Development only, like the documents it reads.
+    apiService.WithUrlForEndpoint("http", endpoint => new ResourceUrlAnnotation
+    {
+        Url = $"{endpoint.Url}/scalar/v1", // the admin surface's document (ApiSurfaces.AdminV1Document)
+        DisplayText = "API reference",
+    });
 
     // Locally, email links open the admin app through the gateway at app.localhost.
     apiService.WithEnvironment(

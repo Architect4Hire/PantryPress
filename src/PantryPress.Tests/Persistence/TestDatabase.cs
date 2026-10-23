@@ -1,6 +1,5 @@
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
@@ -36,8 +35,9 @@ internal static class TestDatabase
     }
 
     // Services for the operator's platform-role path (PP1.4) against the same migrated database: the audited facade,
-    // the list reconciliation, and fake logging to read the audit lines. Data protection is ephemeral, so tests never
-    // touch the developer's key ring.
+    // the list reconciliation, and fake logging to read the audit lines. Composed exactly as the migration job does,
+    // with no key ring of its own, so these tests exercise UnusedDataProtection and fail if a role change ever reaches
+    // for a protector.
     public static async Task<ServiceProvider> CreateOperatorServicesAsync(
         DistributedApplication app,
         string admins,
@@ -48,7 +48,6 @@ internal static class TestDatabase
 
         var services = new ServiceCollection();
         services.AddFakeLogging();
-        services.AddSingleton<IDataProtectionProvider, EphemeralDataProtectionProvider>();
         services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));

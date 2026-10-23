@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using PantryPress.ApiService.Hosting;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
@@ -33,12 +34,16 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-// The OpenAPI document for the admin API, in Development only; PP1.5 adds the reference UI and publishing it.
+// The OpenAPI documents and the reference UI for reading them, in Development only (PP1.5).
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapApiReference();
 }
 
 app.MapControllers();
+
+// MVC builds its action descriptors lazily, on the first request that needs them, and ApiSurfaceConvention runs with
+// them. Touching them here makes a route outside a declared API surface fail the start instead of the first caller.
+_ = app.Services.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors;
 
 app.Run();

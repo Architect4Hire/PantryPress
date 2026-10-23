@@ -25,6 +25,10 @@ public sealed class IdentityStoreTests(MigratedDatabase database)
         var role = $"probe-{Guid.NewGuid():N}";
 
         AssertSucceeded(await users.CreateAsync(new ApplicationUser { UserName = email, Email = email }, "Correct-Horse-1"));
+
+        // This test maps Identity's own tables with a throwaway role of its own; the audited path for the one real
+        // platform role is IAccountRoles, which is why these calls are banned everywhere else (ACCT-005).
+#pragma warning disable RS0030
         AssertSucceeded(await roles.CreateAsync(new IdentityRole<Guid>(role)));
 
         var found = await users.FindByEmailAsync(email.ToLowerInvariant());
@@ -34,6 +38,7 @@ public sealed class IdentityStoreTests(MigratedDatabase database)
         Assert.True(await users.CheckPasswordAsync(found, "Correct-Horse-1"));
 
         AssertSucceeded(await users.AddToRoleAsync(found, role));
+#pragma warning restore RS0030
         Assert.True(await users.IsInRoleAsync(found, role));
     }
 

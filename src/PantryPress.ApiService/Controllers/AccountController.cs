@@ -7,7 +7,7 @@ using PantryPress.Domain.Modules.Accounts.Contracts;
 namespace PantryPress.ApiService.Controllers;
 
 /// <summary>Sign-up and email confirmation (ACCT-001, ACCT-003; PP1.2). Anonymous; rate-limited globally.</summary>
-[Route("api/v1/account")]
+[Route(ApiSurfaces.AdminV1Route + "/account")]
 [EnableRateLimiting(ApiRateLimits.AnonymousAccount)]
 public sealed class AccountController(IAccountRegistrationFacade registration) : ApiControllerBase
 {

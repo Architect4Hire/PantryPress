@@ -18,5 +18,5 @@ var host = builder.Build();
 
 // Resolve before Run, which disposes the host on the way out.
 var outcome = host.Services.GetRequiredService<MigrationOutcome>();
-host.Run();
+await host.RunAsync();
 return outcome.ExitCode;

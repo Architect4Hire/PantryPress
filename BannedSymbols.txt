@@ -45,3 +45,12 @@ M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureCreated;
 M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureCreatedAsync(System.Threading.CancellationToken);Bypasses migrations; the schema comes only from MigrationService (OPS-003)
 M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureDeleted;Destroys the database; never from application code
 M:Microsoft.EntityFrameworkCore.Storage.RelationalDatabaseCreator.EnsureDeletedAsync(System.Threading.CancellationToken);Destroys the database; never from application code
+M:Microsoft.AspNetCore.Identity.UserManager`1.AddToRoleAsync(`0,System.String);Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.UserManager`1.AddToRolesAsync(`0,System.Collections.Generic.IEnumerable{System.String});Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.UserManager`1.RemoveFromRoleAsync(`0,System.String);Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.UserManager`1.RemoveFromRolesAsync(`0,System.Collections.Generic.IEnumerable{System.String});Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.UserManager`1.GetUsersInRoleAsync(System.String);Ask IAccountRoles.ListPlatformAdminsAsync, which is audited (ACCT-005)
+M:Microsoft.AspNetCore.Identity.IUserRoleStore`1.AddToRoleAsync(`0,System.String,System.Threading.CancellationToken);Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.IUserRoleStore`1.RemoveFromRoleAsync(`0,System.String,System.Threading.CancellationToken);Platform roles change only through IAccountRoles (ACCT-005)
+M:Microsoft.AspNetCore.Identity.IUserRoleStore`1.GetUsersInRoleAsync(System.String,System.Threading.CancellationToken);Ask IAccountRoles.ListPlatformAdminsAsync, which is audited (ACCT-005)
+M:Microsoft.AspNetCore.Identity.RoleManager`1.CreateAsync(`0);The platform role row is seeded by a migration, never created at runtime (ACCT-005)

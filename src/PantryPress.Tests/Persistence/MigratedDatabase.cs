@@ -7,8 +7,9 @@ using PantryPress.Tests.Hosting;
 namespace PantryPress.Tests.Persistence;
 
 // One ephemeral AppHost whose migration service has finished, shared by the test classes that read or write the
-// schema. It is a collection fixture rather than one per class: each AppHost starts its own SQL Server container, and
-// starting several at once outruns what a developer machine can do inside the timeout.
+// schema or need the running system. It is a collection fixture rather than one per class: each AppHost starts its own
+// SQL Server container and five projects, and starting several at once outruns what a developer machine can do inside
+// the timeout.
 public sealed class MigratedDatabase : IAsyncLifetime
 {
     public const string CollectionName = "migrated database";
@@ -16,7 +17,9 @@ public sealed class MigratedDatabase : IAsyncLifetime
     private readonly CancellationTokenSource _timeout = new(TimeSpan.FromMinutes(5));
     private IDistributedApplicationTestingBuilder? _appHost;
 
-    /// <summary>The running AppHost, for tests that build their own services over its database.</summary>
+    /// <summary>
+    /// The running AppHost, for tests that build their own services over its database or call its running services.
+    /// </summary>
     public DistributedApplication App { get; private set; } = null!;
 
     /// <summary>The Identity stores as a host registers them (<see cref="TestDatabase.CreateServicesAsync"/>).</summary>

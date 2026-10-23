@@ -8,7 +8,7 @@ using PantryPress.Domain.Modules.Accounts.Contracts;
 namespace PantryPress.ApiService.Controllers;
 
 /// <summary>Password reset and change (ACCT-001; PP1.3).</summary>
-[Route("api/v1/account/password")]
+[Route(ApiSurfaces.AdminV1Route + "/account/password")]
 public sealed class PasswordController(IPasswordFacade passwords) : ApiControllerBase
 {
     /// <summary>

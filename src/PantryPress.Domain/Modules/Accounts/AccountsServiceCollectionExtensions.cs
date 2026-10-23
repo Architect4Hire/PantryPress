@@ -73,6 +73,9 @@ public static class AccountsServiceCollectionExtensions
 
         // The account store is built with a key ring it must never use here; see UnusedDataProtection.
         services.TryAddSingleton<IDataProtectionProvider, UnusedDataProtection>();
+
+        // Only this process can compose a role change: the shared Accounts data layer has no role calls at all.
+        services.AddScoped<AccountRolesDataLayer>();
         services.AddScoped<IAccountRoles, AccountRolesFacade>();
         return services;
     }

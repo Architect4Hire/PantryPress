@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 
-namespace PantryPress.Domain.Modules.Accounts.Repositories;
+namespace PantryPress.Domain.Modules.Accounts;
 
 /// <summary>
 /// Stands in for the key ring in the operator's process (<c>AddAccountRoles</c>), which administers the platform role

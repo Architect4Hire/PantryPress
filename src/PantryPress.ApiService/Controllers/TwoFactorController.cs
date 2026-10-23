@@ -12,7 +12,7 @@ namespace PantryPress.ApiService.Controllers;
 /// recovery codes) and are never cached (the API's default <c>no-store</c>). The code check at sign-in is part of the
 /// PP1.6 session flow, not a route here.
 /// </summary>
-[Route("api/v1/account/two-factor")]
+[Route(ApiSurfaces.AdminV1Route + "/account/two-factor")]
 [Authorize]
 [EnableRateLimiting(ApiRateLimits.SignedInAccount)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ApiProblems.ContentType)]

@@ -20,6 +20,10 @@ internal static class ApiHttp
             {
                 options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
 
+                // Every route belongs to a declared, versioned API surface, and the surface names the document that
+                // describes it (api-contract.md).
+                options.Conventions.Add(new ApiSurfaceConvention());
+
                 // Any route can be rate-limited or fail unexpectedly. Declared globally: a controller's own
                 // response-type attributes hide ones inherited from a base class.
                 options.Filters.Add(

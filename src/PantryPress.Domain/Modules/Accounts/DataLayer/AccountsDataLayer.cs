@@ -7,7 +7,8 @@ namespace PantryPress.Domain.Modules.Accounts.DataLayer;
 
 /// <summary>
 /// The Accounts data layer (ARCH-002): composes Identity's user manager over <see cref="AccountUserStore"/> and the
-/// <see cref="AccountsUnitOfWork"/> for the facades. Nothing here saves except <see cref="SaveChangesAsync"/> and
+/// <see cref="AccountsUnitOfWork"/> for the facades. Platform roles are not here: they live in
+/// <see cref="AccountRolesDataLayer"/>, which only the operator's process registers (ACCT-005). Nothing here saves except <see cref="SaveChangesAsync"/> and
 /// <see cref="SaveNewAccountAsync"/>; every other call only stages changes.
 /// </summary>
 internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOfWork unitOfWork)
@@ -66,16 +67,6 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
             Ensure(await users.UpdateAsync(user));
         }
     }
-
-    public Task<bool> IsInRoleAsync(ApplicationUser user, string role) => users.IsInRoleAsync(user, role);
-
-    /// <summary>Stages the role; the role row itself is seeded by a migration and never created here.</summary>
-    public async Task AddToRoleAsync(ApplicationUser user, string role) => Ensure(await users.AddToRoleAsync(user, role));
-
-    public async Task RemoveFromRoleAsync(ApplicationUser user, string role) =>
-        Ensure(await users.RemoveFromRoleAsync(user, role));
-
-    public Task<IList<ApplicationUser>> GetAccountsInRoleAsync(string role) => users.GetUsersInRoleAsync(role);
 
     /// <summary>Stages a new security stamp, which ends the account's existing sessions once PP1.6 validates it.</summary>
     public async Task RotateSecurityStampAsync(ApplicationUser user) => Ensure(await users.UpdateSecurityStampAsync(user));

@@ -526,8 +526,9 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
   are registered only by `AddPlatformAdministration`, which only the migration job calls. The admin API cannot
   resolve them and no type in it asks for one; both are tested.
 - **Seam.** `PlatformAdminReconciler → IPlatformAdminFacade (Modules/Platform) → IAccountRoles (Modules/Accounts) →
-  AccountsDataLayer → AccountUserStore`. Platform reaches accounts only through the Accounts contract, which grants
-  and revokes the one platform role and nothing else: there is no "add any role" call.
+  AccountsDataLayer → AccountUserStore` (the data layer became `AccountRolesDataLayer` in the PP1.5 fold-in below).
+  Platform reaches accounts only through the Accounts contract, which grants and revokes the one platform role and
+  nothing else: there is no "add any role" call.
 - **Sessions.** A real grant or revocation rotates the security stamp, so a revoked operator's existing sessions stop
   working once PP1.6 validates it. A repeat changes nothing and leaves the stamp alone, so running the list again
   never logs anyone out.
@@ -554,7 +555,33 @@ Recorded for later prompts:
   reach the migration job from Key Vault, and the operator console's own grant path (if any) goes through
   `IPlatformAdminFacade` so it stays audited.
 
-### PP1.5 Gateway routes and API versioning
+*PP1.4 review fold-in (applied at PP1.5):* the architecture review's two major findings and five of its minor ones
+are in. **Secret parameter:** `Platform:Admins` now reaches the migration job as the secret Aspire parameter
+`platform-admins`, always passed, so the list is masked in the dashboard, published as a parameter rather than
+plaintext, and PP19's Key Vault hand-off is a binding; an empty value is still the reconciler's "no opinion".
+**Role capability contained:** the role calls moved off the shared `AccountsDataLayer` onto `AccountRolesDataLayer`,
+which only `AddAccountRoles` registers, and the role APIs are now banned symbols at both levels -
+`UserManager.AddToRoleAsync`, `AddToRolesAsync`, `RemoveFromRoleAsync`, `RemoveFromRolesAsync`,
+`GetUsersInRoleAsync`, the same three on `IUserRoleStore`, and `RoleManager.CreateAsync` (the role row is seeded by a
+migration) - so a future facade that tries to change a platform role, directly or through the store it could cast to,
+fails the build. Two files suppress the rule with a reason: `AccountRolesDataLayer`, and the Identity-store
+integration test, which maps Identity's own tables with a throwaway role of its own. `.AddRoles<IdentityRole<Guid>>()` deliberately stays in the shared Identity
+registration, against the review's suggestion: it also selects the claims principal factory that issues role claims,
+which PP1.6's session needs, and removing it would not have removed the capability anyway (the user store implements
+`IUserRoleStore` either way) - the ban is what removes it. **Module cycle:** the Identity role name now lives in
+`Accounts.Contracts.AccountRoles` and `PlatformRoles` takes it from there, so the dependency runs Platform to Accounts
+only - and `DomainBoundaryTests` now enforces the module graph by scanning module sources for references to another
+module, because both members are `const` and the compiler inlines them, leaving nothing for a reflection test to see.
+A probe confirmed the test fails when an Accounts file reaches into Platform. **Also:** the migration worker's duplicate "list applied" line is gone (the reconciler owns the summary);
+`MigrationService` awaits `RunAsync`; `UnusedDataProtection` moved out of `Repositories/`; and
+`TestDatabase.CreateOperatorServicesAsync` no longer pre-registers an ephemeral key ring, so every operator
+integration test now runs the real composition and would fail if a role change ever reached for a protector.
+Deferred with reasons: the reconcile rule's placement in a facade and its throw-instead-of-`Result` mechanism (both
+placement, no behaviour change - they belong with PP1.11, which reworks that path for the durable audit log), and
+warning when a granted account has no second step (m6: it fails closed today, and the warning needs a new Accounts
+contract call, so it goes with PP1.6's claims work).
+
+### PP1.5 Gateway routes and API versioning - done
 
 ```text
 SCOPE: Configure YARP in PantryPress.Gateway to route the admin SPA's API calls to ApiService, add the API
@@ -562,6 +589,91 @@ versioning convention, and OpenAPI with a reference UI in development.
 CONSTRAINT: ACCT-002; gateway.md and api-contract.md.
 BEHAVIOR: Plan, wait for approval, implement with routing tests.
 ```
+
+*PP1.5 delivery note (done):*
+- **Routes (owner-approved reading).** `appsettings.json` declares one route for every environment:
+  `/api/v1/{**rest}` to the `api` cluster, destination `http://apiservice` through service discovery. Everything else
+  under `/api` is answered by the gateway itself with an RFC 9457 problem 404 (`not-found`, `no-store`): the publishing
+  API keeps its own edge route and never crosses the BFF, the public site API answers on site hosts, and a version
+  nobody declared does not exist. That tightens gateway.md's "`/api/*` proxied to ApiService" and closes PP0.7's note
+  that unmatched `/api` paths fell through to the SPA with a 200. Orders are explicit - forwarded route 1, the
+  gateway's fallback 2, the Development SPA catch-all 1000 - so which endpoint answers never rests on route-precedence
+  subtleties. The bare prefix `/api/v1` is forwarded, and ApiService answers for it.
+- **One error shape on the whole `/api` surface.** Both reviewers found the hole the 404 left open: YARP answers a
+  forward it could not complete with a bodiless 502 or 504, which is exactly what the admin app would get when the API
+  is down. The gateway now registers problem details with `UseExceptionHandler` and `UseStatusCodePages`, so a failed forward
+  and an unhandled gateway fault both come back as RFC 9457 with a stable `code`, a plain title, `no-store`, and no
+  exception detail. Codes and titles mirror `ApiProblems`, and a test compares the gateway's 404 with the API's field
+  for field, values included.
+- **Versioning is a convention, not a package.** `ApiSurfaces` lists each surface (route prefix, OpenAPI document,
+  title) and `ApiSurfaceConvention` stamps every controller with its surface's document name and refuses to start the
+  host when a route belongs to no surface: unversioned (`api/account`), an undeclared version (`api/v2/...`), or an
+  action whose absolute route escapes the prefix. Controllers now read `ApiSurfaces.AdminV1Route + "/account"`.
+  `Asp.Versioning` was considered and declined: its value is negotiating a version by header, query string, or media
+  type, which api-contract.md does not want and which is the kind of client-supplied routing input this codebase
+  refuses elsewhere; it also would not refuse a wrong route. Three guards came out of the reviews: MVC builds its
+  action descriptors lazily, so the host now touches them before `Run`, which makes the refusal a failure to start
+  rather than a failure on the first request; the convention sees controllers only, so a test walks every routable
+  `/api` endpoint and asserts a surface covers it, which catches a minimal-API route too; and a test asserts no
+  declared prefix covers another, since `ApiSurfaces.For` takes the first match. Each surface also carries its own
+  `Version`, so PP18 can name a document `publishing-v1` without publishing that as the API's version.
+- **OpenAPI and the reference UI.** One document per surface, each including only its own group, so PP18's publishing
+  document cannot pick up admin routes and the admin document cannot pick up publishing routes. `/openapi/v1.json` is
+  unchanged. `Scalar.AspNetCore` 2.18.3 serves the reference UI at `/scalar/v1` in Development only; the package
+  embeds its script, which this app serves, and the default CDN fonts are off, so reading the documentation fetches
+  nothing from the internet (a test asserts the page carries no `https://` URL and that both scripts answer 200). The
+  Aspire dashboard links it on the `apiservice` resource in local Development only. Publishing the publishing-API
+  document (API-009) stays with PP18.
+- **API reachability (PP0.8's note).** The gateway references `apiservice` and reports reachability in its own
+  `/health`: any HTTP answer counts as reachable - 401, 404, 503 - and only a refused connection, a DNS failure, or a
+  timeout does not. Unreachable is **degraded**, not unhealthy, so a brief API outage does not take the gateway down
+  with the admin app. The check is untagged, so `/alive` never calls the API, and the probe client has its resilience
+  handlers removed, because a probe answers now or not at all. The gateway does not `WaitFor` the API: an API restart
+  must not keep the admin app from loading.
+- **Deferred with owner approval:** per-IP limits on the authentication routes, which PP1.2c recorded for this prompt,
+  move to PP1.8. Per-IP partitioning before trusted-proxy configuration would put every request behind Front Door's
+  address in one bucket - worse than today's global ceiling.
+- **Not in this prompt:** the session cookie and sign-in (PP1.6); stripping forwarded and identity headers, CORS,
+  antiforgery (PP1.7); security headers, body limits, trusted proxies (PP1.8); idempotency (PP1.9); the publishing
+  surface, its document, and its edge route (PP18); serving the built admin files in production (PP19).
+
+- **Integration tests share the running system.** The two end-to-end gateway tests use the `MigratedDatabase`
+  collection fixture's running AppHost instead of starting their own. Starting one more was enough to tip the suite
+  over: nine classes each bringing up SQL, Redis, Azurite, and five projects timed 35 tests out at five minutes. On the
+  shared fixture the whole integration suite passes in 1m43s. The hand-kept list of classes that start their own
+  AppHost is still the limiting factor, which is PP7.2a's recorded job.
+
+Recorded for later prompts:
+- **PP1.6/PP1.7:** the `admin-spa` route still passes `Cookie` through to the dev server, and the forwarded `/api/v1`
+  route uses YARP's default `X-Forwarded` transforms. Both are PP1.7's to pin down with tests, together with dev HTTPS
+  before the `__Host-` cookie tests.
+- **PP18:** add the publishing surface to `ApiSurfaces` (`api/publishing/v1`) with its own document, and route it at
+  the edge rather than through the gateway - the gateway's `/api` fallback already refuses it, and a contract test
+  should keep it refused.
+- **PP19/PP19.2:** production still has no SPA route; `/health` and `/alive` are Development-only, so the reachability
+  report is a local signal until PP19.2 maps the probes for Container Apps.
+- **Recorded from the reviews rather than fixed:** the logical name `apiservice` appears in the gateway's route
+  configuration, the reachability probe, and the AppHost resource name, with no single constant tying them (the wiring
+  test pins the reference, so a rename is caught); there is no test that a host carrying a bad controller route fails
+  to start, only unit tests of the convention that would refuse it; `Scalar.AspNetCore` ships in production builds
+  although nothing maps it outside Development, which the Production tests confirm is inert.
+- **Pre-existing, unrelated:** `MigrationWorkerTests.Transient_errors_are_retried_then_fail_when_retries_run_out` and
+  `Stopping_mid_run_exits_with_failure_and_logs_a_cancellation_not_an_error` fail at HEAD (ebd42b0) on this machine,
+  verified in a clean worktree: the `ResettingSqlEndpoint` fake no longer provokes an EF retry (0 observed, 2
+  expected). Nothing in this prompt touches that path.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings), `dotnet test PantryPress.slnx` (336 of 338 passing; the
+only red is the pre-existing `MigrationWorkerTests` pair above, which fails identically at HEAD), `dotnet format
+PantryPress.slnx --verify-no-changes` (clean), and 46 new test cases: route matching and the problem 404 for every
+non-forwarded `/api` path, a failed forward, the forwarded-prefix table against `ApiSurfaces`, the surface invariants
+and the endpoint scan, the convention's refusals, the reference UI in Development and its absence in Production,
+reachability healthy and degraded, liveness never probing, and the AppHost wiring. The end-to-end half runs on a real
+Aspire AppHost: the admin API answering through the gateway at `app.localhost`, the publishing path refused there, the
+gateway reporting `Healthy` against the live API, and `/openapi/v1.json` and `/scalar/v1` served by the running
+ApiService. No separate `aspire run` was needed for this prompt - those tests bring up the same application model -
+and a module-edge probe confirmed the new boundary test fails when an Accounts file reaches into Platform. Reviewers:
+api-contract-checker and architecture-reviewer; both found the missing problem shape on a failed forward, which is
+fixed above, and their remaining findings are either applied or recorded here.
 
 ### PP1.6 BFF session and cookies
 

@@ -12,5 +12,8 @@ Applies to admin API, public site API, and publishing API.
 - Dates are UTC ISO 8601; the site time zone is applied only for display and scheduling.
 - Enums serialize as kebab-case strings.
 - Breaking changes need a new version. Additive changes are fine.
+- Every route belongs to a declared API surface (route prefix plus OpenAPI document) in `ApiSurfaces`, and the
+  host refuses to start when a route sits outside one: unversioned, an undeclared version, or an action whose
+  absolute route escapes the prefix. A new version adds a surface; it never edits one.
 - OpenAPI is generated for all three surfaces; the publishing API document is published (API-009).
 - `api-contract-checker` runs after any contract change; contract tests cover the publishing API.

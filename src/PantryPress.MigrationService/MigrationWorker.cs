@@ -49,11 +49,8 @@ internal sealed partial class MigrationWorker(
 
             // After the schema, because the role row the list needs is seeded by a migration. A failure here fails the
             // run: the list is a security control, and migrations are idempotent, so a retry is safe.
-            var report = await scope.ServiceProvider.GetRequiredService<IPlatformAdminReconciler>().RunAsync(stoppingToken);
-            if (report.Configured)
-            {
-                LogPlatformAdmins(logger, report.Granted, report.Revoked, report.Unresolved);
-            }
+            // The reconciler logs what it applied; this job only needs the run to succeed.
+            await scope.ServiceProvider.GetRequiredService<IPlatformAdminReconciler>().RunAsync(stoppingToken);
 
             outcome.MarkSucceeded();
         }
@@ -77,11 +74,6 @@ internal sealed partial class MigrationWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Database is up to date; {AppliedCount} migrations applied")]
     private static partial void LogUpToDate(ILogger logger, int appliedCount);
-
-    [LoggerMessage(
-        Level = LogLevel.Information,
-        Message = "PlatformAdmin list applied: {Granted} granted, {Revoked} revoked, {Unresolved} without an account")]
-    private static partial void LogPlatformAdmins(ILogger logger, int granted, int revoked, int unresolved);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Migration run was stopped before it finished")]
     private static partial void LogCancelled(ILogger logger);
