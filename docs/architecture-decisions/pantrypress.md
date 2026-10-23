@@ -128,6 +128,7 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | 2026-10-23 | PP0.1: ADRs 0001 to 0018 written. All accepted except 0010 (proposed, D-10). PP-D08 admin app confirmed client-rendered. Open items recorded with defaults (section 3). Customization spec reconciled (section 5). |
 | 2026-10-23 | PP0.2: toolkit aligned with this record (section 5). No decision changed. ADR 0008 and 0012 consequences note the widened hook coverage. |
 | 2026-10-23 | PP0.3: solution file is `PantryPress.slnx`; tests use xUnit. No decision changed. |
+| 2026-10-23 | PP0.4: own SQL, Redis, and blob storage declared with `pantrypress-` volumes (PP-D16 locally). No decision changed. |
 
 ---
 

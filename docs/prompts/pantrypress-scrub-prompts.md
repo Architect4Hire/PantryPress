@@ -166,7 +166,7 @@ BEHAVIOR: Show commands and the reference graph, wait for approval, execute, and
 pulls MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h), which fails the build under warnings as errors. Shared build
 settings live in `Directory.Build.props`; `global.json` pins SDK 10.0.402 with `latestFeature` roll-forward.
 
-### PP0.4 SQL, Redis, and blob resources
+### PP0.4 SQL, Redis, and blob resources - done
 
 ```text
 SCOPE: Declare PantryPress's own SQL Server database, Redis, and blob storage in the AppHost with secret
@@ -176,6 +176,14 @@ RESTRICTION: No literal passwords, ports, or connection strings. Nothing shared 
 UTILIZATION: add-aspire-resource.
 BEHAVIOR: Plan names and persistence, wait for approval, implement, and show each resource healthy.
 ```
+
+*Delivery note (2026-10-23):* With owner approval, the resources are `sql` with database `pantrypress`,
+`redis`, and `storage` (Azurite locally) with `blobs`, on volumes `pantrypress-sql-data`,
+`pantrypress-redis-data`, and `pantrypress-azurite-data`. `sql-password` and `redis-password` are generated
+secret parameters persisted to the AppHost's user-secrets. No project references or `WaitFor` yet; they arrive
+with their consumers (PP0.6). The AppHost pins `System.Security.Cryptography.Pkcs` 10.0.13 because
+`Microsoft.Data.SqlClient` pulls 10.0.12 (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx). An `Aspire.Hosting.Testing`
+smoke test (`Category=Integration`, needs Docker) runs the containers ephemeral; model tests need no Docker.
 
 ### PP0.5 ServiceDefaults, health, and application clock
 
