@@ -10,19 +10,31 @@ using PantryPress.MigrationService;
 
 namespace PantryPress.Tests.Persistence;
 
-// PP0.6: the empty PantryPressDbContext as the migration service registers it (backend.md). No database is needed.
+// PP0.6, PP1.1: PantryPressDbContext as the migration service registers it (backend.md). No database is needed.
 public sealed class MigrationServiceRegistrationTests
 {
     // Never connected to; only parsed.
     private const string UnusedConnectionString = "Server=127.0.0.1,1;Database=pantrypress;Integrated Security=false";
 
     [Fact]
-    public void Model_is_empty_and_there_are_no_migrations()
+    public void Design_time_model_matches_the_migrations()
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
-        Assert.Empty(db.Model.GetEntityTypes());
-        Assert.Empty(db.Database.GetMigrations());
+        Assert.EndsWith("_InitialIdentity", Assert.Single(db.Database.GetMigrations()), StringComparison.Ordinal);
+        Assert.False(db.Database.HasPendingModelChanges());
+    }
+
+    // PP1.1: Identity builds its tables from the host's IdentityOptions, so the host's model can drift from the
+    // design-time one if the schema pin is missing.
+    [Fact]
+    public async Task Registered_context_model_matches_the_migrations()
+    {
+        using var host = BuildHost();
+        await using var scope = host.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+
+        Assert.False(db.Database.HasPendingModelChanges());
     }
 
     [Fact]

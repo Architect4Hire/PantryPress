@@ -1,6 +1,10 @@
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Tests.Persistence;
 
 namespace PantryPress.Tests.Hosting;
 
@@ -41,7 +45,7 @@ public sealed class MigrationServiceTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task Empty_run_exits_cleanly_and_dependents_start_after_it()
+    public async Task Run_applies_every_migration_exits_cleanly_and_dependents_start_after_it()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         await using var appHost = await EphemeralAppHost.CreateAsync(timeout.Token);
@@ -55,6 +59,13 @@ public sealed class MigrationServiceTests
 
         Assert.Equal(KnownResourceStates.Finished, finished.Snapshot.State?.Text);
         Assert.Equal(0, finished.Snapshot.ExitCode);
+
+        await using (var services = await TestDatabase.CreateServicesAsync(app, timeout.Token))
+        await using (var scope = services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+            Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync(timeout.Token));
+        }
 
         await app.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", timeout.Token);
     }

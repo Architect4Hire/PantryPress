@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Modules.Accounts;
 
 namespace PantryPress.MigrationService;
 
@@ -11,10 +12,11 @@ internal static class MigrationServiceExtensions
     /// <summary>
     /// Registers <see cref="PantryPressDbContext"/> through the Aspire client: connection string from the
     /// <c>pantrypress</c> reference, retrying execution strategy, and tracing. No health check, because this
-    /// one-shot process serves no endpoints.
+    /// one-shot process serves no endpoints. The Identity schema is pinned so the model matches the migrations.
     /// </summary>
     public static IHostApplicationBuilder AddPantryPressDbContext(this IHostApplicationBuilder builder)
     {
+        builder.Services.AddAccountsIdentitySchema();
         builder.AddSqlServerDbContext<PantryPressDbContext>(
             ConnectionName,
             settings => settings.DisableHealthChecks = true,

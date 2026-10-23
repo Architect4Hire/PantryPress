@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Modules.Accounts;
 using PantryPress.MigrationService;
 
 namespace PantryPress.Tests.Persistence;
@@ -98,6 +99,7 @@ public sealed class MigrationWorkerTests
 
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
         builder.Services.AddFakeLogging();
+        builder.Services.AddAccountsIdentitySchema();
         builder.Services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
             connectionString,
             sql => sql.EnableRetryOnFailure(maxRetryCount, maxRetryDelay, null)));
