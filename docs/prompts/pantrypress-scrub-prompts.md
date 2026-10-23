@@ -286,7 +286,7 @@ tests that reach the admin app through the gateway with `Host: app.localhost`), 
 --verify-no-changes`, and `aspire run` with `admin` and `gateway` healthy and the HMR websocket upgrading through
 YARP. Reviewers: architecture-reviewer and public-site-reviewer; findings fixed or recorded above.
 
-### PP0.8 First complete local run
+### PP0.8 First complete local run - done
 
 ```text
 SCOPE: Run the empty system and repair only wiring that blocks startup.
@@ -295,6 +295,31 @@ RESTRICTION: No feature work.
 UTILIZATION: architecture-reviewer.
 BEHAVIOR: Give one health line per resource, list startup fixes with evidence, leave the build clean.
 ```
+
+Delivery note: no startup fixes were needed and no code changed. `aspire start` (Aspire CLI 13.6.3) brought up
+every resource on the first run: `sql`, `pantrypress`, `redis`, `storage`, `blobs`, `sql-password`, and
+`redis-password` were healthy; `migrationservice` finished with exit code 0 ("0 migrations applied", since there
+are no migrations yet); `apiservice`, `site`, `worker`, `gateway`, and `admin` were healthy, and `admin-installer`
+finished. The `/health` and `/alive` probes returned 200 on ApiService, Site, Worker, and the gateway (HTTP and
+HTTPS at `app.localhost`), and the gateway served the admin SPA. No resource logged a warning or error. This
+differs from the checkpoint: only one Angular app runs, because the `pantrypress-site` Node SSR resource arrives in
+PP7.2a. Recorded for later prompts:
+
+- **PP1.5:** the gateway has no `apiservice` reference yet, so it cannot report API reachability (gateway.md);
+  add `WaitFor(apiservice)` or a readiness check along with the reference.
+- **PP1.6/PP19:** the `admin-spa` route follows the gateway's environment, but the `admin` resource follows the
+  AppHost's. Set the gateway's environment from the AppHost, or gate the route on the `admin` service-discovery
+  entries.
+- **PP7.2a:** replace the hand-kept dependent list in `MigrationServiceTests` with a rule (every project or
+  executable except `migrationservice` waits for it to complete) before the SSR resource is added.
+- **PP19.2:** `WithHttpHealthCheck("/health")` probes will 404 in production while health endpoints stay
+  Development-only. Key Vault (PP-D16) is not modeled until the first provider secret arrives.
+- Redis and blobs have no consumers yet. Each consumer adds `WithReference` plus `WaitFor`.
+
+Verification: `aspire start` with every resource in the states listed above, `dotnet build` (0 warnings),
+`dotnet test` (73 passed), `dotnet format --verify-no-changes`, `npm run lint`, `npm test` (3 suites),
+`npm run format:check`, and `npm run build`. Reviewer: architecture-reviewer, with no blocking or PP0.8 findings;
+the rest is recorded above.
 
 ## PP1 — Identity, gateway, and browser boundary
 
