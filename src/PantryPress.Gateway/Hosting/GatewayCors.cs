@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace PantryPress.Gateway.Hosting;
 
 /// <summary>
@@ -18,9 +20,14 @@ internal static class GatewayCors
     public const string CrossOriginTitle = "That request came from another site.";
 
     /// <summary>A default policy that allows no origin at all: CORS is closed, and closed on purpose, not by omission.</summary>
-    public static IServiceCollection AddClosedCors(this IServiceCollection services)
+    public static IServiceCollection AddClosedCors(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddOptions<GatewayOriginOptions>()
+            .Bind(configuration)
+            .Validate(o => o.IsValid(), "Gateway:PublicOrigin must be an absolute origin, such as https://app.pantrypress.app.")
+            .ValidateOnStart();
+
         return services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins()));
     }
 
@@ -32,6 +39,7 @@ internal static class GatewayCors
     public static IApplicationBuilder UseSameOriginWrites(this IApplicationBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
+        var configured = app.ApplicationServices.GetRequiredService<IOptions<GatewayOriginOptions>>().Value.PublicOrigin;
         return app.Use(async (context, next) =>
         {
             var origin = context.Request.Headers.Origin;
@@ -45,7 +53,7 @@ internal static class GatewayCors
                 return;
             }
 
-            if (origin.Count > 1 || !IsSameOrigin(context.Request, origin[0]))
+            if (origin.Count > 1 || !IsSameOrigin(context.Request, origin[0], configured))
             {
                 await GatewayApi.WriteProblemAsync(
                     context,
@@ -59,12 +67,23 @@ internal static class GatewayCors
         });
     }
 
-    private static bool IsSameOrigin(HttpRequest request, string? origin)
+    private static bool IsSameOrigin(HttpRequest request, string? origin, string? configured)
     {
         if (!Uri.TryCreate(origin, UriKind.Absolute, out var sent))
         {
             // "null", a relative value, or nonsense: not this origin, and nothing to compare.
             return false;
+        }
+
+        if (configured is not null)
+        {
+            // An origin written down by an operator beats one worked out from a request every time - compared as
+            // origins, so that writing the default port explicitly does not quietly stop matching.
+            return Uri.TryCreate(configured, UriKind.Absolute, out var expected)
+                && string.Equals(
+                    sent.GetLeftPart(UriPartial.Authority),
+                    expected.GetLeftPart(UriPartial.Authority),
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         var host = request.Host;

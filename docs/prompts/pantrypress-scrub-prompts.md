@@ -877,7 +877,7 @@ one token surviving a sign-in and a sign-out; reads needing nothing; plain HTTP 
 answering PP1.5's 404 rather than a token puzzle; the SPA route not guarded; and the guarded path pinned against the
 forwarded route's configured path. Reviewers: `architecture-reviewer` and `api-contract-checker`.
 
-### PP1.8 Edge hardening
+### PP1.8 Edge hardening - done
 
 ```text
 SCOPE: Add security response headers, body size limits, and trusted-proxy configuration to Gateway,
@@ -885,6 +885,140 @@ ApiService, and Site.
 CONSTRAINT: PSEC-002 (admin side); backend.md.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+- **One shared layer, opted into per host.** `PantryPress.ServiceDefaults/EdgeHardening/` holds the four pieces -
+  security headers, trusted proxies and the forwarding strip, body limits, the HTTPS redirect - because Gateway,
+  ApiService, and Site owe the same primitives and ServiceDefaults is the only project all three reference. What each
+  one owes *differs*, though, so nothing is applied by `AddServiceDefaults()`; each host says what it wants and the
+  differences are the interesting part. CLAUDE.md's layout line and `aspire.md` were widened to say so (approved).
+- **The trusted-proxy step is what makes PP1.7 work in production, not just what per-IP limits were waiting on.**
+  Behind Front Door, TLS ends at the edge: `Request.IsHttps` is false and `Request.Host` is the container's, so
+  antiforgery would refuse every write as plain HTTP and the same-origin check would refuse it as cross-origin. The
+  step runs **ahead** of PP1.7's strip, reads `X-Forwarded-For`, `-Proto`, and `-Host` from a peer listed in
+  `Edge:TrustedProxies`, and the strip then takes whatever is left off every request. It is **empty by default**, and
+  empty means the middleware is not registered at all rather than configured to trust nothing - there is no
+  ambiguity about what an empty allow-list means. `ForwardLimit` counts the believable hops; the tests prove a known
+  peer is believed, a stranger saying the same thing is not, and two hops do not get through one.
+- **The strip grew the families PP1.8 actually started reading.** `X-Azure-FDID`, `X-Azure-ClientIP`,
+  `X-Azure-SocketIP`, `X-Original-Host`, `X-Original-URL`, `X-Real-IP`, `X-ProxyUser-Ip` - `X-Azure-FDID` above all,
+  because PP9.3 proves a request came through Front Door with it and a client that could forge one would walk past
+  that check before it was written.
+- **ApiService believes an address behind the secret, not an allow-list.** Pod addresses are not knowable in advance;
+  the gateway's shared secret already is the thing this service believes an identity on (PP1.6), so it is what it
+  believes an address on too. Any other caller - the publishing API's own edge route at PP18 - has its forwarding
+  headers removed and gets no say. The forwarded *host* is deliberately not applied: no admin route reads it, and
+  the one place a host decides anything is the public tier, where PP9.3 owns the rule.
+- **The public site believes nobody at all** (PSEC-004). Its site resolution is Host-only, and proving a request came
+  through the edge rather than straight at the origin is PP9.3's; until then the strip is the whole rule.
+- **The headers are written on the response's start**, so the answers that never reach an endpoint - a 413, a
+  cross-origin 403, an antiforgery 400, a problem 404 - carry them too, which is exactly when a missing header would
+  matter most. `X-Frame-Options: DENY` here is what PP1.7's `SuppressXFrameOptionsHeader` was making room for. An
+  `/api` answer gets `default-src 'none'; … sandbox`, because JSON is not a document; a document gets the admin
+  app's own policy, looser in Development for the dev server's sake and tightened by PP19 with a nonce.
+- **Where the surfaces differ, they differ for a reason.** `Referrer-Policy` is `no-referrer` on the admin side and
+  `strict-origin-when-cross-origin` on the public site, because a blogger's outbound links are credited back by the
+  referrer. `Permissions-Policy` denies everything except `screen-wake-lock=(self)` on the public site, for cook
+  mode. HSTS is one year with `includeSubDomains`, **no `preload`** (a one-way door owned by browser vendors), on
+  the gateway and the public site alone and outside Development only, so no developer's browser is pinned. Only the
+  gateway redirects plain HTTP to TLS, with 307 so a write keeps its method and body: the internal APIs are reached
+  over plain HTTP inside the environment, and a redirect there would break the system rather than harden it.
+- **Body limits are refused on the declared length, before anything reads one.** 1 MiB on the admin side, 64 KiB on
+  the public side, where everything a reader sends is small by rule. Early on purpose: the gateway would otherwise
+  stream an over-sized body to ApiService and turn a 413 into a 502, and an antiforgery check that parses a body is
+  work an anonymous caller must not be able to ask for.
+- **The gateway answers its own host check.** The framework's host filtering would do this with a bodiless 400,
+  which would be the one answer under `/api` that is not a problem document, so a host outside `Gateway:Hosts` gets
+  the gateway's neutral problem 404 instead - a tenant site host included, since Front Door routes those elsewhere.
+  `Gateway:PublicOrigin`, when set, is what the same-origin check compares against, so that check stops depending on
+  proxy configuration being right (an earlier PP1.7 review's suggestion).
+- **The deferred limit landed** (approved as part of this prompt; PP1.5, PP1.6, and PP1.7 each recorded it here).
+  The gateway limits its two sign-in routes per address, 20 a minute by default. ApiService partitions its anonymous
+  account routes by the address the gateway vouches for (`AnonymousAccountPerIpPerMinute`, renamed from
+  `AnonymousAccountPerMinute` so the name says what it means), and its sign-in ceiling stays **global on purpose**:
+  only the gateway reaches that surface, it calls with a client of its own rather than through its proxy, and the
+  gateway already partitions sign-in by address in front of it. That closes PP1.6's note that one caller could turn
+  sign-in off for everyone.
+- **PP1.7 fold-in (approved):** a write with no `X-PP-Xsrf` header is refused before `ValidateRequestAsync` is
+  called. ASP.NET Core's token store falls back to the posted form for a form content type, so a token-less
+  multipart write would otherwise have its whole body parsed - and a malformed one throws `InvalidDataException`,
+  which escapes the antiforgery `catch` and makes a 500 of a documented 400.
+- **Three existing tests changed, and one deliberately lost its old meaning.** PP1.7's "over plain HTTP the admin
+  surface is read-only" is now "over plain HTTP nothing is served": the redirect answers before the token question
+  arises, and the scheme guard behind it is a backstop rather than something a caller meets. Two integration tests
+  moved from the gateway's http endpoint to its https one, and the tenant-host cookie test now ends at the host
+  check rather than at the ticket (that a ticket this gateway did not write names nobody is still proven on its own
+  host, in the test above it).
+- **The reviews changed the shipped design in four places, and all four were worth it.**
+  - *A deployed host now refuses to start trusting nobody.* Everything the empty `Edge:TrustedProxies` default costs
+    is invisible locally, because Kestrel terminates TLS itself in a local run - so an unconfigured production would
+    have had the per-address limits collapse into one bucket **tighter** than the ceilings they replaced (20 a
+    minute for every caller on earth, where PP1.6 recorded 300), no HSTS, and every admin write refused. It says
+    who its proxy is or sets `Edge:TrustedProxies:TrustNobody` in writing.
+  - *The redirect is registered only where the scheme is knowable* - Development, or a deployment that named a
+    proxy. An HTTPS port configured without one would answer 307 to the address the edge had just come from, and
+    the admin app would be an infinite loop. The two are coupled in code rather than in two lines of IaC that have
+    to agree.
+  - *HSTS on the public tier drops `includeSubDomains`.* DOM-001 allows a custom domain at its apex, and a year of
+    it from `example.com` pins `mail.example.com`, `shop.example.com`, anything the blogger runs - on a domain that
+    is not ours, not undone by leaving PantryPress. The gateway keeps it; its host is ours.
+  - *Believing a proxy about the host became a separate decision from believing it about an address.*
+    `TrustedProxyOptions.ForwardHost` is off by default and the public tier leaves it off: on that tier the host is
+    the tenant (PSEC-004), and one CIDR in configuration would otherwise have made tenant selection header-settable
+    with no test turning red. The gateway turns it on and bounds it to `Gateway:Hosts`.
+- **Also from the reviews:** the public tier's 413 was a bare framework document with no `code` - the shared
+  middleware now states the vocabulary itself, so a host whose own problem vocabulary has not been written yet
+  (PP2, PP7) still answers a document a person can read; the 413 is written through `Results.Problem` rather than
+  `IProblemDetailsService` directly, because that service declines to write when the caller's `Accept` names
+  neither JSON nor `*/*` - a browser form post, which is exactly the shape of an over-sized upload - and the caller
+  would have got a bodiless 413; 413 is declared globally on ApiService beside 429 and 500 and on the gateway's
+  session group, since the cap sits ahead of every route; `Gateway:PublicOrigin` is compared as an origin rather
+  than as the string someone typed; the Privacy Sandbox advertising features are denied alongside the device ones,
+  which is the consistent position for a platform whose analytics are cookie-free and whose ads are opt-in; and the
+  local host names moved out of the deployed `Gateway:Hosts`.
+- **Recorded rather than fixed:** a chunked body that declares no length is enforced by Kestrel only when something
+  reads it, which for a forwarded request happens inside YARP, so an over-sized chunked write surfaces as a 502
+  rather than a 413 - real clients send `Content-Length`, and PP6 is where chunked uploads become real; the body
+  cap is one number per host and cannot be raised per route, which PP6 (media) and PP18 (publishing uploads and
+  larger publish payloads) will each need, and both will have a route to hang it on and a test to prove it;
+  `HTTPS_PORT=443` is PP19's to set alongside the trusted peer, not instead of it; nothing enforces the middleware
+  order the comments insist on, so a future host could reverse the trusted-proxy step and the strip and still
+  compile (an ordered composite would fix it); where the gateway forwards, a security header ApiService set itself
+  is what the browser gets, because the writer does not overwrite - the values agree today and a test now pins
+  which wins; ApiService hand-rolls a small forwarding parser beside the framework-based one, because its trust
+  gate is a secret rather than an address; the public origin has no rate ceiling of its own and no deliberate cache
+  headers yet (PSEC-001, PP9.4); the placeholder public CSP still lacks `frame-src`, `media-src`, `worker-src` and
+  a reporting endpoint, and `fullscreen=(self)` will block fullscreen on an allow-listed video embed, all of which
+  PP9.6's generator must handle; and both health endpoints short-circuit the moment they are routed, ahead of every
+  edge middleware, so a probe's answer carries no security headers and meets no host check (correct, and the
+  exemptions in the redirect and the host check are belt to that braces).
+- **Not in this prompt:** Front Door configuration, `X-Azure-FDID` origin trust and WAF rules (PP9.2, PP9.3), the
+  generated per-site CSP (MON-005, PP9), media upload limits (PP6), Worker hardening (it has no public surface),
+  idempotency (PP1.9), and the PP1.7 contract backlog an earlier review raised - the missing `ProducesProblem`
+  metadata on the session routes above all, which is a separate fix-up and is **not** closed by this prompt.
+- **Pre-existing, unrelated:** the `MigrationWorkerTests` pair recorded at PP1.5 still fails, unchanged.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings), `dotnet test PantryPress.slnx` (514 of 516 passing; the
+only red is the pre-existing `MigrationWorkerTests` pair), `dotnet format PantryPress.slnx --verify-no-changes`
+(clean), and 62 new test cases: every header pinned by exact value on a forwarded answer, a problem 404, a session
+route and the SPA catch-all, and on each refusal that never reaches an endpoint; the API policy against the document
+policy, and the Development document policy against the strict one; HSTS present outside Development, absent
+locally, absent over plain HTTP, and without `includeSubDomains` on the public tier; the redirect preserving path,
+query and method, skipping both probes, and not registered at all where the scheme cannot be known; a known peer
+believed about the address and the scheme, a stranger and an unconfigured host believed about neither, one hop out
+of two, a peer bounded to the gateway's own host list, and the plain-HTTP write that only works because of that
+step; each rewriting-proxy header stripped on its own, the Azure family included; a foreign host, a suffix attack, a
+trailing dot and an uppercase spelling against the host check, with a probe answering on any host; the 413 refused
+on declared length with its code, title, `traceId` and `no-store`, nothing forwarded, a body at the limit passing,
+and a refusal that still has a body for a caller sending `Accept: text/html`; sign-in limited per address with
+`Retry-After` and the refused attempt never reaching the API, and a second address with its own allowance;
+ApiService's address believed from the gateway's secret and not from a caller without it; the deployed host that
+refuses to start rather than trust nobody by accident; the shared rule on its own small host, proving that believing
+a peer about an address is not believing it about a host; and on the public tier the reader headers, the API policy
+on a reader endpoint's path, the body cap at and over the limit, and four tenant host spellings answered alike. The
+end-to-end half runs against the real AppHost: real Kestrel refusing an over-sized declared length with the API's
+problem shape, the headers on a real TLS answer, the neutral 404 for a foreign host, plain HTTP redirected, and the
+probe that is not. Reviewers: `architecture-reviewer`, `api-contract-checker`, and `public-site-reviewer`; every
+blocker and major finding is either fixed above or recorded here.
 
 ### PP1.9 Idempotency foundation
 

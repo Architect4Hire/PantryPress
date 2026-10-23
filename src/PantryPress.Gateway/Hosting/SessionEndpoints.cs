@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Net.Http.Headers;
 using PantryPress.Gateway.Contracts;
 
@@ -23,16 +24,20 @@ internal static class SessionEndpoints
         // The declared shapes are what the admin app's typed client is written from until the BFF publishes a
         // document of its own (recorded for PP2).
         var session = app.MapGroup(Base);
+        // The two authentication attempts are limited per address (PP1.8); nothing else here is an attempt.
         session.MapPost(string.Empty, SignInAsync)
+            .RequireRateLimiting(GatewayRateLimits.SessionPerIp)
             .Produces<SessionView>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status502BadGateway);
         session.MapPost("/second-factor", CompleteSecondFactorAsync)
+            .RequireRateLimiting(GatewayRateLimits.SessionPerIp)
             .Produces<SessionView>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         // Cast so the handlers' IResult is written to the response rather than discarded as a RequestDelegate.
         session.MapGet(string.Empty, (Delegate)CurrentAsync)
@@ -40,6 +45,9 @@ internal static class SessionEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         session.MapDelete(string.Empty, (Delegate)SignOutAsync)
             .Produces(StatusCodes.Status204NoContent);
+
+        // Any of the four can now answer 413: the body cap is refused ahead of routing (PP1.8).
+        ((IEndpointConventionBuilder)session).ProducesProblem(StatusCodes.Status413PayloadTooLarge);
 
         ((IEndpointConventionBuilder)session).Add(endpoint =>
         {

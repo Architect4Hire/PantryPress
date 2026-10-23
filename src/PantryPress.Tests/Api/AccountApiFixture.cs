@@ -71,7 +71,7 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
             ["ConnectionStrings:pantrypress"] = connectionString,
             ["Accounts:AppBaseUrl"] = "https://app.localhost",
             ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
-            ["RateLimits:AnonymousAccountPerMinute"] = "100000",
+            ["RateLimits:AnonymousAccountPerIpPerMinute"] = "100000",
             ["RateLimits:SignedInAccountPerMinute"] = "100000",
             ["RateLimits:SignInPerMinute"] = "100000",
         };

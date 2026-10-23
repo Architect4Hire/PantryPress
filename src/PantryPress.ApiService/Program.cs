@@ -4,6 +4,7 @@ using PantryPress.ApiService.Hosting;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
@@ -25,9 +26,25 @@ builder.Services.AddApiAuthentication();
 builder.Services.AddApiRateLimits(builder.Configuration.GetSection("RateLimits"));
 builder.Services.AddApiOpenApi();
 
+// The edge, for a service a browser never reaches directly (PSEC-002; PP1.8): the same response headers, a body
+// ceiling well under Kestrel's 30 MB default, and no HSTS or HTTPS redirect - the gateway and the SSR server call
+// this service over plain HTTP inside the environment, so a redirect here would break the system, not harden it.
+builder.Services.AddRequestLimits(RequestLimits.AdminDefault);
+builder.Services.AddSecurityHeaders(options =>
+{
+    options.Hsts = false;
+    options.ReferrerPolicy = ReferrerPolicies.Admin;
+    options.PermissionsPolicy = PermissionsPolicies.DenyAll;
+});
+
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseSecurityHeaders();
+
+// Who the client is, from the gateway alone, before anything partitions a rate limit by address.
+app.UseGatewayForwardedClient();
+app.UseRequestLimits();
 app.UseNoStoreByDefault();
 app.MapDefaultEndpoints();
 

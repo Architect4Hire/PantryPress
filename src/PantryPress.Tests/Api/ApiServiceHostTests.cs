@@ -83,10 +83,10 @@ public sealed class ApiServiceHostTests
     }
 
     [Fact]
-    public async Task Anonymous_account_routes_share_one_global_rate_limit()
+    public async Task Anonymous_account_routes_share_one_bucket_when_no_address_is_known()
     {
         await using var api = ApiServiceFactory.WithoutDatabase(
-            extraSettings: new Dictionary<string, string?> { ["RateLimits:AnonymousAccountPerMinute"] = "2" });
+            extraSettings: new Dictionary<string, string?> { ["RateLimits:AnonymousAccountPerIpPerMinute"] = "2" });
         var client = api.CreateClient();
         var invalid = new ForgotPasswordRequest("not an email");
 
@@ -144,10 +144,12 @@ public sealed class ApiServiceHostTests
             }
         }
 
-        Assert.Equal(["202", "400", "429", "500"], Statuses(operations["POST /api/v1/account/register"]));
-        Assert.Equal(["204", "400", "401", "404", "409", "429", "500"], Statuses(operations["POST /api/v1/account/password/change"]));
-        Assert.Equal(["200", "400", "401", "404", "409", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/enable"]));
-        Assert.Equal(["204", "400", "401", "404", "409", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/disable"]));
+        // 413, 429, and 500 are the three any route can answer, declared globally (ApiHttp): a body over the cap
+        // since PP1.8, a rate limit, and a fault.
+        Assert.Equal(["202", "400", "413", "429", "500"], Statuses(operations["POST /api/v1/account/register"]));
+        Assert.Equal(["204", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/password/change"]));
+        Assert.Equal(["200", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/enable"]));
+        Assert.Equal(["204", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/disable"]));
 
         var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
         foreach (var name in new[] { "ProblemDetails", "ValidationProblemDetails" })

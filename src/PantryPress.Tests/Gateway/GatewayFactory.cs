@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,7 +28,8 @@ internal sealed class GatewayFactory(
     Func<HttpResponseMessage>? probe = null,
     Func<HttpResponseMessage>? forward = null,
     Func<HttpRequestMessage, HttpResponseMessage>? sessions = null,
-    TimeProvider? time = null) : WebApplicationFactory<GatewayEntryPoint>
+    TimeProvider? time = null,
+    IReadOnlyDictionary<string, string?>? settings = null) : WebApplicationFactory<GatewayEntryPoint>
 {
     public const string ApiDestination = "apiservice.test";
     public const string AdminDestination = "admin.test";
@@ -68,6 +70,25 @@ internal sealed class GatewayFactory(
         CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = AdminOrigin, HandleCookies = false });
 
     /// <summary>
+    /// A client on plain HTTP, which is how nobody reaches the gateway and therefore how PP1.8's redirect, HSTS, and
+    /// trusted-proxy behaviour are exercised. Redirects are not followed: the answer itself is what is asserted.
+    /// </summary>
+    public HttpClient CreatePlain() =>
+        CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://app.localhost"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+
+    /// <summary>
+    /// The address a test's request appears to come from. TestServer opens no socket, so the connection has no peer
+    /// of its own; a request carrying this header is given one before any middleware runs, which is what the
+    /// trusted-proxy step and the per-address limits key on.
+    /// </summary>
+    public const string RemoteAddressHeader = "X-Test-Remote";
+
+    /// <summary>
     /// Every client this factory makes talks to <c>https://app.localhost</c>, because that is the only way the gateway
     /// is reached: Front Door terminates TLS in production, and locally the AppHost offers its HTTPS address alone
     /// (PP1.6). A <c>Secure</c> cookie and the antiforgery token it carries exist only on that scheme.
@@ -85,10 +106,31 @@ internal sealed class GatewayFactory(
         builder.UseSetting("services:apiservice:http:0", $"http://{ApiDestination}");
         builder.UseSetting("services:admin:http:0", $"http://{AdminDestination}");
 
+        // TestServer has no listening address for the HTTPS redirect to work out a port from, so the test host is
+        // told the one a browser meets: https on 443, exactly as it is behind Front Door.
+        builder.UseSetting("HTTPS_PORT", "443");
+
+        // The hosts these tests reach the gateway on, in every environment they run it in: deployed configuration
+        // names the deployed host and Development names app.localhost, and a Production test host is neither. The
+        // bare "localhost" is here because WebApplicationFactory puts its own default address on a client after
+        // ConfigureClient has run, so a client made without options talks to it.
+        builder.UseSetting("Gateway:Hosts:0", AdminOrigin.Host);
+        builder.UseSetting("Gateway:Hosts:1", "localhost");
+
+        // A deployed host refuses to start without a named proxy (PP1.8); a test host says the empty default is
+        // deliberate, and the tests that care configure a peer of their own.
+        builder.UseSetting("Edge:TrustedProxies:TrustNobody", "true");
+        foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
+        {
+            builder.UseSetting(key, value);
+        }
+
         // The gateway refuses to start without the secret it proves itself to the API with (PP1.6).
         builder.UseSetting("Gateway:SharedSecret", TestSecrets.GatewaySecret);
         builder.ConfigureTestServices(services =>
         {
+            // Ahead of every middleware the host adds, so the connection has a peer before anything reads one.
+            services.AddSingleton<IStartupFilter, RemoteAddressFilter>();
             // Session tickets are protected with keys of this host's own, so tests never touch the developer's key
             // ring - and a ticket from one test host is unreadable by another, which is what a forged cookie is.
             services.Replace(ServiceDescriptor.Singleton<IDataProtectionProvider, EphemeralDataProtectionProvider>());
@@ -112,6 +154,26 @@ internal sealed class GatewayFactory(
                     return probe?.Invoke() ?? throw new HttpRequestException("Connection refused.");
                 }));
         });
+    }
+
+    /// <summary>Gives the connection the address a test's request claims, before any middleware runs.</summary>
+    private sealed class RemoteAddressFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use(async (context, following) =>
+            {
+                if (context.Request.Headers.TryGetValue(RemoteAddressHeader, out var claimed)
+                    && IPAddress.TryParse(claimed.ToString(), out var address))
+                {
+                    context.Connection.RemoteIpAddress = address;
+                }
+
+                await following(context);
+            });
+
+            next(app);
+        };
     }
 
     /// <summary>

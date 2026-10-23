@@ -67,7 +67,13 @@ public sealed class AdminAppTests
 
         await app.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
         await app.ResourceNotifications.WaitForResourceHealthyAsync("admin", timeout.Token);
-        using var client = app.CreateHttpClient("gateway", "http");
+        // Over TLS: since PP1.8 the gateway sends a plain-HTTP caller to HTTPS, and the certificate is not checked
+        // because the test presents the app.localhost host while connecting to the local endpoint (PP1.6).
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
+        using var client = new HttpClient(handler) { BaseAddress = app.GetEndpoint("gateway", "https") };
 
         // Browsers send the app.localhost host the dashboard links to (SITE-009).
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/", UriKind.Relative));

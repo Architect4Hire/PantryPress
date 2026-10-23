@@ -274,24 +274,21 @@ public sealed class GatewayAntiforgeryTests
     }
 
     [Fact]
-    public async Task Over_plain_http_there_is_no_token_to_hand_out_and_no_write_to_accept()
+    public async Task Over_plain_http_nothing_is_served_and_no_token_is_handed_out()
     {
-        // The cookie that carries the token is Secure, so over plain HTTP a browser would never send it back. A read
-        // still works; a write is refused rather than failing in some other way. Nobody reaches the admin app like
-        // this - the edge is HTTPS - and PP1.8 adds the redirect and HSTS that say so.
+        // PP1.7 refused the write and served the read; PP1.8 put a redirect in front of both, so the answer is now
+        // "come back over TLS" before the token question arises - and no Secure cookie is minted on a scheme that
+        // could never carry it back. The scheme guard in UseGatewayAntiforgery stays as the backstop behind it.
         await using var gateway = new GatewayFactory("Development");
-        var client = gateway.CreateBare();
+        var client = gateway.CreatePlain();
 
-        using var read = await client.GetAsync("http://app.localhost/api/v1/account/two-factor");
-        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        using var read = await client.GetAsync("/api/v1/account/two-factor");
+        using var write = await client.PostAsJsonAsync("/api/v1/account/password/change", new { x = 1 });
+
+        Assert.Equal(HttpStatusCode.TemporaryRedirect, read.StatusCode);
         Assert.Null(read.SetCookie(GatewayAntiforgery.TokenCookieName));
-
-        using var write = await client.PostAsJsonAsync("http://app.localhost/api/v1/account/password/change", new { x = 1 });
-
-        Assert.Equal(HttpStatusCode.BadRequest, write.StatusCode);
-        var problem = await write.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(GatewayAntiforgery.FailedCode, problem.GetProperty("code").GetString());
-        Assert.Single(gateway.Forwarded);
+        Assert.Equal(HttpStatusCode.TemporaryRedirect, write.StatusCode);
+        Assert.Empty(gateway.Forwarded);
     }
 
     [Fact]

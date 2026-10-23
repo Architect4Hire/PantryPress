@@ -24,8 +24,10 @@ internal static class ApiHttp
                 // describes it (api-contract.md).
                 options.Conventions.Add(new ApiSurfaceConvention());
 
-                // Any route can be rate-limited or fail unexpectedly. Declared globally: a controller's own
-                // response-type attributes hide ones inherited from a base class.
+                // Any route can be rate-limited, carry too much body, or fail unexpectedly. Declared globally: a
+                // controller's own response-type attributes hide ones inherited from a base class.
+                options.Filters.Add(
+                    new ProducesResponseTypeAttribute<ProblemDetails>(StatusCodes.Status413PayloadTooLarge, ApiProblems.ContentType));
                 options.Filters.Add(
                     new ProducesResponseTypeAttribute<ProblemDetails>(StatusCodes.Status429TooManyRequests, ApiProblems.ContentType));
                 options.Filters.Add(

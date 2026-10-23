@@ -25,6 +25,7 @@
     <ProjectReference Include="..\PantryPress.Domain\PantryPress.Domain.csproj" />
     <ProjectReference Include="..\PantryPress.Gateway\PantryPress.Gateway.csproj" />
     <ProjectReference Include="..\PantryPress.ServiceDefaults\PantryPress.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\PantryPress.Site\PantryPress.Site.csproj" />
     <ProjectReference Include="..\PantryPress.MigrationService\PantryPress.MigrationService.csproj" />
     <ProjectReference Include="..\PantryPress.AppHost\PantryPress.AppHost.csproj" />
   </ItemGroup>

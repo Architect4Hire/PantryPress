@@ -83,9 +83,9 @@ internal static class GatewayAntiforgery
             if (!context.Request.IsHttps)
             {
                 // There is no token to hand out over plain HTTP - the cookie that carries it is Secure, so a browser
-                // would never send it back - and therefore no write to accept either. Nobody meets the admin app this
-                // way: the edge is HTTPS, and locally it is app.localhost over TLS (PP1.6). PP1.8 adds the redirect
-                // and HSTS that say so.
+                // would never send it back - and therefore no write to accept either. Since PP1.8 a plain-HTTP
+                // request is redirected to TLS before it gets here, so this is the backstop behind that redirect
+                // rather than the thing a caller meets.
                 if (IsWrite(context.Request.Method))
                 {
                     await GatewayApi.WriteProblemAsync(context, StatusCodes.Status400BadRequest, FailedCode, FailedTitle);
@@ -111,6 +111,17 @@ internal static class GatewayAntiforgery
             {
                 // OPTIONS and TRACE change nothing. A preflight never gets this far: closed CORS answers it.
                 await next(context);
+                return;
+            }
+
+            // Before anything can read the body. ASP.NET Core's token store falls back to the posted form when the
+            // content type is a form one, so validating a token-less multipart write would parse the whole body -
+            // work an anonymous caller must not be able to ask for - and a malformed one throws InvalidDataException
+            // rather than the AntiforgeryValidationException below, which would make a 500 of a documented 400.
+            if (!context.Request.Headers.ContainsKey(HeaderName))
+            {
+                Issue(context, antiforgery);
+                await GatewayApi.WriteProblemAsync(context, StatusCodes.Status400BadRequest, FailedCode, FailedTitle);
                 return;
             }
 

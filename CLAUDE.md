@@ -47,7 +47,7 @@ Standard, Stripe, Azure Communication Services Email.
 ```text
 src/
 ├── PantryPress.AppHost/          # Aspire application model
-├── PantryPress.ServiceDefaults/  # telemetry, health, resilience
+├── PantryPress.ServiceDefaults/  # telemetry, health, resilience, edge hardening
 ├── PantryPress.Gateway/          # YARP BFF for the admin app (app.pantrypress.app)
 ├── PantryPress.ApiService/       # authenticated admin API and the publishing API
 ├── PantryPress.Site/             # anonymous public site API (page data, reader endpoints)

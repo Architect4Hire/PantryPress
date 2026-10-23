@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using PantryPress.Gateway.Hosting;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
@@ -27,9 +28,40 @@ if (!builder.Configuration.GetSection($"ReverseProxy:Routes:{GatewayRoutes.Admin
 builder.Services.AddApiProblems();
 builder.Services.AddApiReachabilityCheck();
 
+// The edge (PSEC-002; PP1.8): who may say where a request came from, how much body it may carry, the headers every
+// answer leaves with, and the redirect that says the admin app is HTTPS. HSTS outside Development only, so no
+// developer's browser is pinned by a local run.
+builder.Services.AddTrustedProxies(
+    builder.Configuration.GetSection("Edge:TrustedProxies"),
+    required: !builder.Environment.IsDevelopment());
+
+// The gateway answers on hosts of its own, so a trusted proxy may say which one it was - the same-origin and
+// antiforgery checks read it - but only from that list, never a host of the proxy's invention. The public tier
+// leaves this off entirely, because there the host chooses the tenant.
+builder.Services.Configure<TrustedProxyOptions>(options =>
+{
+    options.ForwardHost = true;
+    foreach (var host in builder.Configuration.GetSection("Gateway:Hosts").Get<string[]>() ?? [])
+    {
+        options.AllowedHosts.Add(host);
+    }
+});
+builder.Services.AddRequestLimits(RequestLimits.AdminDefault);
+builder.Services.AddEdgeHttpsRedirect();
+builder.Services.AddSecurityHeaders(options =>
+{
+    options.Hsts = !builder.Environment.IsDevelopment();
+    options.ReferrerPolicy = ReferrerPolicies.Admin;
+    options.PermissionsPolicy = PermissionsPolicies.DenyAll;
+    options.DocumentContentSecurityPolicy = builder.Environment.IsDevelopment()
+        ? ContentSecurityPolicies.DevelopmentDocument
+        : ContentSecurityPolicies.Document;
+});
+
 // The browser boundary: nothing cross-origin, and a token on every write (ACCT-002; PP1.7).
-builder.Services.AddClosedCors();
+builder.Services.AddClosedCors(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddGatewayAntiforgery();
+builder.Services.AddGatewayRateLimits(builder.Configuration.GetSection("Gateway"));
 
 // The BFF session: this gateway holds it, the browser never holds a token (ACCT-002, PSEC-003, PP-D13).
 builder.Services.AddSessionCookies();
@@ -47,14 +79,33 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-// Header hygiene first, so nothing downstream - routing, the session, the proxy's own transforms - ever sees a
-// client's claim about the hops in front of us. Then the browser boundary, in the order an attack meets it: a
-// preflight is answered by closed CORS, a cross-origin write is turned away on its Origin, and what is left needs
-// the antiforgery token. All three sit ahead of routing, so no endpoint can be written that forgets them.
+// The headers every answer carries, registered first so the ones that never reach an endpoint - a 413, a
+// cross-origin refusal, a problem 404 - carry them too (PSEC-002).
+app.UseSecurityHeaders();
+
+// A configured proxy's word, then nobody else's: the trusted-proxy step reads the forwarding headers a known peer
+// set and corrects the address, scheme, and host, and hygiene takes what is left off every inbound request, on every
+// path, so nothing downstream - routing, the session, the proxy's own transforms - sees a client's invention. This
+// order is what makes the checks below work behind Front Door, where TLS ends at the edge.
+app.UseTrustedProxies();
 app.UseForwardingHeaderHygiene();
+
+// Addressed to a host that is ours, now that the host is the browser's rather than the hop's.
+app.UseKnownHosts();
+
+// Now that the scheme is the browser's, plain HTTP can be sent where it belongs. Probes are exempt.
+app.UseEdgeHttpsRedirect();
+
+// Before any body is read, by this gateway or the destination it would have been streamed to.
+app.UseRequestLimits();
+
+// Then the browser boundary, in the order an attack meets it: a preflight is answered by closed CORS, a
+// cross-origin write is turned away on its Origin, and what is left needs the antiforgery token. All three sit ahead
+// of endpoint execution, so no endpoint can be written that forgets them.
 app.UseCors();
 app.UseSameOriginWrites();
 app.UseGatewayAntiforgery();
+app.UseRateLimiter();
 
 // Deliberately after those checks, and called here rather than left to the host: a WebApplication adds authentication
 // ahead of every middleware of its own accord, which would bind each antiforgery token to whoever was signed in when

@@ -1,10 +1,10 @@
-using PantryPress.Gateway.Hosting;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.Tests.Gateway;
 
-// PP1.7: what a client claims about the hops in front of the gateway reaches nothing (ACCT-002, gateway.md). The
-// gateway has no trusted proxy yet - PP1.8 adds that - so a forwarding header from a client is a client's invention,
-// and ApiService must never read one as though a proxy had set it.
+// PP1.7: what a client claims about the hops in front of the gateway reaches nothing (ACCT-002, gateway.md). PP1.8
+// added the trusted-proxy step ahead of the strip, and it trusts nobody unless an operator configured a peer, so a
+// forwarding header from a client is still a client's invention and ApiService never reads one as a proxy's word.
 public sealed class ForwardedHeaderTests
 {
     private const string AdminRoute = "/api/v1/account/two-factor";
@@ -37,7 +37,7 @@ public sealed class ForwardedHeaderTests
         await using var gateway = new GatewayFactory("Development");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, AdminRoute);
-        foreach (var header in EdgeHeaders.Forwarding)
+        foreach (var header in TrustedProxies.Forwarding)
         {
             request.Headers.TryAddWithoutValidation(header, "invented");
         }
@@ -45,7 +45,7 @@ public sealed class ForwardedHeaderTests
         using var response = await gateway.CreateBrowser().SendAsync(request);
 
         var forwarded = Assert.Single(gateway.Forwarded);
-        foreach (var header in EdgeHeaders.Forwarding)
+        foreach (var header in TrustedProxies.Forwarding)
         {
             Assert.DoesNotContain("invented", forwarded.Header(header) ?? string.Empty, StringComparison.Ordinal);
         }

@@ -122,11 +122,12 @@ public sealed class SessionCookieTests
     }
 
     [Fact]
-    public async Task A_session_cookie_sent_to_a_tenant_host_names_nobody()
+    public async Task A_session_cookie_sent_to_a_tenant_host_gets_no_further_than_the_host_check()
     {
         // Front Door routes a site host to the public site, never here, and the __Host- prefix means a sibling never
-        // had this cookie to begin with. If one arrives anyway, with a ticket this gateway did not write, it is not a
-        // session: the gateway reads its own protected ticket and nothing else.
+        // had this cookie to begin with. Since PP1.8 one arriving anyway does not even reach the cookie: a tenant
+        // host is not one of the gateway's own, so it gets the neutral 404 an unknown host gets everywhere. (That a
+        // ticket this gateway did not write names nobody is proven on its own host, above.)
         await using var gateway = new GatewayFactory("Development", sessions: _ => SessionFixtures.Accepted());
         await using var sibling = new GatewayFactory("Development", sessions: _ => SessionFixtures.Accepted());
 
@@ -137,7 +138,8 @@ public sealed class SessionCookieTests
 
         using var response = await client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(GatewayApi.NotFoundCode, await response.CodeAsync());
     }
 
     private static async Task<string> TicketAsync(GatewayFactory gateway)

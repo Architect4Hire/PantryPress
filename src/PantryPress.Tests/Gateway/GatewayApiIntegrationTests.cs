@@ -22,7 +22,14 @@ public sealed class GatewayApiIntegrationTests(MigratedDatabase system)
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", timeout.Token);
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
-        using var client = system.App.CreateHttpClient("gateway", "http");
+        // Over TLS: since PP1.8 the gateway sends a plain-HTTP caller to HTTPS, so the http endpoint answers 307 and
+        // nothing else. The certificate is not checked, because the test presents the app.localhost host the gateway
+        // answers on while connecting to the local endpoint (SessionEndToEndTests says the same).
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+        };
+        using var client = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "https") };
         var host = $"app.localhost:{client.BaseAddress!.Port}";
 
         // A signed-in route: the API's own 401 problem proves the request crossed the gateway into ApiService.

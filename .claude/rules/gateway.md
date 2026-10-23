@@ -11,9 +11,34 @@
   hosts, and a version nobody declared does not exist. Route orders are explicit.
 - The gateway owns the session cookie, antiforgery, and header hygiene: strip `X-Forwarded-*` from the
   client, strip any identity headers, add the authenticated user context for the API.
-- Header hygiene is the first middleware (PP1.7): `Forwarded` and every `X-Forwarded-*` spelling come off every
-  inbound request, on every path, and the proxy declares its own with `Set`, never append. The gateway therefore
-  trusts nobody about the client address until PP1.8 adds the trusted-proxy step, which runs ahead of the strip.
+- Header hygiene (PP1.7, PP1.8): `Forwarded`, every `X-Forwarded-*` spelling, the Azure Front Door family
+  (`X-Azure-FDID`, `X-Azure-ClientIP`, `X-Azure-SocketIP`) and the rewriting proxies' originals (`X-Original-Host`,
+  `X-Original-URL`, `X-Real-IP`, `X-ProxyUser-Ip`) come off every inbound request, on every path, and the proxy
+  declares its own with `Set`, never append. The trusted-proxy step runs **ahead** of that strip and reads those
+  headers only from a peer configured in `Edge:TrustedProxies` (empty by default, which means believe nobody), with
+  `ForwardLimit` counting the hops that may be believed. That step is what makes the write path work behind Front
+  Door, where TLS ends at the edge: without it `Request.IsHttps` is false and `Request.Host` is the container's, so
+  antiforgery and the same-origin check would refuse every admin write, per-address limits collapse into one bucket
+  tighter than the ceiling they replaced, and no HSTS goes out. None of that shows in a local run, where Kestrel
+  terminates TLS itself, so **a deployed host refuses to start** unless it names a peer or sets
+  `Edge:TrustedProxies:TrustNobody`. A trusted peer may also name the host, but only one from `Gateway:Hosts`; the
+  public tier does not grant even that, because there the host is the tenant.
+- The admin surface is HTTPS. A plain-HTTP request is answered 307 to the same address over TLS, and every answer
+  outside Development carries HSTS for a year with `includeSubDomains` and no `preload`. Health probes are exempt
+  from the redirect, and the redirect is registered only where the host can tell what scheme the browser used -
+  Development, or a deployment that named its proxy - because a configured HTTPS port without a trusted proxy
+  redirects the edge back to the address it just came from, for ever.
+- Every answer carries the PSEC-002 headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, a deny-all `Permissions-Policy`, and a content-security policy - `default-src
+  'none'` plus `sandbox` for an `/api` answer, the admin app's own policy for a document (looser in Development for
+  the dev server's sake). They are written on the response's start, so a refusal that never reached an endpoint
+  carries them too.
+- A request is addressed to one of `Gateway:Hosts` or it gets the gateway's neutral problem 404 - a tenant site host
+  included, since Front Door routes those to the public site. The framework's host filtering is deliberately not
+  used: its bodiless 400 would be the one answer under `/api` that is not a problem document.
+- Bodies are capped at 1 MiB, refused on the declared length before anything reads one - the gateway would otherwise
+  stream an over-sized body to ApiService and turn the refusal into a 502. `Gateway:PublicOrigin`, when set, is the
+  origin the same-origin check compares against, so that check does not depend on proxy configuration being right.
 - The session is the gateway's own (PP1.6, `auth.md`): four routes at `/api/v1/account/session` that it answers itself
   rather than forwarding, two `__Host-` cookies (a complete session and a half-finished one waiting for a second
   step), and one typed client to ApiService's `api/internal/v1` surface for the checks themselves. The gateway holds
@@ -33,7 +58,10 @@
   The token is bound to this origin, not to an account: the gateway calls `UseAuthentication()` itself, after these
   checks, because a `WebApplication` would otherwise place it first and bind every token to the session it was minted
   under. Over plain HTTP there is no token and no write, only reads.
-- Rate limits per user and per IP for authentication endpoints.
+- Rate limits per address on the two sign-in routes (`Gateway:SessionPerIpPerMinute`, default 20), which is what the
+  trusted-proxy step was owed for: before it, partitioning by address would have put every request behind Front
+  Door's own address in one bucket. ApiService keeps a global ceiling behind that as a backstop, and partitions its
+  anonymous account routes by the address the gateway vouches for.
 - The gateway does no business logic and no database access.
 - Health checks come from ServiceDefaults; the gateway reports API reachability in `/health` - any HTTP answer
   counts as reachable, unreachable is degraded rather than unhealthy, and `/alive` never calls the API.
