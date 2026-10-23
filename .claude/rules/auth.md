@@ -2,7 +2,7 @@
 
 ## Accounts
 
-- ASP.NET Core Identity in `Modules/Accounts`. Email verification required before creating a site.
+- ASP.NET Core Identity in `Modules/Accounts`. Email verification required before publishing (ACCT-001).
 - Optional TOTP two-factor; required for `PlatformAdmin`.
 - Disposable-email blocking at signup (ACCT-003 default yes).
 

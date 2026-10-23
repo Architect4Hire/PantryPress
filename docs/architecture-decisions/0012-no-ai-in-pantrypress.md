@@ -30,6 +30,7 @@ into PantryPress through the publishing API (ADR 0015).
 ## Consequences
 
 - The invariant-guard hook blocks AI SDK references in `.csproj`, `package.json`, and
-  `Directory.Packages.props`.
+  `Directory.Packages.props`, and AI SDK imports and model-provider endpoints in source under `src/`
+  (widened at PP0.2).
 - Spam defense uses deterministic rules and the spam challenge (ENG-003).
 - Parsing quality comes from rules and golden corpora (ADR 0005).

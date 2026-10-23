@@ -116,7 +116,7 @@ aspire run                                  # whole system: SQL, Redis, blob, AP
 dotnet build PantryPress.sln
 dotnet test PantryPress.sln                 # unit, integration, two-site, golden files
 dotnet format PantryPress.sln --verify-no-changes
-cd web && npm ci
+cd src/web && npm ci
 npm run lint && npm test
 npm run build:site && npm run budget        # SSR build plus the RND-007 first-party budget check
 ```

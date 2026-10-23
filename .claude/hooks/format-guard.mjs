@@ -15,7 +15,7 @@ const run = (cmd, args, cwd) => {
 };
 
 if (/\/web\/.*\.(ts|html|scss|css|json|md)$/.test(path)) {
-  const web = join(root, "web");
+  const web = join(root, "src", "web");
   const prettier = join(web, "node_modules", ".bin", process.platform === "win32" ? "prettier.cmd" : "prettier");
   if (existsSync(prettier)) run(prettier, ["--write", path], web);
 } else if (/\.cs$/.test(path) && existsSync(join(root, "PantryPress.sln"))) {

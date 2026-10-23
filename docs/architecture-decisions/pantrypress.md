@@ -126,10 +126,13 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | --- | --- |
 | 2026-10-22 | Owner decisions (section 1), PP-D01, PP-D02, PP-D07, PP-D13, PP-D14, PP-D16, PP-D17, PP-D18 |
 | 2026-10-23 | PP0.1: ADRs 0001 to 0018 written. All accepted except 0010 (proposed, D-10). PP-D08 admin app confirmed client-rendered. Open items recorded with defaults (section 3). Customization spec reconciled (section 5). |
+| 2026-10-23 | PP0.2: toolkit aligned with this record (section 5). No decision changed. ADR 0008 and 0012 consequences note the widened hook coverage. |
 
 ---
 
-## 5. Document reconciliation at PP0.1
+## 5. Document reconciliation
+
+### At PP0.1
 
 Applied to the customization spec and the requirements on 2026-10-23, following the requirements as the
 functional source of truth:
@@ -143,12 +146,37 @@ functional source of truth:
 - Spec header and requirements line 18: mockup and spec paths now point to the repository
   (`docs/design/mockups/`, `docs/requirements/`).
 
-Left for PP0.2 (toolkit alignment):
+Left for PP0.2 (toolkit alignment), resolved there:
 
 - `.claude/rules/tenancy.md` rule 4 uses `/api/sites/{siteSlug}/…`; `api-contract.md` and the `add-endpoint`
   skill use `/api/v1/sites/{siteSlug}/…`.
 - `README.md` says `src/` is created in PP0.7 and `web/` in PP0.11. The prompts create them in PP0.3 and
   PP0.7.
+
+### At PP0.2 (toolkit alignment)
+
+Applied to CLAUDE.md, README.md, and `.claude/` on 2026-10-23 with owner approval:
+
+- `tenancy.md`: admin route is `/api/v1/sites/{siteSlug}/…`.
+- `billing.md`: the 14-day trial is labelled the D-10 default (ADR 0010 proposed), not a decision.
+- `rendering.md`: hydration islands labelled the D-08 default; FAQPage opt-in labelled the POST-011 default.
+- `backend.md`: `Platform` added to the module list (ADR 0003 depends on `Modules/Platform/`).
+- `auth.md`: email verification gates publishing, not site creation (ACCT-001, PP1.2).
+- `invariant-guard.mjs`: the `Tests/` exemption for `IgnoreQueryFilters()` removed (ADR 0003); AI SDK
+  coverage widened to more package names plus imports and model endpoints in `src/` (ADR 0012); web storage
+  also blocked in `@pantrypress/ui/themes` (ADR 0008).
+- `format-guard.mjs`, CLAUDE.md usage, README: the Angular workspace is `src/web` (ADR 0001, PP0.7).
+- README and `.claude/README.md`: prompt numbers corrected (PP0.3, PP0.7, PP0.8; PP0.2 owns the toolkit).
+
+Found at PP0.2, outside the toolkit. Reconcile at the named prompt before writing its code:
+
+- PP18.1 asks for "a slow hash" of publishing keys; ADR 0015 and `auth.md` say salted SHA-256.
+- PP2.5 allows `IgnoreQueryFilters()` in "operator and erasure paths"; ADR 0003 allows it only in
+  `Modules/Platform/`, so cross-site erasure code must live there.
+- PP0.3 does not name the solution file. CLAUDE.md and `format-guard.mjs` expect `PantryPress.sln`; .NET 10
+  may default to `.slnx`.
+- AI SDK installs through a shell command (`npm install`, `dotnet add package`) bypass the write hooks; the
+  next manifest edit or a reviewer catches them.
 
 ---
 

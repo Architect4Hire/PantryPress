@@ -10,7 +10,7 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    `ISiteContext`, which is set once per request.
 3. `SiteId` is stamped by the `SaveChanges` interceptor from `ISiteContext`. Code never assigns it by hand,
    and an entity whose `SiteId` differs from the context fails the save.
-4. **Admin requests** resolve the site from the route (`/api/sites/{siteSlug}/…`) plus the caller's
+4. **Admin requests** resolve the site from the route (`/api/v1/sites/{siteSlug}/…`) plus the caller's
    membership. No membership, no site context, 404.
 5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
    Unknown hosts get the neutral platform 404.

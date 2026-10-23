@@ -63,8 +63,8 @@ docs/
   requirements/     pantrypress-requirements.md, pantrypress-customization-spec.md
   prompts/          pantrypress-scrub-prompts.md (the build plan)
   design/mockups/   reader-view and Studio customizer mockups (open in a browser)
-src/                .NET solution (created in PP0.7)
-web/                Angular workspace (created in PP0.11)
+src/                .NET solution (created in PP0.3)
+  web/              Angular workspace (created in PP0.7)
 CLAUDE.md           the constitution Claude Code follows
 ```
 
@@ -79,10 +79,10 @@ Before any code exists:
 2. Run prompt **PP0.1** from `docs/prompts/pantrypress-scrub-prompts.md` to write the decisions record.
 3. Continue one prompt at a time. Review each plan before approving it.
 
-PP0.2 to PP0.6 refine the toolkit already in `.claude/`. Treat those prompts as a review of these files
-against the decisions record rather than a rewrite.
+PP0.2 refines the toolkit already in `.claude/`. Treat that prompt as a review of these files against the
+decisions record rather than a rewrite.
 
-Once PP0.12 is done:
+Once PP0.8 is done:
 
 ```bash
 aspire run

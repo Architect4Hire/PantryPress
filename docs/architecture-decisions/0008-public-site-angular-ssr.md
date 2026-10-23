@@ -39,7 +39,8 @@ added to the AppHost as a JavaScript app and exposed only through Front Door.
 ## Consequences
 
 - Components are SSR-safe: no `window` or `document` outside browser-only hooks, no `localStorage`, and no
-  timers that affect output. The invariant-guard hook blocks web storage in the site project.
+  timers that affect output. The invariant-guard hook blocks web storage in the site project
+  and the `@pantrypress/ui/themes` entry point.
 - Golden files prove byte-identical output for the same page data and build (ARCH-005).
 - CI runs the RND-007 budget check on every build of the site.
 - The admin app never holds tokens; the BFF holds the session (ADR 0013).

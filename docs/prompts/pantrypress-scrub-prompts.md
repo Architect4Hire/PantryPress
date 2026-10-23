@@ -130,7 +130,7 @@ docs/architecture.md.
 approval, the customization spec and one requirements line were also reconciled (Starter gating, stale v1
 wording, file paths); see section 5 of the decisions record.
 
-### PP0.2 Toolkit alignment
+### PP0.2 Toolkit alignment - done
 
 ```text
 SCOPE: The repository starts from the PantryPress repo starter, which already contains CLAUDE.md,
@@ -143,6 +143,12 @@ UTILIZATION: architecture-reviewer.
 BEHAVIOR: List each mismatch with the decision it conflicts with, wait for approval, apply the edits, then
 prove the hooks run: a sample secret and an AI SDK reference are both blocked.
 ```
+
+*Delivery note (2026-10-23):* With owner approval, the alignment also took in two items from the
+requirements rather than the record: `auth.md` now gates publishing on email verification (ACCT-001), and the
+AI SDK hook was widened to more package names plus imports and model endpoints in `src/`. ADR 0012's and ADR
+0008's consequence lines were updated to match. Prompt conflicts found along the way (PP18.1, PP2.5, PP0.3)
+are listed in section 5 of the decisions record.
 
 ### PP0.3 Solution skeleton
 

@@ -31,10 +31,11 @@ How Claude Code works in this repository. `CLAUDE.md` is the constitution; this 
 - `agents/`: 7 read-only reviewers (Read, Grep, Glob). Findings need file and line evidence.
 - `hooks/`: Node scripts, no dependencies, so they run on Windows, macOS, and Linux.
   - `secret-scan.mjs` (before writes): blocks content that looks like a real secret.
-  - `invariant-guard.mjs` (before writes): blocks AI SDKs, `IgnoreQueryFilters()` outside platform code,
-    interpolated raw SQL, browser storage in the SSR site, and DbContext use on public read paths.
-  - `format-guard.mjs` (after writes): runs Prettier on `web/` files and `dotnet format whitespace` on C#
-    files once the solution exists. Best effort; it never fails an edit.
+  - `invariant-guard.mjs` (before writes): blocks AI SDK packages, imports, and model endpoints,
+    `IgnoreQueryFilters()` outside platform code (tests included), interpolated raw SQL, browser storage in
+    the SSR site and the themes entry point, and DbContext use on public read paths.
+  - `format-guard.mjs` (after writes): runs Prettier on `src/web/` files and `dotnet format whitespace` on
+    C# files once the solution exists. Best effort; it never fails an edit.
 - `settings.json`: shared permissions and hook wiring. Put personal overrides in `settings.local.json`
   (git-ignored).
 
@@ -44,5 +45,5 @@ Node.js 18 or later on the path for the hooks. Everything else arrives with PP0.
 
 ## Changing the toolkit
 
-PP0.2 to PP0.6 own these files. Change a rule when a decision changes, record the decision first, and keep
-CLAUDE.md under 250 lines.
+PP0.2 aligned these files with the decisions record. Change a rule when a decision changes, record the
+decision first, and keep CLAUDE.md under 250 lines.

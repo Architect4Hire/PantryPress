@@ -21,7 +21,8 @@ Requirements RND-001 to RND-008, ARCH-003 to ARCH-008, ARCH-012 to ARCH-014, PP-
 - Output is deterministic: same page data and build produce byte-identical HTML (ARCH-005). Golden files
   prove it; update them deliberately, never in bulk.
 - Pages are complete without JavaScript (ARCH-008). Interactivity uses `@defer (hydrate on …)` islands:
-  scaling and units, cook mode, ratings, comments, signup, search, and the minimal-header menu.
+  scaling and units, cook mode, ratings, comments, signup, search, and the minimal-header menu (D-08
+  default; small vanilla island scripts instead if PP7.2 measures a budget breach).
 - Design comes from the theme snapshot: tokens on the site root and `data-*` attributes. Components read
   nothing else and use container queries on the site root.
 
@@ -34,6 +35,6 @@ Requirements RND-001 to RND-008, ARCH-003 to ARCH-008, ARCH-012 to ARCH-014, PP-
 ## Structured data
 
 - Recipe, Article, BreadcrumbList, Person, WebSite JSON-LD; `AggregateRating` from real ratings only;
-  FAQPage only when the blogger opts in. Validated with Rich Results tests (RND-005).
+  FAQPage only when the blogger opts in (POST-011 default; closes at PP8). Validated with Rich Results tests (RND-005).
 
 Run `public-site-reviewer` after any change to public output.

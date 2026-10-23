@@ -10,6 +10,7 @@ PP-D09, PP-D10, BILL-001 to BILL-008.
   networks, subscriber cap, storage, analytics retention, and import.
 - Downgrade never deletes content or settings; over-limit items become read-only or hidden with a plain
   explanation. Failed payment: ReadOnly, then Offline, content retained (BILL-005).
-- Trial: 14 days, reminders before and on the last day; expired trial shows "coming soon".
+- Trial (D-10 default, ADR 0010 proposed, closes at PP14): 14 days, reminders before and on the last day;
+  expired trial shows "coming soon".
 - Limits live in configuration, not code.
 - Tests use Stripe test mode and recorded webhook fixtures.

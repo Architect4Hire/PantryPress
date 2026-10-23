@@ -22,7 +22,7 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 
 - `PantryPress.Domain/Modules/<Context>/` holds entities, value objects, business, data layer, repositories,
   and contracts for one bounded context: Accounts, Sites, Recipes, Posts, Media, Rendering, Audience,
-  Monetization, Analytics, Billing, Domains, Publishing, Import.
+  Monetization, Analytics, Billing, Domains, Publishing, Import, and Platform (audited operator code).
 - `Managers/` is the shared kernel: clock, ids, result types, outbox, audit, idempotency.
 - A module talks to another module only through its public contracts (facade interfaces or events). Boundary
   tests enforce this.
