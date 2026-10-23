@@ -29,7 +29,7 @@ internal static class SessionIdentity
             // no cookie authentication, and not the Development dev server (a PP0.7 carry-over).
             if (!IsAdminApi(context))
             {
-                context.Request.Headers.Remove(HeaderNames.Cookie);
+                Strip(context);
                 await next(context);
                 return;
             }
@@ -45,7 +45,7 @@ internal static class SessionIdentity
                 context.Request.Headers.Remove(header);
             }
 
-            context.Request.Headers.Remove(HeaderNames.Cookie);
+            Strip(context);
 
             if (pending.Succeeded)
             {
@@ -121,6 +121,16 @@ internal static class SessionIdentity
                     SessionCookie.Properties());
             }
         });
+    }
+
+    /// <summary>
+    /// What the gateway keeps to itself on anything it forwards: the session cookies, which the API has no cookie
+    /// authentication to read, and the antiforgery token, which is this gateway's own business (PP1.7).
+    /// </summary>
+    private static void Strip(HttpContext context)
+    {
+        context.Request.Headers.Remove(HeaderNames.Cookie);
+        context.Request.Headers.Remove(GatewayAntiforgery.HeaderName);
     }
 
     private static bool IsAdminApi(HttpContext context) =>

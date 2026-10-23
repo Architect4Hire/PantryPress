@@ -36,7 +36,7 @@ public sealed class GatewayRoutingTests
     {
         await using var gateway = new GatewayFactory("Development");
 
-        using var response = await gateway.CreateClient()
+        using var response = await gateway.CreateBrowser()
             .PostAsJsonAsync("/api/v1/account/register", new { email = "cook@example.test" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

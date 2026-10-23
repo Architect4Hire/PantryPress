@@ -42,4 +42,10 @@ internal static class GatewayRoutes
 {
     /// <summary>The admin API surface forwarded to ApiService (PP1.5).</summary>
     public const string AdminApi = "api-v1";
+
+    /// <summary>
+    /// Where that surface answers, the gateway's own session routes included. Antiforgery is required under it
+    /// (PP1.7), and a test pins it against the route's configured path.
+    /// </summary>
+    public const string AdminApiPath = "/api/v1";
 }

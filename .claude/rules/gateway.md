@@ -11,6 +11,9 @@
   hosts, and a version nobody declared does not exist. Route orders are explicit.
 - The gateway owns the session cookie, antiforgery, and header hygiene: strip `X-Forwarded-*` from the
   client, strip any identity headers, add the authenticated user context for the API.
+- Header hygiene is the first middleware (PP1.7): `Forwarded` and every `X-Forwarded-*` spelling come off every
+  inbound request, on every path, and the proxy declares its own with `Set`, never append. The gateway therefore
+  trusts nobody about the client address until PP1.8 adds the trusted-proxy step, which runs ahead of the strip.
 - The session is the gateway's own (PP1.6, `auth.md`): four routes at `/api/v1/account/session` that it answers itself
   rather than forwarding, two `__Host-` cookies (a complete session and a half-finished one waiting for a second
   step), and one typed client to ApiService's `api/internal/v1` surface for the checks themselves. The gateway holds
@@ -19,7 +22,17 @@
 - On every request forwarded to the admin API the gateway removes the client's `X-PP-*` headers and the `Cookie`
   header, then adds the account, the session's security stamp, and its shared secret. The whole identity layer keys on
   the `api-v1` route id, so the host refuses to start when configuration has no such route.
-- CORS is closed: same-origin only.
+- CORS is closed: same-origin only, a default policy that allows no origin, so a preflight is answered by the gateway
+  with no `Access-Control-Allow-*` header and is never forwarded. A state-changing request whose `Origin` is not this
+  exact scheme, host, and port - or is opaque - is refused: 403, `cross-origin-blocked`.
+- Antiforgery guards every `POST`, `PUT`, `PATCH`, and `DELETE` under `/api/v1`, the gateway's own session routes
+  included (PP1.7). The cookie token is `__Host-pp-antiforgery` (`HttpOnly`); the request token is `__Host-pp-xsrf`,
+  the one cookie the admin app reads, and it comes back in `X-PP-Xsrf` - the names PP2 gives Angular's
+  `withXsrfConfiguration`. Both are `Secure`, `Path=/`, `SameSite=Strict`, no `Domain`. A read mints a pair when the
+  browser has none, and so does a refusal (400, `antiforgery-failed`), so a stale token costs a retry, not a reload.
+  The token is bound to this origin, not to an account: the gateway calls `UseAuthentication()` itself, after these
+  checks, because a `WebApplication` would otherwise place it first and bind every token to the session it was minted
+  under. Over plain HTTP there is no token and no write, only reads.
 - Rate limits per user and per IP for authentication endpoints.
 - The gateway does no business logic and no database access.
 - Health checks come from ServiceDefaults; the gateway reports API reachability in `/health` - any HTTP answer

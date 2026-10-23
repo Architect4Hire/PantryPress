@@ -796,7 +796,7 @@ samesite=lax; httponly` and no `Domain`, `Max-Age`, or `Expires`, cleared the ha
 `/api/v1/account/two-factor` with 200 holding only that cookie, and got 401 without it. Reviewers:
 `architecture-reviewer` and `api-contract-checker`; every major finding is either fixed above or recorded here.
 
-### PP1.7 Header sanitization, CORS, and antiforgery
+### PP1.7 Header sanitization, CORS, and antiforgery - done
 
 ```text
 SCOPE: Strip untrusted forwarding headers, set strict CORS, and require antiforgery on state-changing
@@ -804,6 +804,78 @@ requests through the gateway.
 CONSTRAINT: ACCT-002; gateway.md.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP1.7 delivery note (done):*
+- **Three checks ahead of routing, in the order an attack meets them (owner-approved plan).** Header hygiene first,
+  so nothing downstream - routing, the session, the proxy's transforms - ever reads a client's claim about the hops in
+  front of us; then closed CORS, which answers a preflight here; then the `Origin` check on a write; then the
+  antiforgery token. All four sit in front of the endpoints, so no route can be written later that forgets them. The
+  gateway still holds no rules and touches no database.
+- **The gateway believes nobody about the hops in front of it.** `Forwarded`, `X-Forwarded-For`, `-Proto`, `-Scheme`,
+  `-Host`, `-Port`, and `-Prefix` come off **every** inbound request, on every path, and the proxy then declares its
+  own `X-Forwarded-*` with `ForwardedTransformActions.Set` rather than inheriting YARP's defaults: appending would
+  hand a client's invention to ApiService as the first value of a list it had every reason to trust. The cost is
+  recorded, not hidden: until PP1.8 adds the trusted-proxy step - which must run **ahead** of this strip - the gateway
+  cannot see a real client address, so the per-IP rate limits gateway.md calls for have nothing to partition on yet.
+- **CORS is closed on purpose, not by omission.** The default policy allows no origin, which means a cross-origin
+  preflight is answered here (204, no `Access-Control-Allow-*`) and never forwarded. CORS only asks a browser not to
+  *read* an answer, though, so a state-changing request whose `Origin` is not this exact scheme, host, and port - or is
+  opaque, as a sandboxed frame sends - is refused outright: 403, code `cross-origin-blocked`. That enforcement was not
+  in the prompt; "strict CORS" is not worth much without it, and it turns a cross-site write away on the header alone,
+  whether or not it guessed a token.
+- **A write under `/api/v1` carries a token the admin app could only have read from this origin.** ASP.NET Core
+  antiforgery with `__Host-pp-antiforgery` (the cookie token, `HttpOnly`) and `__Host-pp-xsrf` (the request token, the
+  one piece the app is meant to read), echoed in `X-PP-Xsrf`. Both cookies are `Secure`, `Path=/`, `SameSite=Strict`,
+  with no `Domain`: the `__Host-` prefix is what stops a sibling tenant subdomain writing either (PSEC-003). The
+  gateway's own session routes are included - a sign-in a stranger triggers is a forgery too - and the token is
+  stripped before anything is forwarded, like the cookies. A read under `/api/v1` mints a pair when the browser has
+  none, which is what the admin app's first call at startup does; a refusal mints one too, so a token that went stale
+  for an honest reason (a cleared cookie, a gateway restart with a new key ring) costs a retry rather than a reload.
+- **The token is bound to this origin, not to an account - and that took an explicit `UseAuthentication()`.** A
+  `WebApplication` inserts authentication ahead of every middleware of its own accord, which silently bound each token
+  to whoever was signed in when it was minted: the first write after a sign-in was then refused, because the app was
+  still holding the token it read before. Calling `app.UseAuthentication()` ourselves, **after** the boundary checks,
+  puts it where it belongs and leaves the token unbound, so one lifecycle rule replaces four re-minting points and no
+  valid token is refused because the session underneath it moved on. What binds the token to us is the `__Host-`
+  prefix, the same-origin policy that keeps another site from reading the cookie, and the `Origin` check. Nothing
+  downstream changed: the session routes and the proxy read the session themselves.
+- **Over plain HTTP the admin surface is read-only.** The cookie carrying the token is `Secure`, so there is nothing
+  to hand out and nothing to accept: a read works, a write is refused with the same `antiforgery-failed` document
+  rather than failing some other way. Nobody meets the admin app this way - the edge is HTTPS and locally it is
+  `app.localhost` over TLS - and PP1.8 adds the redirect and HSTS that say so.
+- **The tests now hold a browser's end of the bargain.** `GatewayFactory`'s browser carries the token the way PP2 will
+  configure Angular's `HttpClient` - read it from the cookie, echo it in the header, fetch one with a read first - and
+  every client it makes talks to `https://app.localhost`, because that is the only way the gateway is ever reached. The
+  end-to-end half now runs over **real TLS** against the Aspire host, with the certificate unchecked because the test
+  presents the `app.localhost` host while connecting to the local endpoint.
+- **PP2:** the admin client must set Angular's `withXsrfConfiguration` to `__Host-pp-xsrf` and `X-PP-Xsrf`; there is no
+  HTTP client in the admin app yet, so the names are written down in `gateway.md` rather than wired. The new 400 and
+  403 are declared on the four session routes as endpoint metadata only, like the rest of their shapes, until the BFF
+  publishes a document.
+- **PP19:** antiforgery tokens are protected by the gateway's data-protection key ring, which is still neither
+  persisted nor shared, so a restart invalidates every outstanding token (the re-mint on refusal is what keeps that
+  from being visible) and the single-replica constraint recorded at PP1.6 now covers tokens as well as cookies.
+- **Recorded rather than fixed:** a preflight's 204 comes from the CORS middleware, so it is the one answer under
+  `/api` that is not a problem document - correct for CORS, and there is no body a browser would read; the two new
+  problem codes live beside their middleware, as `SecondFactorRequiredCode` does, rather than in `GatewayApi`'s
+  status-keyed catalogue; and an empty `Origin` header is untested because `HttpClient` will not send one.
+- **Pre-existing, unrelated:** the `MigrationWorkerTests` pair recorded at PP1.5 still fails, unchanged.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings), `dotnet test PantryPress.slnx` (452 of 454 passing; the
+only red is the pre-existing `MigrationWorkerTests` pair), `dotnet format PantryPress.slnx --verify-no-changes`
+(clean), and 45 new test cases: each forwarding header stripped on its own and the whole list at once, signed in and
+not, on the admin route and the Development SPA route, with the API shown exactly the one value the gateway can see;
+a preflight answered here with no CORS headers and nothing forwarded on both the forwarded route and a session route;
+no `Access-Control-Allow-Origin` on any answer; a write refused for another origin, our host on another scheme, our
+host on another port, our host as a prefix of theirs, and an opaque origin, with the sign-in case proving the API is
+never asked; a write from the app's own origin and a write with no `Origin` at all going through; every unsafe method
+refused without a token on a forwarded route and on all three session routes, with neither the API nor the internal
+session call reached; the cookie alone, the header alone, a mismatched pair, and a pair minted by another gateway all
+refused; a matching pair accepted and the token not forwarded; the bootstrap read's two cookies and their attributes
+in full; no second mint for a browser that already has one; the re-mint on refusal letting the next attempt succeed;
+one token surviving a sign-in and a sign-out; reads needing nothing; plain HTTP read-only; `/api/publishing/v1` still
+answering PP1.5's 404 rather than a token puzzle; the SPA route not guarded; and the guarded path pinned against the
+forwarded route's configured path. Reviewers: `architecture-reviewer` and `api-contract-checker`.
 
 ### PP1.8 Edge hardening
 

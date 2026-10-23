@@ -3,6 +3,7 @@ using System.Net;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -50,13 +51,33 @@ internal sealed class GatewayFactory(
     /// <summary>What the gateway asked ApiService's internal session surface, in order.</summary>
     public IReadOnlyCollection<SessionCall> SessionCalls => sessionCalls;
 
-    /// <summary>A client that keeps cookies, like a browser at <c>app.localhost</c>.</summary>
-    public HttpClient CreateBrowser() =>
-        CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = AdminOrigin, HandleCookies = true });
+    /// <summary>
+    /// A client that keeps cookies, like a browser at <c>app.localhost</c>, and carries the antiforgery token the way
+    /// the admin app will (PP1.7): it reads the request token from the cookie the gateway set and sends it back in
+    /// <c>X-PP-Xsrf</c> on every write, fetching one with a read first when it has none - which is what the app does
+    /// at startup. Tests that prove the refusals send their own headers through <see cref="CreateBare"/>.
+    /// </summary>
+    public HttpClient CreateBrowser()
+    {
+        var cookies = new CookieContainerHandler();
+        return CreateDefaultClient(AdminOrigin, new XsrfHandler(cookies.Container), cookies);
+    }
 
     /// <summary>A client that keeps no cookies, for tests that send a <c>Cookie</c> header of their own making.</summary>
     public HttpClient CreateBare() =>
         CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = AdminOrigin, HandleCookies = false });
+
+    /// <summary>
+    /// Every client this factory makes talks to <c>https://app.localhost</c>, because that is the only way the gateway
+    /// is reached: Front Door terminates TLS in production, and locally the AppHost offers its HTTPS address alone
+    /// (PP1.6). A <c>Secure</c> cookie and the antiforgery token it carries exist only on that scheme.
+    /// </summary>
+    protected override void ConfigureClient(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        base.ConfigureClient(client);
+        client.BaseAddress = AdminOrigin;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -91,6 +112,39 @@ internal sealed class GatewayFactory(
                     return probe?.Invoke() ?? throw new HttpRequestException("Connection refused.");
                 }));
         });
+    }
+
+    /// <summary>
+    /// The admin app's side of PP1.7, as PP2 will configure Angular's <c>HttpClient</c>: the request token comes from
+    /// the cookie, goes back in the header, and a write that finds no cookie bootstraps with a read first.
+    /// </summary>
+    private sealed class XsrfHandler(CookieContainer cookies) : DelegatingHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get || request.Method == HttpMethod.Head)
+            {
+                return await base.SendAsync(request, cancellationToken);
+            }
+
+            if (Token() is null)
+            {
+                using var bootstrap = new HttpRequestMessage(HttpMethod.Get, new Uri(AdminOrigin, SessionEndpoints.Base));
+                using var answer = await base.SendAsync(bootstrap, cancellationToken);
+            }
+
+            if (Token() is { } token)
+            {
+                request.Headers.TryAddWithoutValidation(GatewayAntiforgery.HeaderName, token);
+            }
+
+            return await base.SendAsync(request, cancellationToken);
+        }
+
+        private string? Token() => cookies.GetCookies(AdminOrigin)
+            .FirstOrDefault(cookie => cookie.Name == GatewayAntiforgery.TokenCookieName)?.Value;
     }
 
     internal sealed record ForwardedRequest(

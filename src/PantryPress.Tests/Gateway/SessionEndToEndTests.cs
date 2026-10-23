@@ -21,10 +21,32 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", timeout.Token);
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
-        using var client = system.App.CreateHttpClient("gateway", "http");
+        // Over TLS, because that is the only way the gateway is reached (PP1.6) and the only way its Secure cookies -
+        // the session's and the antiforgery token's - come back. The certificate is not checked: the test connects to
+        // the local endpoint while presenting the app.localhost host the gateway answers on, so the development
+        // certificate cannot match both names.
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+
+            // Every cookie below is sent by hand, so that what each request carries is what the test says it carries.
+            UseCookies = false,
+        };
+        using var client = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "https") };
         var host = $"app.localhost:{client.BaseAddress!.Port}";
         var email = $"cook-{Guid.NewGuid():N}@example.test";
         const string passphrase = "a long kitchen phrase";
+
+        // The admin app's first call: it comes back 401 with nothing signed in, and with the antiforgery token every
+        // write below has to carry (PP1.7).
+        using var bootstrap = await SendAsync(client, host, HttpMethod.Get, "/api/v1/account/session", timeout.Token);
+        Assert.Equal(HttpStatusCode.Unauthorized, bootstrap.StatusCode);
+        var cookieToken = Cookie(bootstrap, GatewayAntiforgery.CookieName);
+        var requestToken = Cookie(bootstrap, GatewayAntiforgery.TokenCookieName);
+        Assert.NotNull(cookieToken);
+        Assert.NotNull(requestToken);
+        var tokens = $"{cookieToken}; {requestToken}";
+        var token = requestToken![(GatewayAntiforgery.TokenCookieName.Length + 1)..];
 
         // Signing in is all an account needs; confirming the address is what publishing needs (ACCT-001).
         using var registered = await SendAsync(
@@ -33,8 +55,20 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
             HttpMethod.Post,
             "/api/v1/account/register",
             timeout.Token,
-            body: new { email, password = passphrase });
+            body: new { email, password = passphrase },
+            cookie: tokens,
+            token: token);
         Assert.Equal(HttpStatusCode.Accepted, registered.StatusCode);
+
+        // And without it the same write is refused before it reaches the API at all.
+        using var untokened = await SendAsync(
+            client,
+            host,
+            HttpMethod.Post,
+            "/api/v1/account/register",
+            timeout.Token,
+            body: new { email, password = passphrase });
+        Assert.Equal(HttpStatusCode.BadRequest, untokened.StatusCode);
 
         using var signedIn = await SendAsync(
             client,
@@ -42,7 +76,9 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
             HttpMethod.Post,
             "/api/v1/account/session",
             timeout.Token,
-            body: new { email, password = passphrase });
+            body: new { email, password = passphrase },
+            cookie: tokens,
+            token: token);
 
         Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
         using var view = JsonDocument.Parse(await signedIn.Content.ReadAsStringAsync(timeout.Token));
@@ -85,7 +121,8 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
             HttpMethod.Delete,
             "/api/v1/account/session",
             timeout.Token,
-            cookie: session);
+            cookie: $"{session}; {tokens}",
+            token: token);
 
         Assert.Equal(HttpStatusCode.NoContent, signedOut.StatusCode);
 
@@ -113,7 +150,8 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
         string path,
         CancellationToken cancellationToken,
         object? body = null,
-        string? cookie = null)
+        string? cookie = null,
+        string? token = null)
     {
         using var request = new HttpRequestMessage(method, new Uri(path, UriKind.Relative));
         request.Headers.Host = host;
@@ -125,6 +163,11 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
         if (cookie is not null)
         {
             request.Headers.Add("Cookie", cookie);
+        }
+
+        if (token is not null)
+        {
+            request.Headers.Add(GatewayAntiforgery.HeaderName, token);
         }
 
         return await client.SendAsync(request, cancellationToken);
