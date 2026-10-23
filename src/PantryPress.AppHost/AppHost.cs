@@ -87,6 +87,15 @@ if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
     });
 
     gateway.WithReference(admin);
+
+    // The development email sink's catcher (external.md: every provider has a local fake). Mail sent by the local
+    // gateway lands here and is read in its web UI; nothing leaves the machine. Messages live only as long as the
+    // container. Azure Communication Services replaces it outside Development (PP13.1).
+    builder.AddContainer("mail", "axllent/mailpit", "v1.31.2")
+        .WithEnvironment("MP_DISABLE_VERSION_CHECK", "true")
+        .WithHttpEndpoint(targetPort: 8025, name: "http")
+        .WithEndpoint(targetPort: 1025, name: "smtp")
+        .WithHttpHealthCheck("/readyz", endpointName: "http");
 }
 
 builder.Build().Run();

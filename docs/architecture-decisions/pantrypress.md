@@ -133,6 +133,7 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | 2026-10-23 | PP0.4: own SQL, Redis, and blob storage declared with `pantrypress-` volumes (PP-D16 locally). No decision changed. |
 | 2026-10-23 | PP0.5: IANA time zones from NodaTime's embedded database; system clock APIs banned at build time. Two prompt-local defaults recorded (section 3): daylight saving scheduling (PP5.16) and production health probes (PP19.2). No decision changed. |
 | 2026-10-23 | PP0.6: one `PantryPressDbContext` in `Domain/Managers/Persistence`; migrations compiled into and applied only by `PantryPress.MigrationService` (OPS-003); `Migrate` and `EnsureCreated` banned at build time elsewhere. No decision changed. |
+| 2026-10-23 | PP1.2 split into PP1.2a (email gateway and development sink), PP1.2b (ApiService foundation), and PP1.2c (registration endpoints). ACCT-003's spam challenge moves to PP12.3 and gates public sign-up (BIZ-009). PP1.2a: the transactional email gateway sits in the shared kernel (`Managers/Email`), not one module, because Accounts, Audience, and Billing all send mail; Mailpit is the local catcher. No decision changed. |
 
 ---
 

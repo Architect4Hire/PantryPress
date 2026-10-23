@@ -342,6 +342,49 @@ RESTRICTION: Publishing is blocked until email is verified. Rate-limited. No enu
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
 
+*Split (owner-approved 2026-10-23):* the prompt needs a provider, host wiring, and endpoints, so it runs as one seam
+each: **PP1.2a** email gateway and development sink, **PP1.2b** ApiService foundation (result types, problem
+details, validation, OpenAPI, database and Identity registration), and **PP1.2c** registration and verification
+endpoints. PP1.2 is marked done after PP1.2c. Approved defaults for PP1.2c: account routes under
+`/api/v1/account/...`; verification email sent after commit until the PP1.10 outbox, with resend as recovery; no
+enumeration (same `202` for new and existing addresses, password hashed on every path, the `EmailIndex` race
+taken as "existing"); a global route limit plus a per-address email throttle in the facade, with per-IP limits at
+the gateway (PP1.5, PP1.8); disposable domains from an embedded CC0 list; password length 12–128 with no
+composition rules; sign-in allowed before verification; an Accounts publishing-eligibility contract for PP5; a
+typed `AccountId`; Identity's default token provider (24 hours) on the development key ring. The spam challenge
+moves to PP12.3 and must be on sign-up before public sign-up opens (BIZ-009).
+
+*PP1.2a delivery note (done):* `IEmailGateway`, `EmailMessage`, and `EmailDeliveryException` live in
+`Domain/Managers/Email`. Email is shared by Accounts, Audience, contact, and Billing, so no single module owns
+it, and the shared kernel is the gateway's home. The interface is in domain terms:
+- a caller-chosen message id, stable across retries and sent as `Message-ID`;
+- one bare recipient;
+- a single-line subject with no control or Unicode line-break characters;
+- `ToString` shows only the id.
+
+Gateways throw only `EmailDeliveryException`, with a transient or permanent flag and no inner provider exception,
+because SMTP errors quote the recipient. The local fake is `Integrations/DevelopmentMail`, an SMTP sink with these
+safeguards:
+- it accepts only loopback hosts, checked at startup;
+- it bounds each send with a token, because `SmtpClient.Timeout` does not apply to async sends.
+
+It delivers to a `mail` container (`axllent/mailpit:v1.31.2`, version check off, no volume) declared only in the
+local Development run-mode block. Tests use `RecordingEmailGateway`. Nothing consumes the gateway yet; ApiService
+wiring arrives with PP1.2c. Recorded for later prompts:
+
+- **PP1.2c:** register the sink only in Development. Outside Development, with no real gateway yet, the host fails
+  to start rather than falling back. Reference the `mail` endpoints from `apiservice` inside the run-mode
+  Development block.
+- **PP13.1:** the sender address is an Azure Communication Services setting (parameter or Key Vault), never part of
+  the message. A contact-form `ReplyTo` needs the same bare-address check. Consider a closed email-kind list
+  (PP-D14). Set the Azure SDK retry and timeout explicitly and keep its content logging off. Map the message id to
+  the provider's operation id. Add a boundary test that keeps provider types inside `Domain/Integrations/`.
+- No test yet proves a non-Development run has no `mail` or `admin` resource; publish mode is covered.
+
+Verification: `dotnet build` (0 warnings), `dotnet test` (121 passed, including the Mailpit round trip with UTF-8
+text, HTML, and `Message-ID`), `dotnet format --verify-no-changes`. Reviewer: integration-reviewer; the five
+should-fix items were fixed and the rest is recorded above.
+
 ### PP1.3 Password management and two-factor
 
 ```text
