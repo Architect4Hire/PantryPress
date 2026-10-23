@@ -67,6 +67,19 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
         }
     }
 
+    public Task<bool> IsInRoleAsync(ApplicationUser user, string role) => users.IsInRoleAsync(user, role);
+
+    /// <summary>Stages the role; the role row itself is seeded by a migration and never created here.</summary>
+    public async Task AddToRoleAsync(ApplicationUser user, string role) => Ensure(await users.AddToRoleAsync(user, role));
+
+    public async Task RemoveFromRoleAsync(ApplicationUser user, string role) =>
+        Ensure(await users.RemoveFromRoleAsync(user, role));
+
+    public Task<IList<ApplicationUser>> GetAccountsInRoleAsync(string role) => users.GetUsersInRoleAsync(role);
+
+    /// <summary>Stages a new security stamp, which ends the account's existing sessions once PP1.6 validates it.</summary>
+    public async Task RotateSecurityStampAsync(ApplicationUser user) => Ensure(await users.UpdateSecurityStampAsync(user));
+
     public Task<bool> CheckPasswordAsync(ApplicationUser user, string password) => users.CheckPasswordAsync(user, password);
 
     public Task<bool> IsLockedOutAsync(ApplicationUser user) => users.IsLockedOutAsync(user);

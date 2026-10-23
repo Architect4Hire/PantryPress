@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -43,6 +44,40 @@ public static class AccountsServiceCollectionExtensions
         });
 
     /// <summary>
+    /// Identity itself: the pinned schema, the stores over <see cref="AccountUserStore"/>, the user manager, and the
+    /// unit of work the facades commit. <see cref="AddAccounts"/> and <see cref="AddAccountRoles"/> both start here and
+    /// no host calls both: the API serves accounts, the operator's process administers the platform role.
+    /// </summary>
+    private static IdentityBuilder AddAccountsIdentity(this IServiceCollection services)
+    {
+        services.AddAccountsIdentitySchema();
+        var identity = services.AddIdentityCore<ApplicationUser>(ConfigureIdentity)
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<PantryPressDbContext>()
+            .AddUserManager<AccountUserManager>();
+        services.Replace(ServiceDescriptor.Scoped<IUserStore<ApplicationUser>, AccountUserStore>());
+
+        services.AddScoped<AccountsUnitOfWork>();
+        services.AddScoped<AccountsDataLayer>();
+        return identity;
+    }
+
+    /// <summary>
+    /// Registers only what it takes to grant and revoke the platform role (ACCT-005; PP1.4): no email, no link tokens,
+    /// no account routes. Called by the operator's process alone, which is what keeps <see cref="IAccountRoles"/> out
+    /// of reach of every request-serving host.
+    /// </summary>
+    public static IServiceCollection AddAccountRoles(this IServiceCollection services)
+    {
+        services.AddAccountsIdentity();
+
+        // The account store is built with a key ring it must never use here; see UnusedDataProtection.
+        services.TryAddSingleton<IDataProtectionProvider, UnusedDataProtection>();
+        services.AddScoped<IAccountRoles, AccountRolesFacade>();
+        return services;
+    }
+
+    /// <summary>
     /// Registers the Accounts module (ACCT-001, ACCT-003): Identity over <see cref="AccountUserStore"/>, the token
     /// providers, the facades, and their validators. The host also registers <c>PantryPressDbContext</c>, the clock,
     /// data protection, and the email queue. The <paramref name="configuration"/> section binds
@@ -57,18 +92,11 @@ public static class AccountsServiceCollectionExtensions
             .Validate(o => o.IsValid(), "Accounts:AppBaseUrl must be the admin app's absolute HTTPS origin.")
             .ValidateOnStart();
 
-        services.AddAccountsIdentitySchema();
-        services.AddIdentityCore<ApplicationUser>(ConfigureIdentity)
-            .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<PantryPressDbContext>()
-            .AddUserManager<AccountUserManager>()
+        services.AddAccountsIdentity()
             .AddTokenProvider<EmailConfirmationTokenProvider>(EmailConfirmationTokenProvider.Name)
             .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.Name)
             .AddTokenProvider<AuthenticatorCodeProvider>(AuthenticatorCodeProvider.Name);
-        services.Replace(ServiceDescriptor.Scoped<IUserStore<ApplicationUser>, AccountUserStore>());
 
-        services.AddScoped<AccountsUnitOfWork>();
-        services.AddScoped<AccountsDataLayer>();
         services.AddSingleton(sp => new AccountEmails(sp.GetRequiredService<IOptions<AccountsOptions>>().Value.AppBaseUrl));
 
         services.AddScoped<IValidator<RegisterAccountRequest>, RegisterAccountRequestValidator>();

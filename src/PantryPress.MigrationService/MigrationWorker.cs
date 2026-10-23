@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Modules.Platform.Contracts;
 
 namespace PantryPress.MigrationService;
 
 /// <summary>
-/// Applies pending migrations once through the execution strategy, records the outcome, and stops the host.
-/// Transient SQL errors are retried by the strategy; anything else fails the run without a retry.
+/// Applies pending migrations once through the execution strategy, then applies the operator's PlatformAdmin list
+/// (ACCT-005), records the outcome, and stops the host. Transient SQL errors are retried by the strategy; anything
+/// else fails the run without a retry, which leaves dependents unstarted and makes the operator look.
 /// </summary>
 internal sealed partial class MigrationWorker(
     IServiceScopeFactory scopeFactory,
@@ -43,8 +45,17 @@ internal sealed partial class MigrationWorker(
                 },
                 stoppingToken);
 
-            outcome.MarkSucceeded();
             LogUpToDate(logger, applied);
+
+            // After the schema, because the role row the list needs is seeded by a migration. A failure here fails the
+            // run: the list is a security control, and migrations are idempotent, so a retry is safe.
+            var report = await scope.ServiceProvider.GetRequiredService<IPlatformAdminReconciler>().RunAsync(stoppingToken);
+            if (report.Configured)
+            {
+                LogPlatformAdmins(logger, report.Granted, report.Revoked, report.Unresolved);
+            }
+
+            outcome.MarkSucceeded();
         }
         // SqlClient often reports a cancelled command as SqlException, so judge cancellation by the token.
         catch (Exception) when (stoppingToken.IsCancellationRequested)
@@ -66,6 +77,11 @@ internal sealed partial class MigrationWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Database is up to date; {AppliedCount} migrations applied")]
     private static partial void LogUpToDate(ILogger logger, int appliedCount);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "PlatformAdmin list applied: {Granted} granted, {Revoked} revoked, {Unresolved} without an account")]
+    private static partial void LogPlatformAdmins(ILogger logger, int granted, int revoked, int unresolved);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Migration run was stopped before it finished")]
     private static partial void LogCancelled(ILogger logger);

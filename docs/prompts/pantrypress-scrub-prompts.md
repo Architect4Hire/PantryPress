@@ -503,7 +503,7 @@ Recorded for later prompts:
     two-step sign-in, or stored authenticator keys become unreadable; recovery codes still work;
   - lockout's 429 has no `Retry-After`; consider adding one.
 
-### PP1.4 PlatformAdmin role and policy
+### PP1.4 PlatformAdmin role and policy - done
 
 ```text
 SCOPE: Add the PlatformAdmin role, an authorization policy, and an audited operator-only assignment path.
@@ -511,6 +511,48 @@ CONSTRAINT: ACCT-005; auth.md.
 RESTRICTION: No self-service path to PlatformAdmin.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP1.4 delivery note (done):*
+- **The role is reference data.** `PlatformAdmin` is seeded by the `PlatformAdminRole` migration with a fixed id, as
+  platform data with no `SiteId` (PP-D03, PP-D06). No runtime code creates a role, so there is no code path for
+  "make me an admin" to use. Rolling the migration back deletes the row, and Identity's cascade takes the
+  assignments with it; the operator's list restores them on the next run forward.
+- **The assignment path (owner-approved):** one configuration value, `Platform:Admins` — email addresses separated by
+  commas, semicolons, or new lines — reconciled by the migration job right after it applies migrations. Listed
+  accounts are granted, holders the list leaves out are revoked, and an empty or missing list changes nothing at all,
+  so a lost secret cannot lock the operators out. An address with no account yet is a masked warning, not a failure;
+  the next run picks it up. Any other failure fails the run, which leaves dependents unstarted.
+- **No self-service.** There is no route, and `IPlatformAdminFacade`, `IPlatformAdminReconciler`, and `IAccountRoles`
+  are registered only by `AddPlatformAdministration`, which only the migration job calls. The admin API cannot
+  resolve them and no type in it asks for one; both are tested.
+- **Seam.** `PlatformAdminReconciler → IPlatformAdminFacade (Modules/Platform) → IAccountRoles (Modules/Accounts) →
+  AccountsDataLayer → AccountUserStore`. Platform reaches accounts only through the Accounts contract, which grants
+  and revokes the one platform role and nothing else: there is no "add any role" call.
+- **Sessions.** A real grant or revocation rotates the security stamp, so a revoked operator's existing sessions stop
+  working once PP1.6 validates it. A repeat changes nothing and leaves the stamp alone, so running the list again
+  never logs anyone out.
+- **Policy.** The named `PlatformAdmin` policy needs the role *and* a passed second step
+  (`AccountClaims.TwoFactorVerified`, `pp:mfa`), which is the PP1.3 note about requiring two-step sign-in for
+  operators. No route carries it yet, so it is asserted directly through `IAuthorizationService`.
+- **Audit (owner-approved):** each real change writes one structured event (`PlatformAdminGranted`,
+  `PlatformAdminRevoked`) with the actor, the account id, and the reason, never an email address. PP1.11 adds the
+  durable log, as it does for PP1.3's security events.
+- **Not in this prompt:** no endpoint, operator console, or admin UI; no site roles; no claim issuance (PP1.6); no
+  durable audit log (PP1.11).
+- **Also changed:** `AddAccounts` and the new `AddAccountRoles` share an internal Identity registration and no host
+  calls both. `AddAccountRoles` registers a refusing stand-in for data protection, because that process has no key
+  ring and granting a role must never touch an authenticator key. The migrated-database test fixture became a
+  collection fixture shared by the Identity and platform-role integration tests: one more AppHost per class outran
+  what a developer machine starts inside the timeout.
+
+Recorded for later prompts:
+- **PP1.6:** the session must issue the role claims (`ClaimTypes.Role`) and `pp:mfa` only after the second step, and
+  validate the security stamp, or a revoked operator keeps working with the cookie they hold.
+- **PP1.11:** audit PlatformAdmin granted and revoked durably; the facade already emits both events with actor,
+  account, and reason.
+- **PP18, PP19:** operator endpoints attach the `PlatformAdmin` policy; the deployed `Platform:Admins` secret must
+  reach the migration job from Key Vault, and the operator console's own grant path (if any) goes through
+  `IPlatformAdminFacade` so it stays audited.
 
 ### PP1.5 Gateway routes and API versioning
 

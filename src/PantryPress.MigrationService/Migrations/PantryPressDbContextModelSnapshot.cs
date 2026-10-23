@@ -48,6 +48,15 @@ namespace PantryPress.MigrationService.Migrations
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b2f1a6c4-7e5d-4a3b-9c21-5f0d8e4a7b31"),
+                            ConcurrencyStamp = "f0c4d2f4-6a51-4a9a-9c3f-2a1be0d27c6f",
+                            Name = "PlatformAdmin",
+                            NormalizedName = "PLATFORMADMIN"
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

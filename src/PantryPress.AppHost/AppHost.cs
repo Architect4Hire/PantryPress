@@ -43,6 +43,16 @@ var migrations = builder.AddProject<Projects.PantryPress_MigrationService>("migr
     .WithReference(db)
     .WaitFor(db);
 
+// Who holds PlatformAdmin (ACCT-005): email addresses the operator keeps in their own secret store, passed only to
+// the migration job, which is the one process that can assign the role. Locally it comes from this AppHost's
+// user-secrets or environment ("Platform:Admins"); PP19's IaC supplies it from Key Vault. With nothing configured the
+// job leaves platform roles exactly as they are, so a lost secret can never lock the operators out.
+var platformAdmins = builder.Configuration["Platform:Admins"];
+if (!string.IsNullOrWhiteSpace(platformAdmins))
+{
+    migrations.WithEnvironment("Platform__Admins", platformAdmins);
+}
+
 // Long-running projects report readiness through /health (ServiceDefaults).
 var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
     .WithReference(db)

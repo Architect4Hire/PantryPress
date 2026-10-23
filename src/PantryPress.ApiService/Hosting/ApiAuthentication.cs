@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using PantryPress.ApiService.Http;
 using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Platform.Contracts;
 
 namespace PantryPress.ApiService.Hosting;
 
@@ -20,7 +21,15 @@ internal static class ApiAuthentication
     {
         services.AddAuthentication(PendingSessionScheme)
             .AddScheme<AuthenticationSchemeOptions, PendingSessionHandler>(PendingSessionScheme, configureOptions: null);
-        services.AddAuthorization();
+
+        // The named policies (auth.md). PlatformAdmin is the platform-wide one (PP-D03): the role plus a session that
+        // passed the second sign-in step, because an operator's password alone must not be enough (ACCT-005). No route
+        // carries it yet; the operator console (PP18, PP19) is what will. PP1.6 issues both claims.
+        services.AddAuthorizationBuilder()
+            .AddPolicy(PlatformPolicies.PlatformAdmin, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(PlatformRoles.PlatformAdmin)
+                .RequireClaim(AccountClaims.TwoFactorVerified, AccountClaims.Yes));
         return services;
     }
 

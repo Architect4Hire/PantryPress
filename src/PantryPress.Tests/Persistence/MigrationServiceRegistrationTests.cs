@@ -21,7 +21,11 @@ public sealed class MigrationServiceRegistrationTests
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
-        Assert.EndsWith("_InitialIdentity", Assert.Single(db.Database.GetMigrations()), StringComparison.Ordinal);
+        // PP1.4 adds the second one, which seeds the PlatformAdmin role row (ACCT-005).
+        Assert.Collection(
+            db.Database.GetMigrations(),
+            first => Assert.EndsWith("_InitialIdentity", first, StringComparison.Ordinal),
+            second => Assert.EndsWith("_PlatformAdminRole", second, StringComparison.Ordinal));
         Assert.False(db.Database.HasPendingModelChanges());
     }
 
