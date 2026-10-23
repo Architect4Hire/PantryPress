@@ -16,18 +16,27 @@ public sealed class ApiRateLimitOptions
 
     /// <summary>Requests per minute for one signed-in account on its own account routes.</summary>
     public int SignedInAccountPerMinute { get; set; } = 30;
+
+    /// <summary>
+    /// Requests per minute across every caller for the gateway's sign-in routes. Its own bucket, so attempts against
+    /// sign-in cannot exhaust sign-up's ceiling. Lockout caps attempts per account; per-IP limits are PP1.8's.
+    /// </summary>
+    public int SignInPerMinute { get; set; } = 300;
 }
 
 internal static class ApiRateLimits
 {
     public const string AnonymousAccount = "account-anonymous";
     public const string SignedInAccount = "account-signed-in";
+    public const string SignIn = "account-sign-in";
 
     public static IServiceCollection AddApiRateLimits(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<ApiRateLimitOptions>()
             .Bind(configuration)
-            .Validate(o => o.AnonymousAccountPerMinute > 0 && o.SignedInAccountPerMinute > 0, "Rate limits must be positive.")
+            .Validate(
+                o => o.AnonymousAccountPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SignInPerMinute > 0,
+                "Rate limits must be positive.")
             .ValidateOnStart();
 
         services.AddRateLimiter(options =>
@@ -36,6 +45,12 @@ internal static class ApiRateLimits
             {
                 var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
                 return RateLimitPartition.GetFixedWindowLimiter(AnonymousAccount, _ => PerMinute(limits.AnonymousAccountPerMinute));
+            });
+
+            options.AddPolicy(SignIn, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(SignIn, _ => PerMinute(limits.SignInPerMinute));
             });
 
             // Partitioned by account; an unauthenticated caller is turned away by [Authorize] before it matters, but

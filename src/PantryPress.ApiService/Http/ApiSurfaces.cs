@@ -28,9 +28,25 @@ internal static class ApiSurfaces
 
     public static readonly ApiSurface AdminV1 = new(AdminV1Route, AdminV1Document, "v1", "PantryPress admin API");
 
+    /// <summary>
+    /// What the gateway calls on this service's own behalf (PP1.6): checking credentials for a session it is about to
+    /// issue. Not an admin route and not a browser route - the gateway's <c>/api</c> fallback answers a problem 404
+    /// for every path that is not <c>/api/v1/...</c>, so this surface is unreachable through the BFF, and every route
+    /// on it also refuses a caller that cannot present the gateway's secret.
+    /// </summary>
+    public const string InternalV1Route = "api/internal/v1";
+
+    public const string InternalV1Document = "internal-v1";
+
+    public static readonly ApiSurface InternalV1 = new(
+        InternalV1Route,
+        InternalV1Document,
+        "v1",
+        "PantryPress internal API (gateway only)");
+
     // PP18 adds the publishing surface ("api/publishing/v1") with its own published document (API-009). Until it is
     // listed here, a controller routed under it fails startup like any other undeclared route.
-    public static readonly IReadOnlyList<ApiSurface> All = [AdminV1];
+    public static readonly IReadOnlyList<ApiSurface> All = [AdminV1, InternalV1];
 
     public static ApiSurface? For(string routeTemplate) => All.FirstOrDefault(s => s.Covers(routeTemplate));
 }

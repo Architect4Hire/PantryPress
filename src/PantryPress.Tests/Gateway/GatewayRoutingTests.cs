@@ -47,6 +47,7 @@ public sealed class GatewayRoutingTests
 
     [Theory]
     [InlineData("/api/publishing/v1/posts")] // its own edge route, never the BFF (gateway.md)
+    [InlineData("/api/internal/v1/sessions/credentials")] // the gateway's own call to the API, never a browser's (PP1.6)
     [InlineData("/api/public/v1/pages/home")] // the public site API answers on site hosts
     [InlineData("/api/v2/account")] // no such version
     [InlineData("/api/account")] // unversioned

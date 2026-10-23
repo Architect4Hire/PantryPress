@@ -73,3 +73,49 @@ public interface IAccountPublishingEligibility
     /// <summary>Success, <see cref="AccountErrors.EmailNotVerified"/>, or <see cref="AccountErrors.AccountNotFound"/>.</summary>
     Task<Result> CheckAsync(AccountId account, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// The sign-in steps behind the BFF session (ACCT-002, PP-D13; PP1.6). The gateway holds the session and calls these;
+/// the session itself is a cookie there, so nothing here issues or reads one. Sign-in goes through this facade rather
+/// than Identity's <c>SignInManager</c>, because the account store does not save on its own.
+/// </summary>
+public interface ISessionFacade
+{
+    /// <summary>
+    /// Checks an email address and password. One neutral <see cref="AccountErrors.InvalidCredentials"/> covers an
+    /// unknown address and a wrong password alike, and both do the same password-hashing work, so neither the answer
+    /// nor its timing says whether an address has an account. A locked account is told to wait.
+    /// </summary>
+    Task<Result<SessionStart>> SignInAsync(SignInRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Completes a sign-in that owes a second step, with an authenticator or recovery code. The account and the
+    /// <paramref name="securityStamp"/> come from the gateway's half-finished session; a stamp that no longer matches
+    /// means the sign-in is over - the password changed, the second factor changed, or a role did - and the code is
+    /// never even checked, so no attempt is counted against the account.
+    /// </summary>
+    Task<Result<SessionStart>> CompleteSecondFactorAsync(
+        AccountId account,
+        string securityStamp,
+        SecondFactorRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Who this session belongs to, or null when there is no session to speak of: the account is gone, its security
+    /// stamp has moved on - which is what ends the account's other sessions - or the account has two-step sign-in and
+    /// <paramref name="secondFactorVerified"/> says this session never passed it. Called on every forwarded request,
+    /// so it stays one keyed read.
+    /// </summary>
+    Task<SessionIdentity?> ResolveAsync(
+        AccountId account,
+        string securityStamp,
+        bool secondFactorVerified,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The account's current security stamp, or null when the account is gone. A request that rotated the stamp -
+    /// a password change, two-step sign-in on or off - hands it back to the gateway, so that request's own session
+    /// carries on while the account's other sessions end.
+    /// </summary>
+    Task<string?> CurrentStampAsync(AccountId account, CancellationToken cancellationToken);
+}

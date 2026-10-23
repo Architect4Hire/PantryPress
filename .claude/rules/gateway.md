@@ -11,6 +11,14 @@
   hosts, and a version nobody declared does not exist. Route orders are explicit.
 - The gateway owns the session cookie, antiforgery, and header hygiene: strip `X-Forwarded-*` from the
   client, strip any identity headers, add the authenticated user context for the API.
+- The session is the gateway's own (PP1.6, `auth.md`): four routes at `/api/v1/account/session` that it answers itself
+  rather than forwarding, two `__Host-` cookies (a complete session and a half-finished one waiting for a second
+  step), and one typed client to ApiService's `api/internal/v1` surface for the checks themselves. The gateway holds
+  no rules: it relays the API's problem document for a refusal a person is meant to read, and answers its own 502 for
+  anything else. A half-finished session is refused here, never forwarded.
+- On every request forwarded to the admin API the gateway removes the client's `X-PP-*` headers and the `Cookie`
+  header, then adds the account, the session's security stamp, and its shared secret. The whole identity layer keys on
+  the `api-v1` route id, so the host refuses to start when configuration has no such route.
 - CORS is closed: same-origin only.
 - Rate limits per user and per IP for authentication endpoints.
 - The gateway does no business logic and no database access.

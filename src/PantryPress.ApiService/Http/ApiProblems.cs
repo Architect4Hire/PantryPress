@@ -30,8 +30,12 @@ internal static class ApiProblems
     {
         var problem = context.ProblemDetails;
         var status = problem.Status ?? context.HttpContext.Response.StatusCode;
+
+        // A handler that already chose a code chose its title with it (the session scheme's "you were signed out"),
+        // so the status's generic title does not replace it.
+        var chosen = problem.Extensions.ContainsKey(CodeKey);
         problem.Extensions.TryAdd(CodeKey, CodeFor(status));
-        if (TitleFor(status) is { } title)
+        if (!chosen && TitleFor(status) is { } title)
         {
             problem.Title = title;
         }
@@ -109,7 +113,8 @@ internal static class ApiProblems
         _ => "request-failed",
     };
 
-    private static string? TitleFor(int status) => status switch
+    /// <summary>The plain title for a status the framework produced, or null when the status needs none.</summary>
+    internal static string? TitleFor(int status) => status switch
     {
         StatusCodes.Status400BadRequest => "We couldn't read that request.",
         StatusCodes.Status401Unauthorized => "Please sign in to continue.",

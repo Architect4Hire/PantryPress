@@ -20,6 +20,7 @@ builder.Services.AddDataProtection().SetApplicationName("PantryPress");
 builder.Services.AddAccounts(builder.Configuration.GetSection("Accounts"));
 builder.AddApiEmail();
 builder.Services.AddApiControllers();
+builder.Services.AddGatewayTrust(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddApiAuthentication();
 builder.Services.AddApiRateLimits(builder.Configuration.GetSection("RateLimits"));
 builder.Services.AddApiOpenApi();

@@ -675,7 +675,7 @@ and a module-edge probe confirmed the new boundary test fails when an Accounts f
 api-contract-checker and architecture-reviewer; both found the missing problem shape on a failed forward, which is
 fixed above, and their remaining findings are either applied or recorded here.
 
-### PP1.6 BFF session and cookies
+### PP1.6 BFF session and cookies - done
 
 ```text
 SCOPE: Implement BFF sign-in, sign-out, and session refresh with a __Host- prefixed, host-only, Secure,
@@ -684,6 +684,117 @@ CONSTRAINT: ACCT-002, PSEC-003, PP-D13; gateway.md and auth.md.
 RESTRICTION: The browser never sees or stores a token.
 BEHAVIOR: Plan, wait for approval, implement with cookie and cookie-tossing tests from a sibling subdomain.
 ```
+
+*PP1.6 delivery note (done):*
+- **The gateway holds the session; the API holds the truth (owner-approved plan).** `POST /api/v1/account/session`,
+  `POST …/session/second-factor`, `GET …/session`, and `DELETE …/session` are answered by `PantryPress.Gateway`
+  itself at YARP order 0 - ahead of the forwarded route (1) and the `/api` problem 404 (2) - because the gateway owns
+  the cookie (gateway.md). It holds no rules: it asks ApiService, relays the API's problem document for a refusal a
+  person is meant to read, and writes a cookie. `api-contract.md` and `gateway.md` now say so.
+- **Two `__Host-` cookies.** `__Host-pp-session` for a session that may act (8-hour sliding, browser-session, not
+  persistent) and `__Host-pp-pending` for a sign-in that owes its second step (5 minutes, fixed). Both are
+  `Secure` in **every** environment, `HttpOnly`, `SameSite=Lax`, `Path=/`, with no `Domain` - the prefix plus the
+  absent `Domain` is what stops a sibling tenant subdomain from writing one (PP-D13, PSEC-003). Two schemes rather
+  than one claim, so a half-finished ticket is not even readable as a complete one. The second cookie was not in the
+  prompt; it is what made "a right password reaches nothing" true.
+- **The ticket is an account id and that account's security stamp - never a token.** The gateway forwards both as
+  `X-PP-Account` and `X-PP-Stamp`, with `X-PP-Mfa` when the second step was passed, behind `X-PP-Gateway`: a secret
+  the AppHost generates for those two processes alone and compares in constant time. Inbound `X-PP-*` and `Cookie`
+  are stripped from every forwarded request. The headers carry no authority: ApiService reloads the account on every
+  request, compares the stamp, and builds the claims - roles included - from the database, which is what makes a
+  changed password, a changed second factor, or a revoked `PlatformAdmin` role end a session at its **next** request
+  (ACCT-005), not whenever a cache expires. The cost is one keyed read per authenticated admin request.
+- **`api/internal/v1`, a fourth API surface, is the gateway's alone.** It carries the two credential checks. The
+  BFF's `/api` fallback already refuses anything that is not `/api/v1/...`, every route on the surface answers a
+  plain 404 without the secret, and `ApiSurfaceConvention` now refuses to start a host whose internal-surface
+  controller forgets that guard. Its OpenAPI document exists in Development only. **PP18 must keep it off the edge**
+  when ApiService gets its own Front Door route.
+- **The second step is bound to the first.** The half-finished ticket carries the stamp, and
+  `ISessionFacade.CompleteSecondFactorAsync` checks it **before** the code and before anything is counted against the
+  account. Without that, a holder of the shared secret could have turned "has a code" into "is signed in" without a
+  password, and could have locked a named blogger out with wrong codes. Both are tested.
+- **Sessions survive the requests that rotate the stamp.** `password/change` and `two-factor/setup|enable|disable`
+  carry `[RefreshesSession]`, which returns the new stamp in `X-PP-New-Stamp`; a response transform re-issues the
+  cookie against it. So the account's *other* sessions end and the caller's own carries on, which is what the plan
+  promised. `recovery-codes` has no attribute: regenerating codes does not rotate the stamp.
+- **A session that is over says so.** A stale stamp, a missing account, or a session that never passed a required
+  second step gets 401 `session-ended` plus `X-PP-Session: ended`; the gateway clears its cookie and strips the
+  header, so a person is told they were signed out instead of clicking into a wall of 401s. Neither that header nor
+  `X-PP-New-Stamp` ever reaches a browser.
+- **Refusals the blogger reads, and failures we own.** Only 400, 409, and 429 from the internal surface are relayed
+  (with `Retry-After` when present). Anything else - a 404 from a mismatched secret, a broken API - is logged as an
+  error and answered with the gateway's own 502, because "we couldn't find that" on a sign-in form is a dead end.
+  The session client also has its resilience handlers **removed**: the standard handler treated the lockout 429 as
+  transient, waited out the API's `Retry-After`, and turned "wait 15 minutes" into a 30-second timeout and a 500. A
+  test caught it.
+- **Approved defaults, as stated in the plan:** sign-in refusals are 400 `invalid-credentials`, one neutral answer
+  word for word for an unknown address and a wrong password (timing equalized); a locked account gets 429
+  `too-many-attempts`, which does disclose that the address exists; an unverified email can sign in (ACCT-001 gates
+  publishing, not sign-in), and the session reports `emailVerified`.
+- **Dev HTTPS decided (closes PP0.7's note).** The AppHost now shows only the gateway's HTTPS address at
+  `app.localhost`; the plain one moves to the resource details, because a browser will not keep a `Secure` cookie
+  over HTTP. `Secure` is never relaxed for Development.
+- **Review fold-ins.** From `architecture-reviewer`: the stamp binding above; the "two-step sign-in must have been
+  passed" rule moved out of the authentication handler into `ISessionFacade.ResolveAsync` (ARCH-002), where it is
+  unit-testable and cannot be forgotten by a second surface; the relay allow-list and `Retry-After`; `Cookie`
+  stripped on the Development `admin-spa` route too (a PP0.7 carry-over); a startup refusal when configuration has no
+  `api-v1` route, since the whole identity layer keys on that id; the dead response-header lists now drive the
+  transform; the `emailVerified` claim added to the half-finished ticket. From `api-contract-checker`: the rule and
+  decision records above; the gateway's problem vocabulary completed and pinned against `ApiProblems` for every
+  status, code and title alike; a test that the gateway's own `/api` endpoints are exactly the four session routes
+  plus the fallback, and that the session path sits under the declared admin prefix; parity tests for the duplicated
+  `SessionStart` record and the header names, with the gateway reading `SecondStepRequired` as `bool?` so a rename
+  fails the sign-in instead of handing a complete session to an account that owes a second step; the internal
+  document's scope, and its absence outside Development; `SessionView` moved to `PantryPress.Gateway/Contracts/`.
+- **Not in this prompt:** CORS, antiforgery, and `X-Forwarded-*` (PP1.7 - this prompt pulled forward only the
+  inbound `X-PP-*` and `Cookie` stripping its trust model needs); per-IP limits (PP1.8); idempotency (PP1.9); the
+  admin app's sign-in screen and typed client (PP2); "remember me".
+
+Recorded for later prompts:
+- **PP1.7:** until antiforgery lands, a cross-site POST to the sign-in route is held off only by `SameSite=Lax` plus
+  the JSON content type forcing a preflight nothing answers. A forced-login CSRF is the gap.
+- **PP1.8:** the API's sign-in limiter is one global 300-a-minute window, so one caller can turn sign-in off for
+  everyone for up to a minute, and a spray across many accounts is capped only by per-account lockout. Per-IP
+  partitioning needs trusted proxies first (PP1.5's reasoning), so it stays here - with that consequence stated.
+- **PP1.9:** sign-in, the second step, and sign-out take no `Idempotency-Key`. A replayed *stored* sign-in response
+  must never re-issue a cookie without re-checking credentials.
+- **PP1.11:** sign-out clears the browser's cookies but revokes no ticket - there is no server-side session store, so
+  a stolen cookie works until it expires (8 hours) or the stamp rotates. A revocation list belongs with the audit log.
+  Also: the lockout 429 still carries no `Retry-After` (PP1.3's note), while the rate limiter's does.
+- **PP2:** the four session routes declare their shapes as endpoint metadata but have no OpenAPI document, so the
+  admin client is written by hand for sign-in until the BFF publishes one.
+- **PP19:** the gateway's data-protection key ring is neither persisted nor shared, so **the gateway must run
+  single-replica** until it is: a second replica cannot read the first's cookies, and every restart signs everyone
+  out. It must move to storage protected by Key Vault with ApiService's.
+- **Recorded from the reviews rather than fixed:** `ResolveAsync` and `CurrentStampAsync` accept a
+  `CancellationToken` they cannot pass on, because Identity's `UserManager` lookups take none; there is no catalogue
+  test asserting every problem code across the five files that declare one is unique and kebab-case; the declared 400
+  type on the session controller is `ValidationProblemDetails` while a refusal is a plain problem (surface-wide,
+  pre-existing); `GET …/session` answers 401 `sign-in-required` on a normal cold start, which the admin app must not
+  show as "you were signed out" (that is `session-ended`); and no test proves the host refuses to start without the
+  `api-v1` route, only that the check is there.
+- **Pre-existing, unrelated:** the `MigrationWorkerTests` pair recorded at PP1.5 still fails, verified in a clean
+  worktree at HEAD (9333ff9) with this change absent: 2 failed, 2 passed, identical messages.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings), `dotnet test PantryPress.slnx` (407 of 409 passing; the
+only red is the pre-existing `MigrationWorkerTests` pair above), `dotnet format PantryPress.slnx
+--verify-no-changes` (clean), and 71 new test cases: cookie attributes in Development and Production, the three
+cookie-tossing shapes a browser would allow (another name, another key ring, a tenant host) and the sign-out clear;
+the sign-in flow, the half-finished stage and its refusal on every forwarded route, the second step, a wrong code, an
+expired half-finished sign-in, `Retry-After`, and the 502 for an answer that is not the blogger's business; identity
+forwarded, a client's own identity headers stripped signed in or not, no `Cookie` forwarded on either route, the
+session-ended clear and the stamp refresh; on real SQL, credentials and the second step including lockout counting,
+the neutral refusal, a code without a real first step counting nothing, a stamp that moved mid-sign-in, the internal
+surface's 404 without the secret, the forwarded scheme's 401s, `session-ended` with its header, roles read per
+request, and the `PlatformAdmin` grant ending a running session; the cross-assembly parity tests; the internal
+surface's document and its absence in Production; and the AppHost secret reaching exactly two resources. The
+end-to-end half signs in through the real gateway into the real ApiService on SQL at `app.localhost` and reaches a
+signed-in route. `aspire run` then proved the part no in-memory test can: every resource healthy (the gateway
+reporting `Healthy` with the API reachable, the admin app served through it), and over **real TLS** at
+`https://app.localhost` a sign-up and sign-in that set `__Host-pp-session` with exactly `path=/; secure;
+samesite=lax; httponly` and no `Domain`, `Max-Age`, or `Expires`, cleared the half-finished cookie, reached
+`/api/v1/account/two-factor` with 200 holding only that cookie, and got 401 without it. Reviewers:
+`architecture-reviewer` and `api-contract-checker`; every major finding is either fixed above or recorded here.
 
 ### PP1.7 Header sanitization, CORS, and antiforgery
 

@@ -20,7 +20,8 @@ namespace PantryPress.Tests.Api;
 internal sealed class ApiServiceFactory(
     string environment,
     IReadOnlyDictionary<string, string?> settings,
-    Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<AccountController>
+    Action<IServiceCollection>? configureServices = null,
+    bool signInWithTestHeader = true) : WebApplicationFactory<AccountController>
 {
     public const string TestAccountHeader = "X-Test-Account";
 
@@ -31,27 +32,35 @@ internal sealed class ApiServiceFactory(
     public static ApiServiceFactory WithoutDatabase(
         string environment = "Testing",
         IReadOnlyDictionary<string, string?>? extraSettings = null,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        bool signInWithTestHeader = true)
     {
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:pantrypress"] = UnreachableDatabase,
             ["Accounts:AppBaseUrl"] = "https://app.localhost",
+
+            // The API refuses to start without the gateway's secret (PP1.6).
+            ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
         };
         foreach (var (key, value) in extraSettings ?? new Dictionary<string, string?>())
         {
             settings[key] = value;
         }
 
-        return new ApiServiceFactory(environment, settings, services =>
-        {
-            if (environment != "Production")
+        return new ApiServiceFactory(
+            environment,
+            settings,
+            services =>
             {
-                services.AddSingleton<IEmailGateway>(new Fakes.RecordingEmailGateway());
-            }
+                if (environment != "Production")
+                {
+                    services.AddSingleton<IEmailGateway>(new Fakes.RecordingEmailGateway());
+                }
 
-            configureServices?.Invoke(services);
-        });
+                configureServices?.Invoke(services);
+            },
+            signInWithTestHeader);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -65,8 +74,15 @@ internal sealed class ApiServiceFactory(
         builder.ConfigureTestServices(services =>
         {
             services.Replace(ServiceDescriptor.Singleton<IDataProtectionProvider, EphemeralDataProtectionProvider>());
-            services.AddAuthentication(options => options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, configureOptions: null);
+
+            // Most tests sign in with a header, so a route's own rules are what they exercise. The ones that test the
+            // forwarded session itself leave the real GatewaySession scheme in place.
+            if (signInWithTestHeader)
+            {
+                services.AddAuthentication(options => options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, configureOptions: null);
+            }
+
             configureServices?.Invoke(services);
         });
     }

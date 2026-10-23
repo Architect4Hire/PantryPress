@@ -8,23 +8,16 @@ using PantryPress.Domain.Modules.Platform.Contracts;
 
 namespace PantryPress.ApiService.Hosting;
 
-internal static class ApiAuthentication
+internal static partial class ApiAuthentication
 {
-    /// <summary>
-    /// Signed-in routes are marked <c>[Authorize]</c> now, but the session that proves who is calling arrives with the
-    /// BFF in PP1.6 (the gateway holds the session and forwards the user). Until then this scheme authenticates nobody,
-    /// so signed-in routes answer 401 in every real run; tests swap in their own scheme. PP1.6 replaces it.
-    /// </summary>
-    public const string PendingSessionScheme = "PendingSession";
-
     public static IServiceCollection AddApiAuthentication(this IServiceCollection services)
     {
-        services.AddAuthentication(PendingSessionScheme)
-            .AddScheme<AuthenticationSchemeOptions, PendingSessionHandler>(PendingSessionScheme, configureOptions: null);
+        services.AddAuthentication(GatewaySession.Scheme)
+            .AddScheme<AuthenticationSchemeOptions, GatewaySessionHandler>(GatewaySession.Scheme, configureOptions: null);
 
         // The named policies (auth.md). PlatformAdmin is the platform-wide one (PP-D03): the role plus a session that
         // passed the second sign-in step, because an operator's password alone must not be enough (ACCT-005). No route
-        // carries it yet; the operator console (PP18, PP19) is what will. PP1.6 issues both claims.
+        // carries it yet; the operator console (PP18, PP19) is what will.
         services.AddAuthorizationBuilder()
             .AddPolicy(PlatformPolicies.PlatformAdmin, policy => policy
                 .RequireAuthenticatedUser()
@@ -34,8 +27,8 @@ internal static class ApiAuthentication
     }
 
     /// <summary>
-    /// The signed-in account, from the name-identifier claim Identity issues. False for an anonymous caller or a
-    /// malformed claim; a controller then challenges rather than guessing.
+    /// The signed-in account, from the name-identifier claim the session scheme issues. False for an anonymous caller
+    /// or a malformed claim; a controller then challenges rather than guessing.
     /// </summary>
     public static bool TryGetAccountId(this ClaimsPrincipal user, out AccountId account)
     {
@@ -51,14 +44,81 @@ internal static class ApiAuthentication
         return true;
     }
 
-    private sealed class PendingSessionHandler(
+    /// <summary>
+    /// The session the gateway forwards (ACCT-002; PP1.6). The gateway's cookie names an account and the security
+    /// stamp its session was issued against; everything the caller is allowed to do is read from the database here, on
+    /// every request, so a changed password, a changed second factor, or a revoked platform role ends a session at its
+    /// next request rather than whenever a cached copy happens to expire (ACCT-005).
+    /// </summary>
+    private sealed partial class GatewaySessionHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
+        GatewayTrust trust,
+        ISessionFacade sessions,
         IProblemDetailsService problems)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync() => Task.FromResult(AuthenticateResult.NoResult());
+        /// <summary>A stamp is a short opaque string; anything much longer is not one of ours.</summary>
+        private const int MaxStampLength = 256;
+
+        private const string SessionEndedKey = "pp:session-ended";
+
+        protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            if (!trust.IsFromGateway(Request))
+            {
+                // Identity headers from a caller that cannot prove it is the gateway are the shape of an attempt to
+                // forge one. They are ignored, never read, and worth hearing about.
+                if (GatewaySession.RequestHeaders.Any(header => Request.Headers.ContainsKey(header)))
+                {
+                    LogUntrustedIdentity(Logger, Request.Path);
+                }
+
+                return AuthenticateResult.NoResult();
+            }
+
+            if (Request.Headers[GatewaySession.AccountHeader] is not [{ } accountHeader]
+                || !Guid.TryParse(accountHeader, out var id)
+                || id == Guid.Empty)
+            {
+                return AuthenticateResult.NoResult();
+            }
+
+            if (Request.Headers[GatewaySession.StampHeader] is not [{ Length: > 0 and <= MaxStampLength } stamp])
+            {
+                return AuthenticateResult.NoResult();
+            }
+
+            // Whether this session may act at all - the stamp, the account, and the second-step rule - is the
+            // facade's to decide; this handler only turns its answer into a ticket or a 401.
+            var secondFactorVerified = Request.Headers[GatewaySession.SecondFactorHeader] == GatewaySession.True;
+            var identity = await sessions.ResolveAsync(
+                new AccountId(id),
+                stamp,
+                secondFactorVerified,
+                Context.RequestAborted);
+            if (identity is null)
+            {
+                return Ended("This session no longer resolves to an account that may act.");
+            }
+
+            var claims = new List<Claim>(3 + identity.Roles.Count)
+            {
+                new(ClaimTypes.NameIdentifier, identity.AccountId.ToString("D")),
+                new(ClaimTypes.Email, identity.Email),
+            };
+
+            if (secondFactorVerified)
+            {
+                claims.Add(new Claim(AccountClaims.TwoFactorVerified, AccountClaims.Yes));
+            }
+
+            claims.AddRange(identity.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+            var principal = new ClaimsPrincipal(
+                new ClaimsIdentity(claims, Scheme.Name, ClaimTypes.Email, ClaimTypes.Role));
+            return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
+        }
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties) =>
             WriteProblemAsync(StatusCodes.Status401Unauthorized);
@@ -66,14 +126,35 @@ internal static class ApiAuthentication
         protected override Task HandleForbiddenAsync(AuthenticationProperties properties) =>
             WriteProblemAsync(StatusCodes.Status403Forbidden);
 
+        private AuthenticateResult Ended(string reason)
+        {
+            Context.Items[SessionEndedKey] = true;
+            return AuthenticateResult.Fail(reason);
+        }
+
         private async Task WriteProblemAsync(int status)
         {
             Response.StatusCode = status;
+            var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails { Status = status };
+            if (status == StatusCodes.Status401Unauthorized && Context.Items.ContainsKey(SessionEndedKey))
+            {
+                // The gateway clears its cookie when it sees this, so the person is told they were signed out instead
+                // of clicking on into 401s. The header never reaches a browser: the gateway strips it.
+                Response.Headers[GatewaySession.EndedHeader] = GatewaySession.Ended;
+                problem.Title = GatewaySession.EndedTitle;
+                problem.Extensions[ApiProblems.CodeKey] = GatewaySession.EndedCode;
+            }
+
             await problems.WriteAsync(new ProblemDetailsContext
             {
                 HttpContext = Context,
-                ProblemDetails = { Status = status },
+                ProblemDetails = problem,
             });
         }
+
+        [LoggerMessage(
+            Level = LogLevel.Warning,
+            Message = "A request to {Path} carried session headers without the gateway's secret; they were ignored.")]
+        private static partial void LogUntrustedIdentity(ILogger logger, string path);
     }
 }

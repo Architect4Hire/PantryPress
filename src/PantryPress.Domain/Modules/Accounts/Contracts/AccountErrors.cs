@@ -53,10 +53,27 @@ public static class AccountErrors
         "changed-elsewhere",
         "Your account was changed somewhere else at the same time. Please try again.");
 
+    /// <summary>
+    /// A half-finished sign-in cannot be finished: it took too long, or the account changed underneath it (PP1.6).
+    /// </summary>
+    public static readonly Error SignInExpired = new(
+        ErrorKind.Rejected,
+        "sign-in-expired",
+        "That sign-in didn't finish in time. Please start again.");
+
     public static readonly Error AccountNotFound = new(
         ErrorKind.NotFound,
         "account-not-found",
         "We couldn't find that account.");
+
+    /// <summary>
+    /// Sign-in refused (PP1.6). One error for an unknown address and a wrong password alike, so the answer never says
+    /// which addresses have accounts.
+    /// </summary>
+    public static readonly Error InvalidCredentials = new(
+        ErrorKind.Rejected,
+        "invalid-credentials",
+        "That email address and password don't match.");
 
     public static readonly Error EmailNotVerified = new(
         ErrorKind.Forbidden,

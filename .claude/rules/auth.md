@@ -14,6 +14,16 @@
   `.pantrypress.app`.
 - Antiforgery on every state-changing admin request.
 - The gateway strips inbound identity headers and adds its own.
+- **What the ticket holds (PP1.6):** an account id and that account's Identity security stamp - never a token. The
+  gateway forwards both as `X-PP-Account` and `X-PP-Stamp` behind `X-PP-Gateway`, a secret shared with ApiService
+  alone and compared in constant time; `X-PP-Mfa` says the second step was passed. The headers carry no authority of
+  their own: ApiService reloads the account on every request, compares the stamp, and builds the claims - roles
+  included - from the database, so a changed password, a changed second factor, or a revoked role ends a session at
+  its next request. A stale session gets 401 `session-ended`, which tells the gateway to clear its cookie. A route
+  that rotates the stamp hands the new one back in `X-PP-New-Stamp`, so the caller's own session carries on while the
+  account's others end.
+- **The second step is bound to the first:** the half-finished ticket carries the stamp, and the second-factor check
+  refuses a code whose stamp does not match before counting any attempt, so a code alone never completes a sign-in.
 
 ## Roles and policies
 

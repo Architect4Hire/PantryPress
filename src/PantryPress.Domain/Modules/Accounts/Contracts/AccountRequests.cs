@@ -41,3 +41,37 @@ public sealed record AuthenticatorSetup(string SharedKey, string AuthenticatorUr
 
 /// <summary>New recovery codes. Shown once; only hashes are kept.</summary>
 public sealed record RecoveryCodeList(IReadOnlyList<string> RecoveryCodes);
+
+/// <summary>Sign in with an email address and a password (ACCT-002; PP1.6).</summary>
+public sealed record SignInRequest(string Email, string Password);
+
+/// <summary>
+/// The second step of sign-in. The account and the security stamp both come from the half-finished session the gateway
+/// holds, never from the person signing in. The stamp is what proves the first step happened: the only way to learn it
+/// is to get the password right, so a code alone - even from something holding the gateway's secret - finishes
+/// nothing, and a wrong code can only ever be counted against the account that really started the sign-in.
+/// </summary>
+public sealed record SecondFactorSignInRequest(Guid AccountId, string SecurityStamp, string Code);
+
+/// <summary>
+/// What the gateway needs to hold a session (PP1.6): who signed in, the security stamp the session is bound to, and
+/// whether a second step is still owed. The stamp is a server-side value: it goes into the gateway's protected ticket
+/// and never into a response the browser can read.
+/// </summary>
+public sealed record SessionStart(
+    Guid AccountId,
+    string Email,
+    string SecurityStamp,
+    bool SecondStepRequired,
+    bool EmailVerified);
+
+/// <summary>
+/// Who a forwarded session belongs to, rebuilt from the database on every request (PP1.6), so a password change, a
+/// two-step change, or a revoked platform role ends other sessions at their next request.
+/// </summary>
+public sealed record SessionIdentity(
+    Guid AccountId,
+    string Email,
+    bool EmailVerified,
+    bool TwoFactorEnabled,
+    IReadOnlyList<string> Roles);

@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
@@ -33,6 +34,10 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     public const string SecondPassphrase = "another long kitchen phrase";
 
     private readonly CancellationTokenSource _timeout = new(TimeSpan.FromMinutes(5));
+
+    // One key ring for both hosts, as one deployed service has one (PP19 makes it persistent): authenticator keys are
+    // encrypted with it, so a host with a ring of its own could not read what the other stored.
+    private readonly EphemeralDataProtectionProvider _keys = new();
     private IDistributedApplicationTestingBuilder? _appHost;
     private DistributedApplication? _app;
 
@@ -41,6 +46,12 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     internal RecordingEmailGateway Email { get; } = new();
 
     internal ApiServiceFactory Api { get; private set; } = null!;
+
+    /// <summary>
+    /// The same API against the same database, with the real <c>GatewaySession</c> scheme left in place, so a test can
+    /// send what the gateway sends and watch the API decide (PP1.6).
+    /// </summary>
+    internal ApiServiceFactory Forwarded { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -55,25 +66,36 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
         Assert.Equal(0, finished.Snapshot.ExitCode);
 
         var connectionString = await _app.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, _timeout.Token);
-        Api = new ApiServiceFactory(
-            "Testing",
-            new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:pantrypress"] = connectionString,
-                ["Accounts:AppBaseUrl"] = "https://app.localhost",
-                ["RateLimits:AnonymousAccountPerMinute"] = "100000",
-                ["RateLimits:SignedInAccountPerMinute"] = "100000",
-            },
-            services =>
-            {
-                services.AddSingleton<IEmailGateway>(Email);
-                services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Time));
-            });
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:pantrypress"] = connectionString,
+            ["Accounts:AppBaseUrl"] = "https://app.localhost",
+            ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
+            ["RateLimits:AnonymousAccountPerMinute"] = "100000",
+            ["RateLimits:SignedInAccountPerMinute"] = "100000",
+            ["RateLimits:SignInPerMinute"] = "100000",
+        };
+
+        void Configure(IServiceCollection services)
+        {
+            services.AddSingleton<IEmailGateway>(Email);
+            services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Time));
+            services.Replace(ServiceDescriptor.Singleton<IDataProtectionProvider>(_keys));
+        }
+
+        Api = new ApiServiceFactory("Testing", settings, Configure);
         _ = Api.Server;
+        Forwarded = new ApiServiceFactory("Testing", settings, Configure, signInWithTestHeader: false);
+        _ = Forwarded.Server;
     }
 
     public async Task DisposeAsync()
     {
+        if (Forwarded is not null)
+        {
+            await Forwarded.DisposeAsync();
+        }
+
         if (Api is not null)
         {
             await Api.DisposeAsync();
@@ -95,6 +117,48 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     internal HttpClient Client(AccountId? signedIn = null) => Api.CreateClientFor(signedIn?.Value);
 
     internal DateTimeOffset Now => Api.Services.GetRequiredService<IClock>().UtcNow;
+
+    /// <summary>
+    /// A client that sends what the gateway sends for a complete session: the secret, the account, and the security
+    /// stamp the session is bound to. <paramref name="secret"/> and <paramref name="stamp"/> are overridable so a test
+    /// can forge either one.
+    /// </summary>
+    internal HttpClient ForwardedClient(
+        AccountId account,
+        string stamp,
+        bool secondFactorVerified = false,
+        string? secret = null)
+    {
+        var client = Forwarded.CreateClient();
+        client.DefaultRequestHeaders.Add("X-PP-Gateway", secret ?? TestSecrets.GatewaySecret);
+        client.DefaultRequestHeaders.Add("X-PP-Account", account.ToString());
+        client.DefaultRequestHeaders.Add("X-PP-Stamp", stamp);
+        if (secondFactorVerified)
+        {
+            client.DefaultRequestHeaders.Add("X-PP-Mfa", "true");
+        }
+
+        return client;
+    }
+
+    /// <summary>The account's current security stamp, as the gateway would have been told at sign-in.</summary>
+    internal Task<string> StampAsync(AccountId account) =>
+        WithAccountAsync(account, (users, user) => users.GetSecurityStampAsync(user));
+
+    /// <summary>
+    /// Grants the platform role the way the operator's job does (ACCT-005; PP1.4), against this fixture's database.
+    /// A real grant rotates the security stamp, so a session started before it is over.
+    /// </summary>
+    internal async Task GrantPlatformAdminAsync(AccountId account)
+    {
+        await using var operators = await Persistence.TestDatabase.CreateOperatorServicesAsync(
+            _app!,
+            string.Empty,
+            _timeout.Token);
+        var granted = await operators.GetRequiredService<IAccountRoles>()
+            .GrantPlatformAdminAsync(account, _timeout.Token);
+        Assert.True(granted.IsSuccess);
+    }
 
     internal static string NewEmail() => $"cook-{Guid.NewGuid():N}@example.test";
 

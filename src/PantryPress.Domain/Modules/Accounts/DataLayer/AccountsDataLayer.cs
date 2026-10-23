@@ -121,6 +121,18 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
 
     public Task<int> CountRecoveryCodesAsync(ApplicationUser user) => users.CountRecoveryCodesAsync(user);
 
+    /// <summary>
+    /// The account's current security stamp. The BFF session is bound to it (PP1.6), so every rotation elsewhere in
+    /// this module ends the account's other sessions.
+    /// </summary>
+    public Task<string> GetSecurityStampAsync(ApplicationUser user) => users.GetSecurityStampAsync(user);
+
+    /// <summary>
+    /// The platform roles on the account, for a session's role claims (PP1.4, PP1.6). Reading roles is not granting
+    /// them: changing them is <see cref="AccountRolesDataLayer"/>'s alone, in the operator's process (ACCT-005).
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetRolesAsync(ApplicationUser user) => [.. await users.GetRolesAsync(user)];
+
     // Staged changes fail only through Identity's own validators, which the facades have already satisfied.
     private static void Ensure(IdentityResult result)
     {

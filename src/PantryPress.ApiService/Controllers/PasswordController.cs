@@ -33,6 +33,7 @@ public sealed class PasswordController(IPasswordFacade passwords) : ApiControlle
 
     /// <summary>Changes the password of the signed-in account. Wrong current passwords count toward lockout.</summary>
     [HttpPost("change")]
+    [RefreshesSession]
     [Authorize]
     [EnableRateLimiting(ApiRateLimits.SignedInAccount)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

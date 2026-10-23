@@ -103,3 +103,13 @@ internal sealed class SecondFactorRequestValidator : AbstractValidator<SecondFac
         RuleFor(r => r.Code).Must(code => Totp.TryNormalize(code, out _) || RecoveryCodes.Normalize(code) is not null)
             .WithMessage("Enter the 6-digit code from your authenticator app, or one of your recovery codes.");
 }
+
+internal sealed class SignInRequestValidator : AbstractValidator<SignInRequest>
+{
+    // No disposable-domain rule: that one belongs to sign-up. An address that already has an account signs in.
+    public SignInRequestValidator()
+    {
+        RuleFor(r => r.Email).Cascade(CascadeMode.Stop).ValidEmail();
+        RuleFor(r => r.Password).Cascade(CascadeMode.Stop).CurrentPassword();
+    }
+}

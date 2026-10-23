@@ -44,6 +44,8 @@ public sealed class ApiReferenceTests
     [InlineData("/scalar")]
     [InlineData("/scalar/v1")]
     [InlineData("/openapi/v1.json")]
+    [InlineData("/scalar/internal-v1")] // the gateway-only surface (PP1.6): least of all this one
+    [InlineData("/openapi/internal-v1.json")]
     public async Task Outside_Development_there_is_no_document_and_no_UI(string path)
     {
         await using var api = ApiServiceFactory.WithoutDatabase(

@@ -38,6 +38,17 @@ internal sealed class ApiSurfaceConvention : IApplicationModelConvention
                     "controller belongs to one surface, so one document describes it.");
             }
 
+            // The internal surface exists for the gateway alone, so every controller on it must refuse a caller that
+            // cannot present the gateway's secret. Enforced here rather than per controller: forgetting the attribute
+            // on a later one would leave an anonymous route naming any account it liked.
+            if (surfaces[0] == ApiSurfaces.InternalV1
+                && !controller.Attributes.OfType<GatewayOnlyAttribute>().Any())
+            {
+                throw new InvalidOperationException(
+                    $"{name} is routed under '{ApiSurfaces.InternalV1Route}' without [GatewayOnly]. Every route on "
+                    + "the internal surface is the gateway's alone.");
+            }
+
             controller.ApiExplorer.GroupName = surfaces[0].Document;
         }
     }

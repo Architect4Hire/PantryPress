@@ -56,9 +56,20 @@ var platformAdminsParameter = builder.AddParameter(
 
 migrations.WithEnvironment("Platform__Admins", platformAdminsParameter);
 
+// The secret the gateway proves itself to the API with before the API reads any forwarded identity (PP1.6). Generated
+// once and persisted to this AppHost's user-secrets, published as a parameter rather than baked into the manifest
+// (PP19's IaC supplies it from Key Vault). Both processes get the same value and nothing else does: without it a
+// caller that can reach ApiService directly could name any account it liked.
+var gatewaySecretParameter = builder.AddParameter(
+    "gateway-identity-secret",
+    new GenerateParameterDefault { MinLength = 48, Special = false },
+    secret: true,
+    persist: true);
+
 // Long-running projects report readiness through /health (ServiceDefaults).
 var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
     .WithReference(db)
+    .WithEnvironment("Gateway__SharedSecret", gatewaySecretParameter)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
 builder.AddProject<Projects.PantryPress_Site>("site")
@@ -72,6 +83,7 @@ builder.AddProject<Projects.PantryPress_Worker>("worker")
 // must not keep the admin app from loading, exactly as it does not wait for the admin dev server.
 var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
     .WithReference(apiService)
+    .WithEnvironment("Gateway__SharedSecret", gatewaySecretParameter)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations)
     .WithUrls(context =>
@@ -79,7 +91,16 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
         // Browsers resolve *.localhost to loopback, so the admin app opens at app.localhost (SITE-009).
         foreach (var url in context.Urls)
         {
-            url.Url = new UriBuilder(url.Url) { Host = "app.localhost" }.Uri.ToString();
+            var rewritten = new UriBuilder(url.Url) { Host = "app.localhost" };
+            url.Url = rewritten.Uri.ToString();
+
+            // The BFF session cookie is `__Host-` prefixed and Secure (PP-D13, PSEC-003), and a browser will not keep
+            // it over plain HTTP. So the dashboard offers the HTTPS address and keeps the plain one in the details:
+            // signing in locally works the way it works in production.
+            if (string.Equals(rewritten.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal))
+            {
+                url.DisplayLocation = UrlDisplayLocation.DetailsOnly;
+            }
         }
     });
 

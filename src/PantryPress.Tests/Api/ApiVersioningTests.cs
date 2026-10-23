@@ -86,6 +86,53 @@ public sealed class ApiVersioningTests
     }
 
     [Fact]
+    public void A_controller_on_the_internal_surface_without_the_gateway_guard_fails_startup()
+    {
+        // The internal surface exists for the gateway alone (PP1.6). Forgetting the attribute on a later controller
+        // would leave an anonymous route that names any account it is given, so the host refuses to start.
+        var controller = ControllerFor(ApiSurfaces.InternalV1Route + "/sessions", "credentials");
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => new ApiSurfaceConvention().Apply(ApplicationFor(controller)));
+
+        Assert.Contains(nameof(GatewayOnlyAttribute).Replace("Attribute", string.Empty, StringComparison.Ordinal), error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_guarded_controller_on_the_internal_surface_starts_and_is_described_by_its_own_document()
+    {
+        var controller = new ControllerModel(typeof(StandInController).GetTypeInfo(), [new GatewayOnlyAttribute()]);
+        controller.Selectors.Add(new SelectorModel
+        {
+            AttributeRouteModel = new AttributeRouteModel(new RouteAttribute(ApiSurfaces.InternalV1Route + "/sessions")),
+        });
+        controller.Actions.Add(ActionFor(controller, "credentials"));
+
+        new ApiSurfaceConvention().Apply(ApplicationFor(controller));
+
+        Assert.Equal(ApiSurfaces.InternalV1Document, controller.ApiExplorer.GroupName);
+    }
+
+    [Fact]
+    public async Task The_internal_document_describes_the_internal_surface_and_nothing_else()
+    {
+        await using var api = ApiServiceFactory.WithoutDatabase(
+            "Development",
+            new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
+
+        using var response = await api.CreateClient().GetAsync($"/openapi/{ApiSurfaces.InternalV1Document}.json");
+
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(ApiSurfaces.InternalV1.Title, document.RootElement.GetProperty("info").GetProperty("title").GetString());
+        var paths = document.RootElement.GetProperty("paths").EnumerateObject().ToList();
+        Assert.NotEmpty(paths);
+        foreach (var path in paths)
+        {
+            Assert.StartsWith("/" + ApiSurfaces.InternalV1Route + "/", path.Name, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public async Task No_endpoint_under_api_escapes_the_surfaces()
     {
         // The convention covers controllers. A minimal-API route would not reach it, so every routable /api endpoint is

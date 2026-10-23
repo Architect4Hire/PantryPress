@@ -111,10 +111,12 @@ public static class AccountsServiceCollectionExtensions
         services.AddScoped<IValidator<ConfirmPasswordRequest>, ConfirmPasswordRequestValidator>();
         services.AddScoped<IValidator<EnableTwoFactorRequest>, EnableTwoFactorRequestValidator>();
         services.AddScoped<IValidator<SecondFactorRequest>, SecondFactorRequestValidator>();
+        services.AddScoped<IValidator<SignInRequest>, SignInRequestValidator>();
 
         services.AddScoped<IAccountRegistrationFacade, AccountRegistrationFacade>();
         services.AddScoped<IPasswordFacade, PasswordFacade>();
         services.AddScoped<ITwoFactorFacade, TwoFactorFacade>();
+        services.AddScoped<ISessionFacade, SessionFacade>();
         services.AddScoped<IAccountPublishingEligibility, AccountPublishingEligibility>();
         return services;
     }
