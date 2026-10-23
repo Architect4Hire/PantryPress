@@ -1,0 +1,17 @@
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.6.3">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PantryPress.Gateway\PantryPress.Gateway.csproj" />
+    <ProjectReference Include="..\PantryPress.ApiService\PantryPress.ApiService.csproj" />
+    <ProjectReference Include="..\PantryPress.Site\PantryPress.Site.csproj" />
+    <ProjectReference Include="..\PantryPress.Worker\PantryPress.Worker.csproj" />
+    <ProjectReference Include="..\PantryPress.MigrationService\PantryPress.MigrationService.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>66e3cf2d-e02d-4543-a3c8-35bfe067be8e</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

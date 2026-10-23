@@ -18,7 +18,7 @@ if (/\/web\/.*\.(ts|html|scss|css|json|md)$/.test(path)) {
   const web = join(root, "src", "web");
   const prettier = join(web, "node_modules", ".bin", process.platform === "win32" ? "prettier.cmd" : "prettier");
   if (existsSync(prettier)) run(prettier, ["--write", path], web);
-} else if (/\.cs$/.test(path) && existsSync(join(root, "PantryPress.sln"))) {
-  run("dotnet", ["format", "whitespace", join(root, "PantryPress.sln"), "--include", path], root);
+} else if (/\.cs$/.test(path) && existsSync(join(root, "PantryPress.slnx"))) {
+  run("dotnet", ["format", "whitespace", join(root, "PantryPress.slnx"), "--include", path], root);
 }
 process.exit(0);

@@ -127,6 +127,7 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | 2026-10-22 | Owner decisions (section 1), PP-D01, PP-D02, PP-D07, PP-D13, PP-D14, PP-D16, PP-D17, PP-D18 |
 | 2026-10-23 | PP0.1: ADRs 0001 to 0018 written. All accepted except 0010 (proposed, D-10). PP-D08 admin app confirmed client-rendered. Open items recorded with defaults (section 3). Customization spec reconciled (section 5). |
 | 2026-10-23 | PP0.2: toolkit aligned with this record (section 5). No decision changed. ADR 0008 and 0012 consequences note the widened hook coverage. |
+| 2026-10-23 | PP0.3: solution file is `PantryPress.slnx`; tests use xUnit. No decision changed. |
 
 ---
 
@@ -174,7 +175,8 @@ Found at PP0.2, outside the toolkit. Reconcile at the named prompt before writin
 - PP2.5 allows `IgnoreQueryFilters()` in "operator and erasure paths"; ADR 0003 allows it only in
   `Modules/Platform/`, so cross-site erasure code must live there.
 - PP0.3 does not name the solution file. CLAUDE.md and `format-guard.mjs` expect `PantryPress.sln`; .NET 10
-  may default to `.slnx`.
+  may default to `.slnx`. **Resolved at PP0.3:** the owner chose `PantryPress.slnx`; CLAUDE.md and
+  `format-guard.mjs` were updated to match.
 - AI SDK installs through a shell command (`npm install`, `dotnet add package`) bypass the write hooks; the
   next manifest edit or a reviewer catches them.
 

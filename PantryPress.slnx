@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PantryPress.ApiService/PantryPress.ApiService.csproj" />
+    <Project Path="src/PantryPress.AppHost/PantryPress.AppHost.csproj" />
+    <Project Path="src/PantryPress.Domain/PantryPress.Domain.csproj" />
+    <Project Path="src/PantryPress.Gateway/PantryPress.Gateway.csproj" />
+    <Project Path="src/PantryPress.MigrationService/PantryPress.MigrationService.csproj" />
+    <Project Path="src/PantryPress.ServiceDefaults/PantryPress.ServiceDefaults.csproj" />
+    <Project Path="src/PantryPress.Site/PantryPress.Site.csproj" />
+    <Project Path="src/PantryPress.Tests/PantryPress.Tests.csproj" />
+    <Project Path="src/PantryPress.Worker/PantryPress.Worker.csproj" />
+  </Folder>
+</Solution>

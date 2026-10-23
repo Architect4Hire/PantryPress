@@ -150,7 +150,7 @@ AI SDK hook was widened to more package names plus imports and model endpoints i
 0008's consequence lines were updated to match. Prompt conflicts found along the way (PP18.1, PP2.5, PP0.3)
 are listed in section 5 of the decisions record.
 
-### PP0.3 Solution skeleton
+### PP0.3 Solution skeleton - done
 
 ```text
 SCOPE: Create the .NET 10 solution with the PP-D01 projects (AppHost, ServiceDefaults, Gateway, ApiService,
@@ -159,6 +159,12 @@ CONSTRAINT: PP-D01; aspire.md and backend.md.
 RESTRICTION: No entities, endpoints, auth, or feature code. Domain references no host project.
 BEHAVIOR: Show commands and the reference graph, wait for approval, execute, and confirm the build succeeds.
 ```
+
+*Delivery note (2026-10-23):* With owner approval, the solution is `PantryPress.slnx` (CLAUDE.md and
+`format-guard.mjs` updated) and tests use xUnit. The AppHost registers the five executables with no
+`WaitFor` yet (PP0.4, PP0.6). The AppHost SDK is 13.6.3 rather than the template's 13.6.1, because 13.6.1
+pulls MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h), which fails the build under warnings as errors. Shared build
+settings live in `Directory.Build.props`; `global.json` pins SDK 10.0.402 with `latestFeature` roll-forward.
 
 ### PP0.4 SQL, Redis, and blob resources
 

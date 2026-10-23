@@ -8,7 +8,7 @@ records decision `PP-DNN`.
 
 | Document | What it holds |
 | --- | --- |
-| [PantryPress design](pantrypress-design.md) | How the system is built: solution layout, the request seam, site isolation, the public tier, and how the parts fit together |
+| [PantryPress design](architecture.md) | How the system is built: solution layout, the request seam, site isolation, the public tier, and how the parts fit together |
 
 ## Architecture decision records
 
