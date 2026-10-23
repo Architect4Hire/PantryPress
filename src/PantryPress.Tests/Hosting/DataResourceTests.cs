@@ -7,8 +7,6 @@ namespace PantryPress.Tests.Hosting;
 // PP0.4: PantryPress's own SQL, Redis, and blob storage (PP-D16, aspire.md).
 public sealed class DataResourceTests
 {
-    private static readonly string[] DataContainers = ["sql", "redis", "storage"];
-
     private static readonly string[] HealthyResources = ["sql", "pantrypress", "redis", "storage", "blobs"];
 
     [Fact]
@@ -16,7 +14,7 @@ public sealed class DataResourceTests
     {
         await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>();
 
-        foreach (var name in DataContainers)
+        foreach (var name in EphemeralAppHost.DataContainers)
         {
             var resource = appHost.Resources.Single(r => r.Name == name);
 
@@ -48,34 +46,13 @@ public sealed class DataResourceTests
     public async Task Data_resources_start_healthy()
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>(
-            timeout.Token);
-
-        // Run ephemeral: never attach to the developer's persistent containers or volumes, and leave nothing behind.
-        foreach (var resource in appHost.Resources.Where(r => DataContainers.Contains(r.Name)))
-        {
-            // WithLifetime(Persistent) also adds PersistenceAnnotation, which DCP reads; removing only the
-            // lifetime annotation still leaks a persistent container.
-#pragma warning disable ASPIREPERSISTENCE001 // Evaluation API; a rename should break this build, not leak containers.
-            RemoveAll(resource.Annotations, a => a is ContainerLifetimeAnnotation or PersistenceAnnotation);
-#pragma warning restore ASPIREPERSISTENCE001
-            RemoveAll(resource.Annotations, a => a is ContainerMountAnnotation { Type: ContainerMountType.Volume });
-        }
-
+        await using var appHost = await EphemeralAppHost.CreateAsync(timeout.Token);
         await using var app = await appHost.BuildAsync(timeout.Token);
         await app.StartAsync(timeout.Token);
 
         foreach (var name in HealthyResources)
         {
             await app.ResourceNotifications.WaitForResourceHealthyAsync(name, timeout.Token);
-        }
-    }
-
-    private static void RemoveAll(ResourceAnnotationCollection annotations, Func<IResourceAnnotation, bool> match)
-    {
-        foreach (var annotation in annotations.Where(match).ToList())
-        {
-            annotations.Remove(annotation);
         }
     }
 }

@@ -117,6 +117,8 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | PP15.5 | First allow-listed ad network | Chosen at PP15.5 (D-11) |
 | PP18.6 | Publishing-API update when the draft was edited in the editor | None stated (conflict or new revision); PP18.6 must ask |
 | PP19.8 | Behavior when Safe Browsing is down | Fail open to a held-for-review state, never silently |
+| PP5.16 | Scheduling a local time skipped or repeated by a daylight saving change (set at PP0.5) | Skipped times move forward by the gap (02:30 becomes 03:30); repeated times use the first occurrence |
+| PP19.2 | Production `/health` and `/alive` probes (set at PP0.5) | Mapped in Development only until PP19.2 maps them for Container Apps probes on internal ingress, never routed through Front Door, so no anonymous request reaches a readiness check that touches SQL |
 
 ---
 
@@ -129,6 +131,7 @@ These appear only in the named prompt. The prompt closes them and records the ou
 | 2026-10-23 | PP0.2: toolkit aligned with this record (section 5). No decision changed. ADR 0008 and 0012 consequences note the widened hook coverage. |
 | 2026-10-23 | PP0.3: solution file is `PantryPress.slnx`; tests use xUnit. No decision changed. |
 | 2026-10-23 | PP0.4: own SQL, Redis, and blob storage declared with `pantrypress-` volumes (PP-D16 locally). No decision changed. |
+| 2026-10-23 | PP0.5: IANA time zones from NodaTime's embedded database; system clock APIs banned at build time. Two prompt-local defaults recorded (section 3): daylight saving scheduling (PP5.16) and production health probes (PP19.2). No decision changed. |
 
 ---
 

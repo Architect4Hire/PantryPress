@@ -35,10 +35,12 @@ builder.AddAzureStorage("storage")
 
 // References and WaitFor arrive with their consumers: PP0.6 wires the migration service to SQL and makes every
 // project wait for it.
+// Long-running projects report readiness through /health (ServiceDefaults). The migration service is one-shot and
+// has no endpoints; from PP0.6 its exit code is its health signal.
 builder.AddProject<Projects.PantryPress_MigrationService>("migrationservice");
-builder.AddProject<Projects.PantryPress_ApiService>("apiservice");
-builder.AddProject<Projects.PantryPress_Site>("site");
-builder.AddProject<Projects.PantryPress_Worker>("worker");
-builder.AddProject<Projects.PantryPress_Gateway>("gateway");
+builder.AddProject<Projects.PantryPress_ApiService>("apiservice").WithHttpHealthCheck("/health");
+builder.AddProject<Projects.PantryPress_Site>("site").WithHttpHealthCheck("/health");
+builder.AddProject<Projects.PantryPress_Worker>("worker").WithHttpHealthCheck("/health");
+builder.AddProject<Projects.PantryPress_Gateway>("gateway").WithHttpHealthCheck("/health");
 
 builder.Build().Run();

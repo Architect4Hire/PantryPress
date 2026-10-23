@@ -185,7 +185,7 @@ with their consumers (PP0.6). The AppHost pins `System.Security.Cryptography.Pkc
 `Microsoft.Data.SqlClient` pulls 10.0.12 (GHSA-2fmv-rv2c-59x7, GHSA-846f-f764-76mx). An `Aspire.Hosting.Testing`
 smoke test (`Category=Integration`, needs Docker) runs the containers ephemeral; model tests need no Docker.
 
-### PP0.5 ServiceDefaults, health, and application clock
+### PP0.5 ServiceDefaults, health, and application clock - done
 
 ```text
 SCOPE: Wire ServiceDefaults into every executable with /health and /alive, and add one injectable clock and
@@ -194,6 +194,17 @@ CONSTRAINT: aspire.md and backend.md.
 RESTRICTION: Liveness never calls SQL, Redis, blob, or providers. No DateTime.UtcNow in feature code.
 BEHAVIOR: Implement with fixed-clock and DST boundary tests and report per-process health behavior.
 ```
+
+*Delivery note (2026-10-23):* ApiService, Site, Gateway, and Worker map `/health` and `/alive`, which short-circuit
+after routing; the AppHost probes `/health` on all four. The Worker moved to the Web SDK so it can answer probes and
+serves nothing else. MigrationService registers ServiceDefaults but exposes no endpoints, because it is one-shot and
+its exit code is its health signal (from PP0.6). Startup fails if any health check other than `self` carries the
+`live` tag. The endpoints stay Development-only, as in the template; production probes on internal ingress are a
+recorded PP19.2 default. `IClock` and `ITimeZoneService` live in `Domain/Managers/Time` (Gateway does not register
+them). Time zones are IANA ids from NodaTime's embedded database, kept internal to `TzdbTimeZoneService`. A skipped
+local time moves forward by the gap and a repeated one takes its first occurrence, recorded as a PP5.16 default.
+`BannedSymbols.txt` (`Microsoft.CodeAnalysis.BannedApiAnalyzers`, every project) makes system clock and server
+time zone APIs build errors; `TimeProvider` stays injectable for timers only.
 
 ### PP0.6 Migration service and DbContext
 

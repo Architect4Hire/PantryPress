@@ -1,0 +1,25 @@
+P:System.DateTime.Now;Inject IClock (backend.md)
+P:System.DateTime.UtcNow;Inject IClock (backend.md)
+P:System.DateTime.Today;Use ITimeZoneService.Today with the site time zone
+P:System.DateTimeOffset.Now;Inject IClock (backend.md)
+P:System.DateTimeOffset.UtcNow;Inject IClock (backend.md)
+P:System.TimeProvider.System;Inject IClock; only AddApplicationClock registers the system provider
+M:System.TimeProvider.GetUtcNow;Inject IClock; TimeProvider is for timers and delays only, and only TimeProviderClock reads it
+M:System.TimeProvider.GetLocalNow;Inject IClock and use ITimeZoneService with the site time zone
+P:System.TimeProvider.LocalTimeZone;The server time zone never matters; use ITimeZoneService with the site time zone
+T:NodaTime.SystemClock;Inject IClock (backend.md)
+T:NodaTime.IClock;Inject PantryPress.Domain.Managers.Time.IClock
+P:NodaTime.DateTimeZoneProviders.Bcl;Use ITimeZoneService (IANA ids, embedded database)
+M:NodaTime.IDateTimeZoneProvider.GetSystemDefault;The server time zone never matters; use ITimeZoneService with the site time zone
+P:System.TimeZoneInfo.Local;The server time zone never matters; use ITimeZoneService with the site time zone
+M:System.TimeZoneInfo.FindSystemTimeZoneById(System.String);Use ITimeZoneService (IANA ids, embedded database)
+M:System.TimeZoneInfo.TryFindSystemTimeZoneById(System.String,System.TimeZoneInfo@);Use ITimeZoneService.IsKnown
+M:System.TimeZoneInfo.GetSystemTimeZones;Use ITimeZoneService (IANA ids, embedded database)
+M:System.TimeZoneInfo.GetSystemTimeZones(System.Boolean);Use ITimeZoneService (IANA ids, embedded database)
+M:System.TimeZoneInfo.ConvertTimeBySystemTimeZoneId(System.DateTime,System.String);Use ITimeZoneService
+M:System.TimeZoneInfo.ConvertTimeBySystemTimeZoneId(System.DateTime,System.String,System.String);Use ITimeZoneService
+M:System.TimeZoneInfo.ConvertTimeBySystemTimeZoneId(System.DateTimeOffset,System.String);Use ITimeZoneService
+M:System.TimeZoneInfo.ConvertTimeToUtc(System.DateTime);Reads the server time zone; use ITimeZoneService.ToUtc
+M:System.DateTime.ToUniversalTime;Reads the server time zone for non-UTC kinds; use ITimeZoneService.ToUtc
+M:System.DateTime.ToLocalTime;Use ITimeZoneService.ToLocal with the site time zone
+M:System.DateTimeOffset.ToLocalTime;Use ITimeZoneService.ToLocal with the site time zone
