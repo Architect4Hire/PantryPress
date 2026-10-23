@@ -9,9 +9,10 @@ TestResults/
 
 # Node and Angular
 node_modules/
-web/dist/
-web/.angular/
-web/coverage/
+src/web/dist/
+src/web/out-tsc/
+src/web/.angular/
+src/web/coverage/
 playwright-report/
 test-results/
 

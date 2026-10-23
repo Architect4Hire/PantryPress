@@ -3,6 +3,8 @@
 `PantryPress.Gateway` serves `app.pantrypress.app`: the admin SPA's static files and `/api/*` proxied to
 `PantryPress.ApiService`.
 
+- In local Development the gateway is the browser's entry point at `app.localhost`; a catch-all route in
+  `appsettings.Development.json` forwards the SPA to the Aspire-hosted admin dev server (PP0.7).
 - Routes are declared in configuration and versioned (`/api/v1/...`). The publishing API is not routed
   through the gateway; it is exposed on its own Front Door route.
 - The gateway owns the session cookie, antiforgery, and header hygiene: strip `X-Forwarded-*` from the

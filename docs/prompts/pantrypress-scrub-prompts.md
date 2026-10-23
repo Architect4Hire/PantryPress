@@ -229,7 +229,7 @@ service applies migrations. The EF SQL Server provider is pinned to 10.0.13 to m
 brings 10.0.12. Known limitation for PP19: `Microsoft.EntityFrameworkCore.Design` copies Roslyn build hosts into
 the migration service output; trim them in the container step.
 
-### PP0.7 Angular 22 workspace
+### PP0.7 Angular 22 workspace - done
 
 ```text
 SCOPE: Scaffold the src/web Angular 22 workspace with three projects: pantrypress-ui (library),
@@ -239,6 +239,52 @@ CONSTRAINT: PP-D07, PP-D08; frontend.md.
 RESTRICTION: No feature screens, no auth, no second CSS framework, no hard-coded service URLs.
 BEHAVIOR: Plan dev and production paths, wait for approval, implement, and build all three projects.
 ```
+
+*Delivery note (2026-10-23):* Angular CLI 22.2.4, plain CSS, selector prefixes `pp` (library), `ppa` (admin),
+`pps` (site). Angular 22 is zoneless and OnPush by default; `strict`, `strictTemplates`, and `strictStandalone`
+are set explicitly and ESLint (angular-eslint 22) enforces OnPush, standalone, and no `any`. `@pantrypress/ui`
+has two entry points, `@pantrypress/ui` and `@pantrypress/ui/themes` (empty; filled from PP3.2 and PP7.4), which
+apps resolve from source through `paths`; `ng build pantrypress-ui` packages both. ESLint bans crossing them by
+package name and relative path, and `eslint.ssr-safety.js` bans `window`, `document`, web storage, timers,
+`Math.random`, `Date.now`, and `new Date()` in the site and the themes entry point. The site uses
+`RenderMode.Server` for every route (no prerendering), `withIncrementalHydration()` (ADR 0008), and a root of
+only `<router-outlet />` so layouts own landmarks; `server.ts` keeps the generated Node app engine without the
+example API block. With owner approval the dev path changed from a dev-server proxy to YARP: in local
+Development the gateway is the entry point at `app.localhost` and a catch-all route (`Order` 1000, in
+`appsettings.Development.json`) forwards to the `admin` resource (`AddJavaScriptApp`, `npm run start:admin --
+--port {aspire port}`) through service discovery. The admin resource exists only in run mode in Development, so
+publishing has none; it waits for migrations, and the gateway references it without waiting, so an admin compile
+error never blocks the gateway. Aspire's installer runs `npm install` (not `npm ci`, which would wipe
+`node_modules` on every run). `Yarp.ReverseProxy` 2.3.0 is pinned explicitly. `package.json` overrides
+`@angular/build`'s exact `vite` 8.3.0 to 8.3.5 for GHSA-9jrq-w75r-8gcw (high, dev server); remove the override
+when `@angular/build` ships 8.3.3 or later. Production: `ng build pantrypress-admin` emits static files for the
+gateway to serve (PP1.5/PP19); `ng build pantrypress-site` emits `browser/` and `server/server.mjs` for the Node
+server (AppHost PP7.2a, container PP19). Recorded for later prompts:
+
+- **PP7.2a/PP9.3:** Angular SSR rejects any Host not in `security.allowedHosts` with a 400 (no client-side
+  fallback). Development allows `localhost` and `*.localhost`; production is empty, so a production build
+  serves nothing until host validation moves to Front Door plus `SiteHost` (`allowedHosts: ['*']` and
+  `trustProxyHeaders` behind the `X-Azure-FDID` check, with two-site host-header tests). `NG_ALLOWED_HOSTS` was
+  used only to smoke-test the production build.
+- **PP7.2:** no `npm run budget` yet (CLAUDE.md lists it); Angular's default budgets are far above RND-007.
+  Production critical-CSS inlining and event replay add inline scripts; decide `autoCsp` or
+  `inlineCritical: false` with PP9.6.
+- **PP7.2a/PP7.13a/PP19:** `server.ts` caches all static files for a year (including unhashed ones and
+  `index.csr.html`) and falls through to Express's default 404 and error handler; `/health` and `/alive` on the
+  SSR server would shadow blogger slugs; `lang` and favicon in `index.html` must come from page data (PP7.5, PP11).
+- **PP1.5:** unmatched `/api/...` paths currently fall through to the SPA with 200; map `/api/{**rest}` to
+  ApiService at a lower `Order` and test for a problem-details 404.
+- **PP1.6/PP1.7:** the gateway runs on its `http` profile under Aspire; decide dev HTTPS before `__Host-`
+  cookie tests, strip `Cookie` on the `admin-spa` route, and keep YARP's destination Host on that route (the
+  Angular dev server rejects foreign hosts).
+- `MigrationServiceTests` lists dependents by hand; a new resource can skip the migration wait unnoticed.
+
+Verification: `npm run build` (all three), `npm run lint`, `npm test` (Vitest, 3 suites), `npm run
+format:check`, `npm audit` (0), lint probes for every boundary and SSR rule, SSR smoke test (200 with
+`ng-server-context="ssr"`; foreign host 400), `dotnet build`, `dotnet test` (73 passed, including integration
+tests that reach the admin app through the gateway with `Host: app.localhost`), `dotnet format
+--verify-no-changes`, and `aspire run` with `admin` and `gateway` healthy and the HMR websocket upgrading through
+YARP. Reviewers: architecture-reviewer and public-site-reviewer; findings fixed or recorded above.
 
 ### PP0.8 First complete local run
 

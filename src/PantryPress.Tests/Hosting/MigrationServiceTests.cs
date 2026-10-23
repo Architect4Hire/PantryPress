@@ -8,7 +8,7 @@ namespace PantryPress.Tests.Hosting;
 // finish cleanly (aspire.md, OPS-003).
 public sealed class MigrationServiceTests
 {
-    private static readonly string[] Dependents = ["apiservice", "site", "worker", "gateway"];
+    private static readonly string[] Dependents = ["apiservice", "site", "worker", "gateway", "admin"];
 
     [Fact]
     public async Task Migration_service_references_and_waits_for_the_database()

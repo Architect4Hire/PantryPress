@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // PantryPress's own data resources (PP-D16): nothing here is shared with CreatorPantry. Volume names carry the
@@ -51,8 +53,40 @@ builder.AddProject<Projects.PantryPress_Site>("site")
 builder.AddProject<Projects.PantryPress_Worker>("worker")
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
-builder.AddProject<Projects.PantryPress_Gateway>("gateway")
+var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
     .WithHttpHealthCheck("/health")
-    .WaitForCompletion(migrations);
+    .WaitForCompletion(migrations)
+    .WithUrls(context =>
+    {
+        // Browsers resolve *.localhost to loopback, so the admin app opens at app.localhost (SITE-009).
+        foreach (var url in context.Urls)
+        {
+            url.Url = new UriBuilder(url.Url) { Host = "app.localhost" }.Uri.ToString();
+        }
+    });
+
+// The admin SPA's dev server (PP-D08: client-rendered). Browsers are meant to reach it through the gateway's catch-all
+// YARP route, so cookies and antiforgery behave as they will in production. That route lives in the gateway's
+// appsettings.Development.json and names this resource ("admin"), so both exist only in local Development runs: in
+// production the gateway serves the built files, and publishing must not produce an admin container. The gateway does
+// not wait for the dev server, so an admin compile error never blocks the gateway's own routes.
+if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
+{
+    var admin = builder.AddJavaScriptApp("admin", "../web", "start:admin")
+        .WithHttpEndpoint()
+        .WithEnvironment("NG_CLI_ANALYTICS", "false")
+        .WithHttpHealthCheck("/")
+        .WaitForCompletion(migrations)
+        .WithUrlForEndpoint("http", url => url.DisplayLocation = UrlDisplayLocation.DetailsOnly);
+    admin.WithArgs(context =>
+    {
+        // npm needs the separator to hand --port to ng serve rather than read it as its own option.
+        context.Args.Add("--");
+        context.Args.Add("--port");
+        context.Args.Add(admin.GetEndpoint("http").Property(EndpointProperty.TargetPort));
+    });
+
+    gateway.WithReference(admin);
+}
 
 builder.Build().Run();

@@ -70,7 +70,7 @@ CLAUDE.md           the constitution Claude Code follows
 
 ## Getting started
 
-Prerequisites: .NET 10 SDK, Node.js LTS with npm, a Docker-compatible runtime, the Aspire CLI, and Claude
+Prerequisites: .NET 10 SDK, Node.js 24 LTS with npm, a Docker-compatible runtime, the Aspire CLI, and Claude
 Code.
 
 Before any code exists:

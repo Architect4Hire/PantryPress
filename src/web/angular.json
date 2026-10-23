@@ -1,0 +1,202 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm"
+  },
+  "newProjectRoot": "projects",
+  "schematics": {
+    "@schematics/angular:component": {
+      "changeDetection": "OnPush"
+    }
+  },
+  "projects": {
+    "pantrypress-admin": {
+      "projectType": "application",
+      "root": "projects/pantrypress-admin",
+      "sourceRoot": "projects/pantrypress-admin/src",
+      "prefix": "ppa",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/pantrypress-admin/src/main.ts",
+            "tsConfig": "projects/pantrypress-admin/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/pantrypress-admin/public"
+              }
+            ],
+            "styles": ["projects/pantrypress-admin/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "pantrypress-admin:build:production"
+            },
+            "development": {
+              "buildTarget": "pantrypress-admin:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/pantrypress-admin/**/*.ts",
+              "projects/pantrypress-admin/**/*.html"
+            ],
+            "eslintConfig": "projects/pantrypress-admin/eslint.config.js"
+          }
+        }
+      }
+    },
+    "pantrypress-site": {
+      "projectType": "application",
+      "root": "projects/pantrypress-site",
+      "sourceRoot": "projects/pantrypress-site/src",
+      "prefix": "pps",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/pantrypress-site/src/main.ts",
+            "tsConfig": "projects/pantrypress-site/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/pantrypress-site/public"
+              }
+            ],
+            "styles": ["projects/pantrypress-site/src/styles.css"],
+            "server": "projects/pantrypress-site/src/main.server.ts",
+            "outputMode": "server",
+            "security": {
+              "allowedHosts": []
+            },
+            "ssr": {
+              "entry": "projects/pantrypress-site/src/server.ts"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "security": {
+                "allowedHosts": ["localhost", "*.localhost"]
+              }
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "pantrypress-site:build:production"
+            },
+            "development": {
+              "buildTarget": "pantrypress-site:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/pantrypress-site/**/*.ts",
+              "projects/pantrypress-site/**/*.html"
+            ],
+            "eslintConfig": "projects/pantrypress-site/eslint.config.js"
+          }
+        }
+      }
+    },
+    "pantrypress-ui": {
+      "projectType": "library",
+      "root": "projects/pantrypress-ui",
+      "sourceRoot": "projects/pantrypress-ui/src",
+      "prefix": "pp",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/pantrypress-ui/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/pantrypress-ui/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/pantrypress-ui/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/pantrypress-ui/**/*.ts",
+              "projects/pantrypress-ui/**/*.html"
+            ],
+            "eslintConfig": "projects/pantrypress-ui/eslint.config.js"
+          }
+        }
+      }
+    }
+  }
+}
