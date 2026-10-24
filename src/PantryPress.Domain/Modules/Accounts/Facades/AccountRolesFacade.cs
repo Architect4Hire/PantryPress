@@ -1,5 +1,6 @@
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
 using PantryPress.Domain.Modules.Accounts.Repositories;
@@ -52,6 +53,11 @@ internal sealed class AccountRolesFacade(AccountRolesDataLayer data, IAuditLog a
             return AccountErrors.AccountNotFound;
         }
 
+        if (grant && !PlatformRoleRules.MayBeGranted(user.EmailConfirmed))
+        {
+            return AccountErrors.EmailNotVerified;
+        }
+
         // Checked before anything is staged, so a refused entry can never leave a role change waiting on the context.
         var auditEvent = new AuditEvent(
             grant ? AccountAudit.PlatformAdminGranted : AccountAudit.PlatformAdminRevoked,
@@ -60,10 +66,8 @@ internal sealed class AccountRolesFacade(AccountRolesDataLayer data, IAuditLog a
             reason);
         AuditRules.EnsureValid(auditEvent, siteId: null);
 
-        if (await data.IsInRoleAsync(user, AccountRoles.PlatformAdmin) == grant)
+        if (PlatformRoleRules.IsNoChange(await data.IsInRoleAsync(user, AccountRoles.PlatformAdmin), grant))
         {
-            // Already as asked. Nothing is saved and the security stamp stays put, so a repeated run of the operator's
-            // list never ends anyone's sessions.
             return false;
         }
 

@@ -10,8 +10,8 @@ namespace PantryPress.Gateway.Hosting;
 /// <summary>
 /// What the API is told about the caller, and what it is never told (ACCT-002; PP1.6, gateway.md). On every request
 /// forwarded to the admin API this strips anything a client sent that could pass for the gateway's own voice, drops
-/// the session cookie - the API has no use for cookies and must never receive this one - and, for a complete session,
-/// adds the account, its security stamp, and the gateway's secret. A half-finished sign-in is refused here rather
+/// the session cookie - the API has no use for cookies and must never receive this one - adds the gateway's secret to
+/// every request, and for a complete session adds the account, its security stamp, and the session's id (PP1.12). A half-finished sign-in is refused here rather
 /// than forwarded, so a right password alone reaches nothing but the second-step route.
 /// </summary>
 internal static class SessionIdentity
@@ -57,15 +57,24 @@ internal static class SessionIdentity
                 return;
             }
 
+            // The gateway vouches for everything it forwards to the admin API, signed in or not. ApiService believes
+            // the browser's address only behind this secret (PP1.8), so without it every anonymous route - sign-up,
+            // confirming an address, password reset - would be limited by the gateway's own address: one allowance
+            // shared by everyone, which one caller could spend (PP1.12). The secret names nobody; an identity needs
+            // the account and stamp below as well.
+            var secret = context.RequestServices.GetRequiredService<IOptions<GatewaySessionOptions>>().Value;
+            context.Request.Headers[SessionHeaders.Secret] = secret.SharedSecret;
+            context.Request.Headers[SessionHeaders.ViaProxy] = SessionHeaders.ViaProxyValue;
+
             if (SessionCookie.TryGetAccount(complete.Principal, out var account)
-                && SessionCookie.Stamp(complete.Principal!) is { Length: > 0 } stamp)
+                && SessionCookie.Stamp(complete.Principal!) is { Length: > 0 } stamp
+                && SessionCookie.SessionId(complete.Principal!) is { Length: > 0 } sessionId)
             {
                 var user = complete.Principal!;
                 context.User = user;
-                var secret = context.RequestServices.GetRequiredService<IOptions<GatewaySessionOptions>>().Value;
-                context.Request.Headers[SessionHeaders.Secret] = secret.SharedSecret;
                 context.Request.Headers[SessionHeaders.Account] = account.ToString("D");
                 context.Request.Headers[SessionHeaders.Stamp] = stamp;
+                context.Request.Headers[SessionHeaders.SessionId] = sessionId;
                 if (SessionCookie.Has(user, SessionClaims.SecondFactorVerified))
                 {
                     context.Request.Headers[SessionHeaders.SecondFactor] = SessionHeaders.True;
@@ -101,6 +110,10 @@ internal static class SessionIdentity
                 StringComparer.OrdinalIgnoreCase);
             var ended = owned[SessionHeaders.Ended];
             var newStamp = owned[SessionHeaders.NewStamp];
+            var passedSecondStep = string.Equals(
+                owned[SessionHeaders.SecondStepPassed],
+                SessionHeaders.SecondStepPassedValue,
+                StringComparison.Ordinal);
 
             if (string.Equals(ended, SessionHeaders.EndedValue, StringComparison.Ordinal))
             {
@@ -117,7 +130,7 @@ internal static class SessionIdentity
             {
                 await transform.HttpContext.SignInAsync(
                     SessionSchemes.Complete,
-                    SessionCookie.WithStamp(user, stamp),
+                    SessionCookie.WithStamp(user, stamp, passedSecondStep),
                     SessionCookie.Properties());
             }
         });

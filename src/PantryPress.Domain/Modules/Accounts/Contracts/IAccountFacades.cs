@@ -37,7 +37,10 @@ public interface ITwoFactorFacade
 {
     Task<Result<TwoFactorStatus>> GetStatusAsync(AccountId account, CancellationToken cancellationToken);
 
-    /// <summary>Makes a new shared key for the authenticator app. Refused while two-step sign-in is on.</summary>
+    /// <summary>
+    /// Makes a new shared key for the authenticator app. Refused while two-step sign-in is on, and with
+    /// <see cref="AccountErrors.EmailNotVerified"/> until the address is confirmed (PP1.12), as is turning it on.
+    /// </summary>
     Task<Result<AuthenticatorSetup>> BeginSetupAsync(AccountId account, CancellationToken cancellationToken);
 
     /// <summary>Turns two-step sign-in on once the app shows a valid code, and returns the first recovery codes.</summary>
@@ -102,15 +105,31 @@ public interface ISessionFacade
 
     /// <summary>
     /// Who this session belongs to, or null when there is no session to speak of: the account is gone, its security
-    /// stamp has moved on - which is what ends the account's other sessions - or the account has two-step sign-in and
+    /// stamp has moved on - which is what ends the account's other sessions - the session was signed out
+    /// (<paramref name="sessionId"/>, PP1.12), or the account has two-step sign-in and
     /// <paramref name="secondFactorVerified"/> says this session never passed it. Called on every forwarded request,
-    /// so it stays one keyed read.
+    /// so it stays a few keyed reads: the account, whether the session was signed out, and the account's roles.
     /// </summary>
     Task<SessionIdentity?> ResolveAsync(
         AccountId account,
         string securityStamp,
+        string sessionId,
         bool secondFactorVerified,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The current session as the gateway's <c>GET /session</c> reports it (PP1.12): what the database says now, not
+    /// what the cookie said at sign-in. <see cref="AccountErrors.SessionEnded"/> for a session that
+    /// <see cref="ResolveAsync"/> would refuse.
+    /// </summary>
+    Task<Result<CurrentSession>> CurrentAsync(CurrentSessionRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Signs one session out for good (PP1.12): its id is remembered until no ticket carrying it can still be alive,
+    /// so the cookie is refused from then on wherever it comes from. The account's other sessions carry on. Signing
+    /// out a session that is already signed out succeeds.
+    /// </summary>
+    Task<Result> EndAsync(EndSessionRequest request, CancellationToken cancellationToken);
 
     /// <summary>
     /// The account's current security stamp, or null when the account is gone. A request that rotated the stamp -
@@ -118,4 +137,13 @@ public interface ISessionFacade
     /// carries on while the account's other sessions end.
     /// </summary>
     Task<string?> CurrentStampAsync(AccountId account, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Housekeeping the Worker runs for the Accounts module (PP1.12): forgetting sign-outs that no session can outlive.
+/// </summary>
+public interface IAccountMaintenance
+{
+    /// <summary>Deletes up to <paramref name="batchSize"/> expired sign-outs and returns how many it deleted.</summary>
+    Task<int> PurgeExpiredSessionRevocationsAsync(int batchSize, CancellationToken cancellationToken);
 }

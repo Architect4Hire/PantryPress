@@ -45,8 +45,17 @@
   no rules: it relays the API's problem document for a refusal a person is meant to read, and answers its own 502 for
   anything else. A half-finished session is refused here, never forwarded.
 - On every request forwarded to the admin API the gateway removes the client's `X-PP-*` headers and the `Cookie`
-  header, then adds the account, the session's security stamp, and its shared secret. The whole identity layer keys on
-  the `api-v1` route id, so the host refuses to start when configuration has no such route.
+  header, then adds its shared secret - to every one, signed in or not, because ApiService believes the browser's address
+  only behind it and its per-address limits on sign-up and password reset depend on that (PP1.12) - and, for a complete
+  session, the account, the session's security stamp, and the session's id. The whole identity layer keys on the
+  `api-v1` route id, so the host refuses to start when configuration has no such route.
+- `GET /session` asks ApiService (`sessions/current`) whether a complete session still stands rather than reading its own
+  cookie, and clears the cookie on `session-ended`; `DELETE /session` revokes the session at ApiService (`sessions/end`)
+  before clearing the cookies, and still clears them if the API cannot be asked. A sign-in that can no longer be finished
+  (`sign-in-expired`) takes its half-finished cookie with it. An unreachable or slow API is the gateway's own 502, never
+  an unhandled fault (PP1.12). Every session route declares each status it can answer.
+- The gateway has no Domain reference, so `GatewayClock` is its one reader of `TimeProvider`, the counterpart of the
+  Domain's `IClock`; the cookie handlers read the same provider.
 - CORS is closed: same-origin only, a default policy that allows no origin, so a preflight is answered by the gateway
   with no `Access-Control-Allow-*` header and is never forwarded. A state-changing request whose `Origin` is not this
   exact scheme, host, and port - or is opaque - is refused: 403, `cross-origin-blocked`.
@@ -61,7 +70,15 @@
 - Rate limits per address on the two sign-in routes (`Gateway:SessionPerIpPerMinute`, default 20), which is what the
   trusted-proxy step was owed for: before it, partitioning by address would have put every request behind Front
   Door's own address in one bucket. ApiService keeps a global ceiling behind that as a backstop, and partitions its
-  anonymous account routes by the address the gateway vouches for.
+  anonymous account routes by the address the gateway vouches for. The current-session read and sign-out each ask the
+  API too, so they are limited per address as well (`Gateway:SessionChecksPerIpPerMinute`, default 120), and on
+  ApiService they have a ceiling of their own, never the sign-in one: page loads must not crowd out sign-in, nor a busy
+  minute refuse a sign-out (PP1.12). A 429 from that backstop is relayed with its `Retry-After`.
+- Every request the proxy forwards carries `X-PP-Via: proxy`, and ApiService's internal surface refuses a request that
+  carries it, so nothing forwarded can reach that surface whatever a route mistake might let through; only the
+  gateway's session client, which never sets it, can (PP1.12). A route that turns two-step sign-in on answers with
+  `X-PP-Second-Step: passed` beside its new stamp, and the gateway re-issues the caller's cookie with the second-step
+  claim, since the request itself gave a valid code.
 - The gateway does no business logic and no database access.
 - Health checks come from ServiceDefaults; the gateway reports API reachability in `/health` - any HTTP answer
   counts as reachable, unreachable is degraded rather than unhealthy, and `/alive` never calls the API.

@@ -5,11 +5,13 @@ using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Email;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -17,6 +19,7 @@ using PantryPress.Domain.Modules.Accounts.DataLayer;
 using PantryPress.MigrationService;
 using PantryPress.Tests.Fakes;
 using PantryPress.Tests.Hosting;
+using PantryPress.Worker.Outbox;
 
 namespace PantryPress.Tests.Api;
 
@@ -28,7 +31,9 @@ public sealed class AccountApiCollection : ICollectionFixture<AccountApiFixture>
 
 // One ephemeral AppHost for every account API test: the migration service builds the schema in a SQL container, then
 // ApiService runs in memory against it with recorded email and a clock the tests move. Tests share the database, so
-// each one works with its own fresh account.
+// each one works with its own fresh account. Account email goes through the outbox (PP1.10b): the API host here also
+// carries the Worker's processor and the real email handler, and a test delivers what was staged when it asks for an
+// email, so nothing depends on a Worker's timing.
 public sealed partial class AccountApiFixture : IAsyncLifetime
 {
     public const string FirstPassphrase = "a long kitchen phrase";
@@ -70,7 +75,6 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:pantrypress"] = connectionString,
-            ["Accounts:AppBaseUrl"] = "https://app.localhost",
             ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
             ["RateLimits:AnonymousAccountPerIpPerMinute"] = "100000",
             ["RateLimits:SignedInAccountPerMinute"] = "100000",
@@ -82,6 +86,16 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
             services.AddSingleton<IEmailGateway>(Email);
             services.Replace(ServiceDescriptor.Singleton<TimeProvider>(Time));
             services.Replace(ServiceDescriptor.Singleton<IDataProtectionProvider>(_keys));
+
+            // The Worker's half of account email, in this host: the handler that sends it and the processor that
+            // delivers the outbox (PP1.10b).
+            var accounts = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://app.localhost" })
+                .Build();
+            services.AddAccountEmailDelivery(accounts);
+            services.AddOutboxStore(new ConfigurationBuilder().Build());
+            services.TryAddSingleton<OutboxMetrics>();
+            services.TryAddSingleton<OutboxProcessor>();
         }
 
         Api = new ApiServiceFactory("Testing", settings, Configure);
@@ -120,20 +134,22 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     internal DateTimeOffset Now => Api.Services.GetRequiredService<IClock>().UtcNow;
 
     /// <summary>
-    /// A client that sends what the gateway sends for a complete session: the secret, the account, and the security
-    /// stamp the session is bound to. <paramref name="secret"/> and <paramref name="stamp"/> are overridable so a test
+    /// A client that sends what the gateway sends for a complete session: the secret, the account, the security stamp
+    /// the session is bound to, and the session's id (PP1.12). <paramref name="secret"/> and <paramref name="stamp"/> are overridable so a test
     /// can forge either one.
     /// </summary>
     internal HttpClient ForwardedClient(
         AccountId account,
         string stamp,
         bool secondFactorVerified = false,
-        string? secret = null)
+        string? secret = null,
+        string? sessionId = null)
     {
         var client = Forwarded.CreateClient();
         client.DefaultRequestHeaders.Add("X-PP-Gateway", secret ?? TestSecrets.GatewaySecret);
         client.DefaultRequestHeaders.Add("X-PP-Account", account.ToString());
         client.DefaultRequestHeaders.Add("X-PP-Stamp", stamp);
+        client.DefaultRequestHeaders.Add("X-PP-Sid", sessionId ?? NewSessionId());
         if (secondFactorVerified)
         {
             client.DefaultRequestHeaders.Add("X-PP-Mfa", "true");
@@ -163,6 +179,9 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
 
     internal static string NewEmail() => $"cook-{Guid.NewGuid():N}@example.test";
 
+    /// <summary>A session id in the shape the gateway mints (PP1.12): base64url, fresh each time.</summary>
+    internal static string NewSessionId() => Guid.NewGuid().ToString("N");
+
     /// <summary>Signs up through the API with <see cref="FirstPassphrase"/> and returns the account id.</summary>
     internal async Task<AccountId> RegisterAsync(string email)
     {
@@ -188,14 +207,15 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Waits until everything queued so far has been sent: the queue has one reader, so once a marker queued now is
-    /// sent, so is every earlier message. Assertions that an email was not sent come after this.
+    /// Delivers everything staged in the outbox so far, as the Worker would (PP1.10b). Assertions that an email was not
+    /// sent come after this.
     /// </summary>
     internal async Task DrainEmailAsync()
     {
-        var marker = new EmailMessage(Guid.NewGuid(), $"drain-{Guid.NewGuid():N}@example.test", "drain", "drain");
-        Api.Services.GetRequiredService<IEmailQueue>().Enqueue(marker);
-        await WaitForAsync(() => Email.Sent.Any(m => m.Id == marker.Id));
+        var processor = Api.Services.GetRequiredService<OutboxProcessor>();
+        while (await processor.RunOnceAsync(_timeout.Token) > 0)
+        {
+        }
     }
 
     internal IReadOnlyList<EmailMessage> EmailsTo(string email) => [.. Email.Sent.Where(m => m.To == email)];
@@ -229,15 +249,6 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
     {
         await using var scope = Api.Services.CreateAsyncScope();
         return await work(scope.ServiceProvider.GetRequiredService<TService>());
-    }
-
-    private static async Task WaitForAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        while (!condition())
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), timeout.Token);
-        }
     }
 
     [GeneratedRegex(@"https://app\.localhost/(?<page>[a-z-]+)#account=(?<account>[0-9a-f-]{36})&token=(?<token>[A-Za-z0-9%_.~-]+)")]

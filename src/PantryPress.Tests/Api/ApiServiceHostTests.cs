@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -145,11 +146,31 @@ public sealed class ApiServiceHostTests
         }
 
         // 413, 429, and 500 are the three any route can answer, declared globally (ApiHttp): a body over the cap
-        // since PP1.8, a rate limit, and a fault.
-        Assert.Equal(["202", "400", "413", "429", "500"], Statuses(operations["POST /api/v1/account/register"]));
-        Assert.Equal(["204", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/password/change"]));
-        Assert.Equal(["200", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/enable"]));
-        Assert.Equal(["204", "400", "401", "404", "409", "413", "429", "500"], Statuses(operations["POST /api/v1/account/two-factor/disable"]));
+        // since PP1.8, a rate limit, and a fault. The admin app reaches these routes only through the gateway, so the
+        // gateway's own answers are declared too (PP1.12): 401 for a half-finished or ended session, 400 and 403 from
+        // its antiforgery and same-origin checks on a write, and 502 and 504 when the service cannot be reached.
+        Assert.Equal(["202", "400", "401", "403", "413", "415", "429", "500", "502", "504"], Statuses(operations["POST /api/v1/account/register"]));
+        Assert.Equal(["204", "400", "401", "403", "404", "409", "413", "415", "429", "500", "502", "504"], Statuses(operations["POST /api/v1/account/password/change"]));
+        Assert.Equal(["200", "400", "401", "403", "404", "409", "413", "415", "429", "500", "502", "504"], Statuses(operations["POST /api/v1/account/two-factor/enable"]));
+        Assert.Equal(["204", "400", "401", "403", "404", "409", "413", "415", "429", "500", "502", "504"], Statuses(operations["POST /api/v1/account/two-factor/disable"]));
+        Assert.Equal(["200", "401", "404", "413", "429", "500", "502", "504"], Statuses(operations["GET /api/v1/account/two-factor"]));
+
+        // A status the route declares keeps its own meaning and gains the gateway's; the 401 says what it can mean on
+        // that route, signed in or not.
+        string Description(string route, string status) =>
+            operations[route].GetProperty("responses").GetProperty(status).GetProperty("description").GetString() ?? string.Empty;
+        Assert.Contains("antiforgery-failed", Description("POST /api/v1/account/register", "400"), StringComparison.Ordinal);
+        Assert.Contains("cross-origin-blocked", Description("POST /api/v1/account/two-factor/enable", "403"), StringComparison.Ordinal);
+        Assert.Contains("session-ended", Description("POST /api/v1/account/password/change", "401"), StringComparison.Ordinal);
+        Assert.Contains("second-factor-required", Description("POST /api/v1/account/password/change", "401"), StringComparison.Ordinal);
+        Assert.DoesNotContain("session-ended", Description("POST /api/v1/account/register", "401"), StringComparison.Ordinal);
+        Assert.Contains("second-factor-required", Description("POST /api/v1/account/register", "401"), StringComparison.Ordinal);
+
+        // What a retry after a lost answer gets, on the writes that cannot simply be repeated (PP1.12).
+        foreach (var route in new[] { "POST /api/v1/account/password/reset", "POST /api/v1/account/password/change", "POST /api/v1/account/two-factor/enable", "POST /api/v1/account/two-factor/disable" })
+        {
+            Assert.Contains("retry", operations[route].GetProperty("description").GetString(), StringComparison.Ordinal);
+        }
 
         var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
         foreach (var name in new[] { "ProblemDetails", "ValidationProblemDetails" })
@@ -157,6 +178,11 @@ public sealed class ApiServiceHostTests
             Assert.Equal("string", schemas.GetProperty(name).GetProperty("properties").GetProperty("code").GetProperty("type").GetString());
             Assert.Contains("code", schemas.GetProperty(name).GetProperty("required").EnumerateArray().Select(e => e.GetString()));
         }
+
+        // A declared 400 is a validation problem or a plain refusal, so the field messages are optional (PP1.12).
+        Assert.DoesNotContain(
+            "errors",
+            schemas.GetProperty("ValidationProblemDetails").GetProperty("required").EnumerateArray().Select(e => e.GetString()));
     }
 
     [Fact]
@@ -177,23 +203,16 @@ public sealed class ApiServiceHostTests
         [.. operation.GetProperty("responses").EnumerateObject().Select(r => r.Name).Order(StringComparer.Ordinal)];
 
     [Fact]
-    public async Task Outside_Development_the_host_refuses_to_start_without_an_email_provider()
+    public async Task Outside_Development_the_api_starts_with_no_email_provider_and_no_link_origin()
     {
-        await using var api = ApiServiceFactory.WithoutDatabase("Production");
-
-        var error = await Assert.ThrowsAnyAsync<Exception>(async () => { _ = api.Server; await Task.CompletedTask; });
-
-        Assert.Contains("IEmailGateway", error.ToString(), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task The_host_refuses_to_start_without_a_valid_admin_app_origin_for_email_links()
-    {
+        // Account email is staged in the outbox and sent by the Worker (PP1.10b): this host sends none itself, so the
+        // refusals PP1.2 gave it - no provider, no link origin - are the Worker's now (AccountEmailDeliveryTests).
         await using var api = ApiServiceFactory.WithoutDatabase(
-            extraSettings: new Dictionary<string, string?> { ["Accounts:AppBaseUrl"] = "http://app.pantrypress.app" });
+            "Production",
+            extraSettings: new Dictionary<string, string?> { ["Accounts:AppBaseUrl"] = null });
 
-        var error = await Assert.ThrowsAnyAsync<OptionsValidationException>(async () => { _ = api.Server; await Task.CompletedTask; });
+        _ = api.Server;
 
-        Assert.Contains("AppBaseUrl", error.Message, StringComparison.Ordinal);
+        Assert.Null(api.Services.GetService<PantryPress.Domain.Managers.Email.IEmailGateway>());
     }
 }

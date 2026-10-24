@@ -131,6 +131,47 @@ public sealed class ForwardedSessionTests(AccountApiFixture fixture)
     }
 
     [Fact]
+    public async Task A_session_that_passed_the_second_step_stops_counting_it_once_two_step_sign_in_is_off()
+    {
+        var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
+        await EnableTwoFactorAsync(account);
+        var passed = await ResolveAsync(account, await fixture.StampAsync(account), secondFactorVerified: true);
+        Assert.True(passed!.SecondFactorVerified);
+
+        using var disabled = await fixture.Client(account).PostAsJsonAsync(
+            $"{TwoFactorStatus}/disable",
+            new ConfirmPasswordRequest(AccountApiFixture.FirstPassphrase));
+        Assert.Equal(HttpStatusCode.NoContent, disabled.StatusCode);
+
+        // The gateway re-issues the caller's cookie against the new stamp and keeps the claim it had; the API no longer
+        // believes it, so an operator who turns two-step sign-in off stops meeting the PlatformAdmin policy (PP1.12).
+        var after = await ResolveAsync(account, await fixture.StampAsync(account), secondFactorVerified: true);
+        Assert.NotNull(after);
+        Assert.False(after.SecondFactorVerified);
+    }
+
+    [Fact]
+    public async Task Turning_two_step_sign_in_on_tells_the_gateway_the_second_step_was_passed()
+    {
+        var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
+        using var setup = await fixture.ForwardedClient(account, await fixture.StampAsync(account)).PostAsync($"{TwoFactorStatus}/setup", null);
+        var key = (await setup.Content.ReadFromJsonAsync<AuthenticatorSetup>())!.SharedKey;
+        var stamp = await fixture.StampAsync(account);
+
+        using var enabled = await fixture.ForwardedClient(account, stamp).PostAsJsonAsync(
+            $"{TwoFactorStatus}/enable",
+            new EnableTwoFactorRequest(Totp.Compute(Base32.Decode(key), Totp.StepAt(fixture.Now))));
+
+        Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
+        var newStamp = Assert.Single(enabled.Headers.GetValues("X-PP-New-Stamp"));
+        Assert.Equal("passed", Assert.Single(enabled.Headers.GetValues("X-PP-Second-Step")));
+
+        // And the session re-issued against both may act.
+        using var next = await fixture.ForwardedClient(account, newStamp, secondFactorVerified: true).GetAsync(TwoFactorStatus);
+        Assert.Equal(HttpStatusCode.OK, next.StatusCode);
+    }
+
+    [Fact]
     public async Task Platform_roles_are_read_from_the_database_for_every_request()
     {
         var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
@@ -147,9 +188,9 @@ public sealed class ForwardedSessionTests(AccountApiFixture fixture)
         Assert.Equal(AccountRoles.PlatformAdmin, Assert.Single(withRole!.Roles));
     }
 
-    private Task<SessionIdentity?> ResolveAsync(AccountId account, string stamp) =>
+    private Task<SessionIdentity?> ResolveAsync(AccountId account, string stamp, bool secondFactorVerified = false) =>
         fixture.WithServiceAsync<ISessionFacade, SessionIdentity?>(
-            sessions => sessions.ResolveAsync(account, stamp, secondFactorVerified: false, CancellationToken.None));
+            sessions => sessions.ResolveAsync(account, stamp, AccountApiFixture.NewSessionId(), secondFactorVerified, CancellationToken.None));
 
     private async Task EnableTwoFactorAsync(AccountId account)
     {

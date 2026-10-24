@@ -423,6 +423,31 @@ namespace PantryPress.MigrationService.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Accounts.RevokedSession", b =>
+                {
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("SessionId");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_RevokedSessions_ExpiresAt");
+
+                    b.ToTable("RevokedSessions", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)

@@ -10,6 +10,8 @@ namespace PantryPress.Tests.Persistence;
 // on Microsoft.Extensions.Identity.Stores and EF Core Relational, and it maps the Identity tables (ACCT-001).
 // PP1.2: the data protection abstractions (interfaces only, no web framework) let Accounts protect link tokens and
 // authenticator keys; each host configures the key ring.
+// PP1.10b: background work is the Worker's, through the outbox, so Domain hosts nothing - no BackgroundService, no
+// hosted service - and references no Microsoft.Extensions.Hosting at all.
 public sealed class DomainBoundaryTests
 {
     private static readonly string[] ForbiddenPrefixes =
@@ -17,6 +19,7 @@ public sealed class DomainBoundaryTests
         "Microsoft.EntityFrameworkCore.SqlServer",
         "Microsoft.Data.SqlClient",
         "Microsoft.AspNetCore",
+        "Microsoft.Extensions.Hosting",
         "Aspire",
         "PantryPress.",
     ];
@@ -34,6 +37,16 @@ public sealed class DomainBoundaryTests
     private static readonly Dictionary<string, string[]> AllowedModuleEdges = new(StringComparer.Ordinal)
     {
         ["Platform"] = ["Accounts"],
+    };
+
+    /// <summary>
+    /// The one file allowed past another module's contracts, and why: a module's composition root registers the
+    /// services it is built on, and Accounts' registration lives at its root. Nothing else in the file may use the
+    /// namespace (PP1.12 closed the gap that let a root reference go unseen).
+    /// </summary>
+    private static readonly Dictionary<string, string> CompositionRoots = new(StringComparer.Ordinal)
+    {
+        ["Platform/PlatformServiceCollectionExtensions.cs"] = "AddAccountRoles, the operator's role registration",
     };
 
     [Fact]
@@ -64,21 +77,39 @@ public sealed class DomainBoundaryTests
             foreach (var file in directory.EnumerateFiles("*.cs", SearchOption.AllDirectories))
             {
                 var source = File.ReadAllText(file.FullName);
+                var relative = Path.GetRelativePath(ModulesDirectory().FullName, file.FullName).Replace('\\', '/');
                 foreach (var other in names.Where(n => n != module))
                 {
-                    foreach (var reference in Regex.Matches(source, $@"Modules\.{other}\.(\w+)").Cast<Match>())
+                    foreach (var segment in ReferencesTo(source, other))
                     {
                         Assert.True(
                             allowed.Contains(other),
                             $"{module} reaches into {other} ({file.Name}), which is not a declared module edge.");
                         Assert.True(
-                            reference.Groups[1].Value == "Contracts",
-                            $"{module} reaches {other}.{reference.Groups[1].Value} ({file.Name}); only Contracts is public.");
+                            segment == "Contracts" || (segment.Length == 0 && CompositionRoots.ContainsKey(relative)),
+                            $"{module} reaches {other}{(segment.Length == 0 ? " at its root" : "." + segment)} ({file.Name}); "
+                            + "only Contracts is public.");
                     }
                 }
             }
         }
     }
+
+    // PP1.12: the scan sees a reference to another module's root namespace as well as to its folders - the first
+    // version needed a segment after the module name, so a using of the bare namespace went unseen.
+    [Theory]
+    [InlineData("using PantryPress.Domain.Modules.Accounts;", "")]
+    [InlineData("using PantryPress.Domain.Modules.Accounts.Contracts;", "Contracts")]
+    [InlineData("var user = new PantryPress.Domain.Modules.Accounts.ApplicationUser();", "ApplicationUser")]
+    [InlineData("global using static PantryPress.Domain.Modules.Accounts.Business.Totp;", "Business")]
+    [InlineData("var code = Accounts.Business.Totp.Compute(key, step);", "Business")]
+    [InlineData("throw new Exception(Accounts.Contracts.AccountErrors.AccountNotFound.Title);", "Contracts")]
+    public void The_scan_sees_every_way_into_another_module(string source, string segment) =>
+        Assert.Equal([segment], ReferencesTo(source, "Accounts"));
+
+    [Fact]
+    public void The_scan_does_not_mistake_a_longer_module_name_for_this_one() =>
+        Assert.Empty(ReferencesTo("using PantryPress.Domain.Modules.AccountsArchive.Contracts;", "Accounts"));
 
     // PP1.10: the outbox table holds every site's messages with no query filter, so only the outbox itself may name it.
     // Modules write through IOutbox and read nothing; an operator view, when PP19 adds one, is a declared exception.
@@ -135,6 +166,14 @@ public sealed class DomainBoundaryTests
 
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
+
+    // The segment after the module's name in each reference to it: "Contracts", a folder or type, or "" for the root.
+    // Written in full (Modules.Accounts...) or relative to the shared parent namespace (Accounts.Business...), which code
+    // in another module's namespace can use without the prefix; the relative form needs a segment, so prose that names a
+    // module is not a reference.
+    private static List<string> ReferencesTo(string source, string module) =>
+        [.. Regex.Matches(source, $@"Modules\.{module}(?![\w])(?:\.(?<seg>\w+))?|(?<![\w.]){module}\.(?<seg>\w+)")
+            .Select(m => m.Groups["seg"].Value)];
 
     private static DirectoryInfo ModulesDirectory([CallerFilePath] string testFile = "") =>
         new(Path.GetFullPath(Path.Combine(

@@ -4,7 +4,9 @@ using FluentValidation;
 using Microsoft.Extensions.Logging;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
+using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
 using PantryPress.Domain.Modules.Accounts.Repositories;
@@ -19,9 +21,12 @@ namespace PantryPress.Domain.Modules.Accounts.Facades;
 /// </summary>
 internal sealed partial class SessionFacade(
     IValidator<SignInRequest> signInValidator,
+    IValidator<CurrentSessionRequest> currentValidator,
+    IValidator<EndSessionRequest> endValidator,
     AccountsDataLayer data,
     ITwoFactorFacade twoFactor,
     IAuditLog audit,
+    IClock clock,
     ILogger<SessionFacade> logger) : ISessionFacade
 {
     public async Task<Result<SessionStart>> SignInAsync(SignInRequest request, CancellationToken cancellationToken)
@@ -39,15 +44,15 @@ internal sealed partial class SessionFacade(
             return AccountErrors.InvalidCredentials;
         }
 
-        if (await data.IsLockedOutAsync(user))
+        if (await AccountGuards.LockedOutAsync(data, clock, user) is { } locked)
         {
-            return AccountErrors.TooManyAttempts;
+            return locked;
         }
 
         if (!await data.CheckPasswordAsync(user, request.Password))
         {
             // Counts toward lockout and is committed straight away, so a failed sign-in still leaves its mark.
-            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCredentials, cancellationToken);
+            return await AccountGuards.FailAsync(data, audit, clock, user, AccountErrors.InvalidCredentials, cancellationToken);
         }
 
         await data.ClearFailedAttemptsAsync(user);
@@ -99,12 +104,20 @@ internal sealed partial class SessionFacade(
     public async Task<SessionIdentity?> ResolveAsync(
         AccountId account,
         string securityStamp,
+        string sessionId,
         bool secondFactorVerified,
         CancellationToken cancellationToken)
     {
         var user = await data.FindAsync(account);
         if (user is null)
         {
+            return null;
+        }
+
+        // Signed out on purpose (PP1.12): this cookie is over, wherever it is presented from.
+        if (await data.IsSessionRevokedAsync(sessionId, cancellationToken))
+        {
+            LogSignedOutSessionUsed(logger, user.Id);
             return null;
         }
 
@@ -118,7 +131,7 @@ internal sealed partial class SessionFacade(
 
         // An account with two-step sign-in may only act on a session that passed it. Turning it on rotates the stamp,
         // so a session from before should already be gone; this is the rule that makes it certain either way.
-        if (user.TwoFactorEnabled && !secondFactorVerified)
+        if (!SessionRules.MayAct(user.TwoFactorEnabled, secondFactorVerified))
         {
             LogSecondStepMissing(logger, user.Id);
             return null;
@@ -129,7 +142,55 @@ internal sealed partial class SessionFacade(
             user.Email!,
             user.EmailConfirmed,
             user.TwoFactorEnabled,
+            SessionRules.PassedSecondStep(user.TwoFactorEnabled, secondFactorVerified),
             await data.GetRolesAsync(user));
+    }
+
+    public async Task<Result<CurrentSession>> CurrentAsync(
+        CurrentSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (await currentValidator.CheckAsync(request, cancellationToken) is { } invalid)
+        {
+            return invalid;
+        }
+
+        var identity = await ResolveAsync(
+            new AccountId(request.AccountId),
+            request.SecurityStamp,
+            request.SessionId,
+            request.SecondFactorVerified,
+            cancellationToken);
+        return identity is null
+            ? AccountErrors.SessionEnded
+            : new CurrentSession(identity.AccountId, identity.Email, identity.EmailVerified, identity.SecondFactorVerified);
+    }
+
+    public async Task<Result> EndAsync(EndSessionRequest request, CancellationToken cancellationToken)
+    {
+        if (await endValidator.CheckAsync(request, cancellationToken) is { } invalid)
+        {
+            return invalid;
+        }
+
+        // Remembered for longer than any session can live, so the cookie is refused for as long as it could be used.
+        var now = clock.UtcNow;
+        var staged = await data.StageRevocationAsync(
+            new RevokedSession
+            {
+                SessionId = request.SessionId,
+                AccountId = request.AccountId,
+                RevokedAt = now,
+                ExpiresAt = now + SessionLimits.RevocationRetention,
+            },
+            cancellationToken);
+        if (staged)
+        {
+            await data.SaveRevocationAsync(request.SessionId, cancellationToken);
+        }
+
+        LogSignedOut(logger, request.AccountId);
+        return Result.Success;
     }
 
     public async Task<string?> CurrentStampAsync(AccountId account, CancellationToken cancellationToken)
@@ -169,6 +230,14 @@ internal sealed partial class SessionFacade(
         Level = LogLevel.Warning,
         Message = "Account {AccountId} holds PlatformAdmin without two-step sign-in, so it cannot reach operator work.")]
     private static partial void LogPlatformAdminWithoutSecondStep(ILogger logger, Guid accountId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "A session for account {AccountId} was signed out.")]
+    private static partial void LogSignedOut(ILogger logger, Guid accountId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A signed-out session for account {AccountId} was presented again; it was refused.")]
+    private static partial void LogSignedOutSessionUsed(ILogger logger, Guid accountId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A session for account {AccountId} ended: its security stamp moved.")]
     private static partial void LogStampMoved(ILogger logger, Guid accountId);

@@ -14,6 +14,136 @@ public sealed class SessionApiTests(AccountApiFixture fixture)
 {
     private const string Credentials = "/api/internal/v1/sessions/credentials";
     private const string SecondFactor = "/api/internal/v1/sessions/second-factor";
+    private const string Current = "/api/internal/v1/sessions/current";
+    private const string End = "/api/internal/v1/sessions/end";
+    private const string SignedInRoute = "/api/v1/account/two-factor";
+
+    [Fact]
+    public async Task A_locked_account_is_told_how_long_to_wait_in_words_and_in_seconds()
+    {
+        // PP1.12: the lockout's 429 carries Retry-After, as the rate limiter's always has, and the gateway relays it.
+        var email = AccountApiFixture.NewEmail();
+        await fixture.RegisterConfirmedAsync(email);
+        for (var i = 0; i < 5; i++)
+        {
+            using var wrong = await Gateway().PostAsJsonAsync(Credentials, new SignInRequest(email, $"wrong passphrase number {i}"));
+        }
+
+        using var locked = await Gateway().PostAsJsonAsync(Credentials, new SignInRequest(email, AccountApiFixture.FirstPassphrase));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, locked.StatusCode);
+        var wait = Assert.NotNull(locked.Headers.RetryAfter?.Delta);
+        Assert.InRange(wait, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(15));
+        using var problem = await AssertProblemAsync(locked, HttpStatusCode.TooManyRequests, "too-many-attempts");
+        Assert.Matches("^Too many tries\\. Wait (a minute|\\d+ minutes), then try again\\.$", problem.RootElement.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task A_signed_out_session_is_refused_wherever_it_is_presented()
+    {
+        // PP1.12: signing out records the session's id, so a copy of the cookie stops working too - while the same
+        // account's other session, with the same stamp, carries on.
+        var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
+        var stamp = await fixture.StampAsync(account);
+        var signedOut = AccountApiFixture.NewSessionId();
+        var other = AccountApiFixture.NewSessionId();
+        using (var before = await fixture.ForwardedClient(account, stamp, sessionId: signedOut).GetAsync(SignedInRoute))
+        {
+            Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        }
+
+        using var ended = await Gateway().PostAsJsonAsync(End, new EndSessionRequest(account.Value, signedOut));
+        using var again = await Gateway().PostAsJsonAsync(End, new EndSessionRequest(account.Value, signedOut));
+
+        Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+        var refused = await fixture.ForwardedClient(account, stamp, sessionId: signedOut).GetAsync(SignedInRoute);
+        Assert.Equal("ended", Assert.Single(refused.Headers.GetValues("X-PP-Session")));
+        await AssertProblemAsync(refused, HttpStatusCode.Unauthorized, "session-ended");
+        using var stillOn = await fixture.ForwardedClient(account, stamp, sessionId: other).GetAsync(SignedInRoute);
+        Assert.Equal(HttpStatusCode.OK, stillOn.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_request_without_a_session_id_names_nobody()
+    {
+        var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
+
+        var noId = await fixture.ForwardedClient(account, await fixture.StampAsync(account), sessionId: "not a session id!")
+            .GetAsync(SignedInRoute);
+
+        await AssertProblemAsync(noId, HttpStatusCode.Unauthorized, "sign-in-required");
+    }
+
+    [Fact]
+    public async Task The_current_session_is_read_from_the_database_now()
+    {
+        // Signed in before confirming the address: the gateway's cookie still says "unconfirmed", the database does not.
+        var email = AccountApiFixture.NewEmail();
+        var account = await fixture.RegisterAsync(email);
+        var stamp = await fixture.StampAsync(account);
+        var sessionId = AccountApiFixture.NewSessionId();
+        var (linkAccount, token) = AccountApiFixture.ReadLink(await fixture.NextEmailToAsync(email, "Confirm your email"), "verify-email");
+        using var verified = await fixture.Client().PostAsJsonAsync("/api/v1/account/email/verify", new VerifyEmailRequest(linkAccount, token));
+        Assert.Equal(HttpStatusCode.NoContent, verified.StatusCode);
+
+        using var response = await Gateway().PostAsJsonAsync(
+            Current,
+            new CurrentSessionRequest(account.Value, stamp, sessionId, SecondFactorVerified: false));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var current = await response.Content.ReadFromJsonAsync<CurrentSession>();
+        Assert.Equal(new CurrentSession(account.Value, email, EmailVerified: true, SecondFactorVerified: false), current);
+        Assert.DoesNotContain(stamp, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("signed-out")]
+    [InlineData("stamp-moved")]
+    [InlineData("account-gone")]
+    public async Task A_session_that_is_over_is_reported_as_ended(string why)
+    {
+        var account = await fixture.RegisterConfirmedAsync(AccountApiFixture.NewEmail());
+        var stamp = await fixture.StampAsync(account);
+        var sessionId = AccountApiFixture.NewSessionId();
+        switch (why)
+        {
+            case "signed-out":
+                using (var ended = await Gateway().PostAsJsonAsync(End, new EndSessionRequest(account.Value, sessionId)))
+                {
+                    Assert.Equal(HttpStatusCode.NoContent, ended.StatusCode);
+                }
+
+                break;
+            case "stamp-moved":
+                stamp = "A-STAMP-FROM-BEFORE";
+                break;
+            default:
+                account = new AccountId(Guid.NewGuid());
+                break;
+        }
+
+        var response = await Gateway().PostAsJsonAsync(
+            Current,
+            new CurrentSessionRequest(account.Value, stamp, sessionId, SecondFactorVerified: false));
+
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest, "session-ended");
+    }
+
+    [Fact]
+    public async Task The_current_session_and_sign_out_are_the_gateways_alone()
+    {
+        var account = new AccountId(Guid.NewGuid());
+        using var stranger = fixture.Client();
+
+        using var current = await stranger.PostAsJsonAsync(
+            Current,
+            new CurrentSessionRequest(account.Value, "STAMP", AccountApiFixture.NewSessionId(), SecondFactorVerified: false));
+        using var end = await stranger.PostAsJsonAsync(End, new EndSessionRequest(account.Value, AccountApiFixture.NewSessionId()));
+
+        Assert.Equal(HttpStatusCode.NotFound, current.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, end.StatusCode);
+    }
 
     [Fact]
     public async Task The_right_password_names_the_account_its_stamp_and_whether_a_step_is_owed()

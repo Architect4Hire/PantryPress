@@ -15,7 +15,8 @@ public interface IPlatformAdminFacade
 {
     /// <summary>
     /// Gives the account with this email address the platform role. <see cref="AccountErrors.AccountNotFound"/> when no
-    /// account has the address, which is normal for someone who has not signed up yet.
+    /// account has the address, which is normal for someone who has not signed up yet, and
+    /// <see cref="AccountErrors.EmailNotVerified"/> when the account has not confirmed it (PP1.12).
     /// </summary>
     Task<Result<PlatformAdminOutcome>> GrantAsync(
         string email,
@@ -55,8 +56,9 @@ public interface IPlatformAdminReconciler
 }
 
 /// <summary>
-/// What one run of the list did. <see cref="Unresolved"/> counts addresses with no account yet: a warning, not a
-/// failure, because the next run picks them up once the person has signed up.
+/// What one run of the list did. <see cref="Unresolved"/> counts addresses with no account yet, or whose account has not
+/// confirmed its address: a warning, not a failure, because the next run picks them up once the person has signed up
+/// and answered the confirmation email.
 /// </summary>
 public sealed record PlatformAdminReconcileReport(bool Configured, int Granted, int Revoked, int Unresolved)
 {

@@ -17,6 +17,9 @@ internal static class SessionHeaders
 
     public const string SecondFactor = "X-PP-Mfa";
 
+    /// <summary>The session's own id (PP1.12): what a sign-out revokes, so a copy of the cookie stops working too.</summary>
+    public const string SessionId = "X-PP-Sid";
+
     public const string True = "true";
 
     /// <summary>On a response from the API: this session is over, so the cookie goes.</summary>
@@ -27,14 +30,24 @@ internal static class SessionHeaders
     /// <summary>On a response from the API: the request rotated the stamp, so the cookie is re-issued against it.</summary>
     public const string NewStamp = "X-PP-New-Stamp";
 
+    /// <summary>On a response from the API: the request passed the second step itself (turned two-step sign-in on).</summary>
+    public const string SecondStepPassed = "X-PP-Second-Step";
+
+    public const string SecondStepPassedValue = "passed";
+
+    /// <summary>On every forwarded request: it came through the proxy, so the internal surface refuses it (PP1.12).</summary>
+    public const string ViaProxy = "X-PP-Via";
+
+    public const string ViaProxyValue = "proxy";
+
     /// <summary>
     /// Everything a client might send that would otherwise be mistaken for the gateway's own voice. Stripped from
     /// every request the gateway forwards to the API, signed in or not.
     /// </summary>
-    public static readonly string[] Request = [Secret, Account, Stamp, SecondFactor];
+    public static readonly string[] Request = [Secret, Account, Stamp, SecondFactor, SessionId, ViaProxy];
 
-    /// <summary>Read and removed on the way back, so a browser never sees either.</summary>
-    public static readonly string[] Response = [Ended, NewStamp];
+    /// <summary>Read and removed on the way back, so a browser never sees any of them.</summary>
+    public static readonly string[] Response = [Ended, NewStamp, SecondStepPassed];
 }
 
 /// <summary>The YARP routes declared in configuration, by id (<c>appsettings.json</c>).</summary>

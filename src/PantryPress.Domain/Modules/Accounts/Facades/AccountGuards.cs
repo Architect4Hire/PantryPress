@@ -1,5 +1,7 @@
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Time;
+using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
 using PantryPress.Domain.Modules.Accounts.Repositories;
@@ -16,13 +18,14 @@ internal static class AccountGuards
     public static async Task<Error?> CheckPasswordAsync(
         AccountsDataLayer data,
         IAuditLog audit,
+        IClock clock,
         ApplicationUser user,
         string password,
         CancellationToken cancellationToken)
     {
-        if (await data.IsLockedOutAsync(user))
+        if (await LockedOutAsync(data, clock, user) is { } locked)
         {
-            return AccountErrors.TooManyAttempts;
+            return locked;
         }
 
         if (await data.CheckPasswordAsync(user, password))
@@ -30,8 +33,18 @@ internal static class AccountGuards
             return null;
         }
 
-        return await FailAsync(data, audit, user, AccountErrors.IncorrectPassword, cancellationToken);
+        return await FailAsync(data, audit, clock, user, AccountErrors.IncorrectPassword, cancellationToken);
     }
+
+    /// <summary>
+    /// Null when the account is not locked; otherwise <see cref="AccountErrors.TooManyAttempts"/> with the wait left,
+    /// for <c>Retry-After</c> (PP1.12).
+    /// </summary>
+    public static async Task<Error?> LockedOutAsync(AccountsDataLayer data, IClock clock, ApplicationUser user) =>
+        await data.IsLockedOutAsync(user)
+            ? AccountErrors.TooManyAttemptsFor(
+                LockoutRules.Remaining(await data.GetLockoutEndAsync(user), clock.UtcNow, LockoutRules.Lockout))
+            : null;
 
     /// <summary>
     /// Records a wrong password or code and returns the error to show, which becomes lockout at the limit. The attempt
@@ -40,13 +53,14 @@ internal static class AccountGuards
     public static async Task<Error> FailAsync(
         AccountsDataLayer data,
         IAuditLog audit,
+        IClock clock,
         ApplicationUser user,
         Error error,
         CancellationToken cancellationToken)
     {
         var wasLockedOut = await data.IsLockedOutAsync(user);
         await data.RecordFailedAttemptAsync(user);
-        if (!wasLockedOut && await data.IsLockedOutAsync(user))
+        if (LockoutRules.LockedByThisAttempt(wasLockedOut, await data.IsLockedOutAsync(user)))
         {
             var account = new AccountId(user.Id);
             audit.Record(new AuditEvent(AccountAudit.LockedOut, AuditActor.System, AccountAudit.Target(account)), siteId: null);
@@ -57,6 +71,6 @@ internal static class AccountGuards
             return AccountErrors.ChangedElsewhere;
         }
 
-        return await data.IsLockedOutAsync(user) ? AccountErrors.TooManyAttempts : error;
+        return await LockedOutAsync(data, clock, user) ?? error;
     }
 }

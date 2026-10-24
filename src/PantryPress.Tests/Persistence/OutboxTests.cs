@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Aspire.Hosting.Testing;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,12 +9,15 @@ using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
+using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.MigrationService;
+using PantryPress.Tests.Fakes;
 using PantryPress.Tests.Managers.Outbox;
 using PantryPress.Worker.Outbox;
 
@@ -556,6 +560,46 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         Assert.True(await AnyRowAsync(pending));
     }
 
+    [Fact]
+    public async Task The_sweep_forgets_a_sign_out_once_no_session_can_outlive_it()
+    {
+        // PP1.12: a signed-out session's id is remembered for SessionLimits.RevocationRetention, longer than the
+        // gateway's absolute session lifetime, and then deleted.
+        var account = Guid.NewGuid();
+        var signedOut = $"signed-out-{Guid.NewGuid():N}";
+        var stillLive = $"still-live-{Guid.NewGuid():N}";
+        await using (var scope = Worker.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+            db.Set<RevokedSession>().Add(new RevokedSession
+            {
+                SessionId = signedOut,
+                AccountId = account,
+                RevokedAt = Now,
+                ExpiresAt = Now + SessionLimits.RevocationRetention,
+            });
+            db.Set<RevokedSession>().Add(new RevokedSession
+            {
+                SessionId = stillLive,
+                AccountId = account,
+                RevokedAt = Now,
+                ExpiresAt = Now + SessionLimits.RevocationRetention + TimeSpan.FromHours(1),
+            });
+            await db.SaveChangesAsync();
+        }
+
+        Time.Advance(SessionLimits.RevocationRetention);
+        await Sweep().SweepOnceAsync(CancellationToken.None);
+
+        await using var check = Worker.CreateAsyncScope();
+        var remaining = await check.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<RevokedSession>()
+            .AsNoTracking()
+            .Where(r => r.AccountId == account)
+            .Select(r => r.SessionId)
+            .ToListAsync();
+        Assert.Equal([stillLive], remaining);
+    }
+
     // A Worker of its own over the shared database: the real dispatcher composition and the production context's
     // retrying execution strategy, with the hosted services not started unless a test starts one.
     private ServiceProvider AddWorker(Dictionary<string, string?>? overrides = null)
@@ -586,6 +630,15 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         services.AddSingleton<TimeProvider>(Time);
         services.AddApplicationClock();
         services.AddIdempotency(new ConfigurationBuilder().Build());
+
+        // Accounts' share of the Worker, as Program registers it: the sweep also forgets expired sign-outs (PP1.12).
+        services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+        services.AddSingleton<IEmailGateway>(new RecordingEmailGateway());
+        services.AddAccountsWorker(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://app.localhost" })
+                .Build(),
+            sendsEmail: true);
         services.AddSingleton(_ledger);
         services.AddOutboxDispatcher(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
         services.AddOutboxHandler<RecordedWork, RecordedWorkHandler>();

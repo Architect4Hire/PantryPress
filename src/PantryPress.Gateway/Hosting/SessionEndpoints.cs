@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Net.Http.Headers;
 using PantryPress.Gateway.Contracts;
 
@@ -11,9 +10,12 @@ namespace PantryPress.Gateway.Hosting;
 /// keep the account-scoped shape of the rest of the account API (api-contract.md), so the admin app sees one API, and
 /// they sit ahead of the forwarded route, which would otherwise send these paths to ApiService.
 /// </summary>
-internal static class SessionEndpoints
+internal static partial class SessionEndpoints
 {
     public const string Base = "/api/v1/account/session";
+
+    /// <summary>The API's code for a half-finished sign-in that can no longer be finished (its <c>AccountErrors</c>).</summary>
+    public const string SignInExpiredCode = "sign-in-expired";
 
     /// <summary>Ahead of the forwarded /api/v1 route (1) and the gateway's /api fallback (2).</summary>
     private const int SessionOrder = 0;
@@ -22,13 +24,18 @@ internal static class SessionEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
         // The declared shapes are what the admin app's typed client is written from until the BFF publishes a
-        // document of its own (recorded for PP2).
+        // document of its own (recorded for PP2). Each route declares every answer it can give, the refusals the
+        // browser boundary makes ahead of it included (PP1.12): 400 antiforgery-failed and 403 cross-origin-blocked
+        // on a write, 413 on any of them, and 502 when ApiService cannot be asked.
         var session = app.MapGroup(Base);
         // The two authentication attempts are limited per address (PP1.8); nothing else here is an attempt.
         session.MapPost(string.Empty, SignInAsync)
             .RequireRateLimiting(GatewayRateLimits.SessionPerIp)
             .Produces<SessionView>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status502BadGateway);
         session.MapPost("/second-factor", CompleteSecondFactorAsync)
@@ -36,17 +43,28 @@ internal static class SessionEndpoints
             .Produces<SessionView>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
+
+        // Cast so the handlers' IResult is written to the response rather than discarded as a RequestDelegate. Both
+        // ask the API, so both are limited per address too (PP1.12).
+        session.MapGet(string.Empty, (Delegate)CurrentAsync)
+            .RequireRateLimiting(GatewayRateLimits.SessionChecksPerIp)
+            .Produces<SessionView>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
+        session.MapDelete(string.Empty, (Delegate)SignOutAsync)
+            .RequireRateLimiting(GatewayRateLimits.SessionChecksPerIp)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
-        // Cast so the handlers' IResult is written to the response rather than discarded as a RequestDelegate.
-        session.MapGet(string.Empty, (Delegate)CurrentAsync)
-            .Produces<SessionView>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
-        session.MapDelete(string.Empty, (Delegate)SignOutAsync)
-            .Produces(StatusCodes.Status204NoContent);
-
-        // Any of the four can now answer 413: the body cap is refused ahead of routing (PP1.8).
+        // Any of the four can answer 413: the body cap is refused ahead of routing (PP1.8).
         ((IEndpointConventionBuilder)session).ProducesProblem(StatusCodes.Status413PayloadTooLarge);
 
         ((IEndpointConventionBuilder)session).Add(endpoint =>
@@ -87,30 +105,103 @@ internal static class SessionEndpoints
         }
 
         var answer = await api.CompleteSecondFactorAsync(account, stamp, body?.Code ?? string.Empty, cancellationToken);
+        if (answer.Problem is { Code: SignInExpiredCode })
+        {
+            // That sign-in can never be finished now, so its cookie goes too, and the current session says "sign in"
+            // rather than "enter your code" for the rest of its five minutes (PP1.12).
+            await context.SignOutAsync(SessionSchemes.SecondFactor);
+        }
+
         return await AnswerAsync(context, answer, secondFactorVerified: true);
     }
 
-    private static async Task<IResult> CurrentAsync(HttpContext context)
+    private static async Task<IResult> CurrentAsync(HttpContext context, ApiSessions api, CancellationToken cancellationToken)
     {
         NoStore(context);
         var complete = await context.AuthenticateAsync(SessionSchemes.Complete);
-        if (SessionCookie.TryGetAccount(complete.Principal, out var account))
+        if (SessionCookie.TryGetAccount(complete.Principal, out var account)
+            && SessionCookie.Stamp(complete.Principal!) is { Length: > 0 } stamp
+            && SessionCookie.SessionId(complete.Principal!) is { Length: > 0 } sessionId)
         {
-            return View(SessionStage.Complete, account, complete.Principal!);
+            // The database's word, not the cookie's (PP1.12): a session that was signed out, or whose password or second
+            // factor changed, is over now - and an address confirmed since sign-in shows as confirmed.
+            var answer = await api.CurrentAsync(
+                account,
+                stamp,
+                sessionId,
+                SessionCookie.Has(complete.Principal!, SessionClaims.SecondFactorVerified),
+                cancellationToken);
+            if (answer.Value is { } current)
+            {
+                return Results.Ok(new SessionView(
+                    SessionStage.Complete,
+                    current.AccountId,
+                    current.Email,
+                    current.EmailVerified,
+                    current.SecondFactorVerified));
+            }
+
+            // The API's backstop ceiling: relayed as it came, wait included, rather than turned into a 502.
+            if (answer.Problem is { Status: StatusCodes.Status429TooManyRequests } busy)
+            {
+                if (busy.RetryAfter is { Length: > 0 } retryAfter)
+                {
+                    context.Response.Headers[HeaderNames.RetryAfter] = retryAfter;
+                }
+
+                return Results.Text(busy.Body, busy.ContentType ?? "application/problem+json", statusCode: busy.Status);
+            }
+
+            if (answer.Problem is { Code: { } code } && code == GatewayApi.SessionEndedCode)
+            {
+                await context.SignOutAsync(SessionSchemes.Complete);
+                await GatewayApi.WriteProblemAsync(
+                    context,
+                    StatusCodes.Status401Unauthorized,
+                    GatewayApi.SessionEndedCode,
+                    GatewayApi.SessionEndedTitle);
+                return Results.Empty;
+            }
+
+            await GatewayApi.WriteProblemAsync(context, StatusCodes.Status502BadGateway);
+            return Results.Empty;
         }
 
         var pending = await context.AuthenticateAsync(SessionSchemes.SecondFactor);
         if (SessionCookie.TryGetAccount(pending.Principal, out var pendingAccount))
         {
-            return View(SessionStage.SecondFactor, pendingAccount, pending.Principal!);
+            return Results.Ok(new SessionView(
+                SessionStage.SecondFactor,
+                pendingAccount,
+                SessionCookie.Email(pending.Principal!),
+                SessionCookie.Has(pending.Principal!, SessionClaims.EmailVerified),
+                SecondFactorVerified: false));
         }
 
         return await UnauthorizedAsync(context);
     }
 
-    private static async Task<IResult> SignOutAsync(HttpContext context)
+    private static async Task<IResult> SignOutAsync(
+        HttpContext context,
+        ApiSessions api,
+        ILogger<ApiSessions> logger,
+        CancellationToken cancellationToken)
     {
         NoStore(context);
+
+        // Revoked at the API first, so a copy of this cookie stops working wherever it is (PP1.12). If the API cannot be
+        // asked the cookies still go - the person asked to be signed out on this device, and is - and the failure is
+        // logged as an error, because until the cookie expires a copy of it would still work.
+        var complete = await context.AuthenticateAsync(SessionSchemes.Complete);
+        if (SessionCookie.TryGetAccount(complete.Principal, out var account)
+            && SessionCookie.SessionId(complete.Principal!) is { Length: > 0 } sessionId)
+        {
+            var ended = await api.EndAsync(account, sessionId, cancellationToken);
+            if (!ended.Succeeded)
+            {
+                LogSignOutNotRevoked(logger, account);
+            }
+        }
 
         // Both cookies: a sign-out in the middle of a two-step sign-in leaves nothing behind either.
         await context.SignOutAsync(SessionSchemes.Complete);
@@ -118,9 +209,12 @@ internal static class SessionEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> AnswerAsync(HttpContext context, SessionAnswer answer, bool secondFactorVerified)
+    private static async Task<IResult> AnswerAsync(
+        HttpContext context,
+        ApiAnswer<SessionStart> answer,
+        bool secondFactorVerified)
     {
-        if (answer.Session is { } session)
+        if (answer.Value is { } session)
         {
             return await IssueAsync(context, session, secondFactorVerified);
         }
@@ -129,15 +223,15 @@ internal static class SessionEndpoints
         {
             if (problem.RetryAfter is { Length: > 0 } retryAfter)
             {
-                // The plain-language "wait a quarter of an hour" keeps its machine-readable half.
+                // The plain-language "wait a few minutes" keeps its machine-readable half.
                 context.Response.Headers[HeaderNames.RetryAfter] = retryAfter;
             }
 
             return Results.Text(problem.Body, problem.ContentType ?? "application/problem+json", statusCode: problem.Status);
         }
 
-        // The API answered something that is not the blogger's business (ApiSessions logged what). They get our own
-        // failure, in plain language, rather than a puzzle such as "we couldn't find that" on a sign-in form.
+        // The API answered something that is not the blogger's business, or could not be reached (ApiSessions logged
+        // what). They get our own failure, in plain language, rather than a puzzle such as "we couldn't find that".
         await GatewayApi.WriteProblemAsync(context, StatusCodes.Status502BadGateway);
         return Results.Empty;
     }
@@ -158,11 +252,13 @@ internal static class SessionEndpoints
                 SecondFactorVerified: false));
         }
 
-        // A complete session replaces any half-finished one, so the shorter cookie never outlives its purpose.
+        // A complete session replaces any half-finished one, so the shorter cookie never outlives its purpose. It gets
+        // an id of its own to be signed out by, and the time its absolute lifetime runs from (PP1.12).
+        var now = context.RequestServices.GetRequiredService<GatewayClock>().UtcNow;
         await context.SignOutAsync(SessionSchemes.SecondFactor);
         await context.SignInAsync(
             SessionSchemes.Complete,
-            SessionCookie.CompletePrincipal(session, secondFactorVerified),
+            SessionCookie.CompletePrincipal(session, secondFactorVerified, SessionCookie.NewSessionId(), now),
             SessionCookie.Properties());
         return Results.Ok(new SessionView(
             SessionStage.Complete,
@@ -172,14 +268,6 @@ internal static class SessionEndpoints
             secondFactorVerified));
     }
 
-    private static IResult View(SessionStage stage, Guid account, System.Security.Claims.ClaimsPrincipal user) =>
-        Results.Ok(new SessionView(
-            stage,
-            account,
-            SessionCookie.Email(user),
-            SessionCookie.Has(user, SessionClaims.EmailVerified),
-            SessionCookie.Has(user, SessionClaims.SecondFactorVerified)));
-
     private static async Task<IResult> UnauthorizedAsync(HttpContext context)
     {
         await GatewayApi.WriteProblemAsync(context, StatusCodes.Status401Unauthorized);
@@ -187,4 +275,9 @@ internal static class SessionEndpoints
     }
 
     private static void NoStore(HttpContext context) => context.Response.Headers.CacheControl = "no-store";
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "Account {AccountId} signed out, but the API could not revoke the session; a copy of its cookie works until it expires.")]
+    private static partial void LogSignOutNotRevoked(ILogger logger, Guid accountId);
 }

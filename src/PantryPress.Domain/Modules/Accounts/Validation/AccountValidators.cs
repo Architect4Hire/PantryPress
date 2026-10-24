@@ -12,6 +12,9 @@ internal static class AccountValidationRules
     // Data-protected tokens are a few hundred characters; anything far longer is not one of ours.
     public const int MaxTokenLength = 1024;
 
+    // A security stamp is a short opaque string; the API's session handler bounds its header the same way.
+    public const int MaxStampLength = 256;
+
     public static IRuleBuilderOptions<T, string> ValidEmail<T>(this IRuleBuilder<T, string> rule) =>
         rule.NotEmpty().WithMessage("Enter your email address.")
             .Must(EmailAddressRules.IsValid).WithMessage("Enter an email address like name@example.com.");
@@ -111,5 +114,27 @@ internal sealed class SignInRequestValidator : AbstractValidator<SignInRequest>
     {
         RuleFor(r => r.Email).Cascade(CascadeMode.Stop).ValidEmail();
         RuleFor(r => r.Password).Cascade(CascadeMode.Stop).CurrentPassword();
+    }
+}
+
+// The gateway's own requests on the internal surface (PP1.12). A person never types these, so the messages only need
+// to be accurate; a malformed one is a bug in the gateway.
+internal sealed class CurrentSessionRequestValidator : AbstractValidator<CurrentSessionRequest>
+{
+    public CurrentSessionRequestValidator()
+    {
+        RuleFor(r => r.AccountId).NotEmpty().WithMessage("The session names no account.");
+        RuleFor(r => r.SecurityStamp).NotEmpty().MaximumLength(AccountValidationRules.MaxStampLength)
+            .WithMessage("The session's stamp is missing or too long.");
+        RuleFor(r => r.SessionId).Must(SessionLimits.IsValidSessionId).WithMessage("The session id is not one the gateway makes.");
+    }
+}
+
+internal sealed class EndSessionRequestValidator : AbstractValidator<EndSessionRequest>
+{
+    public EndSessionRequestValidator()
+    {
+        RuleFor(r => r.AccountId).NotEmpty().WithMessage("The session names no account.");
+        RuleFor(r => r.SessionId).Must(SessionLimits.IsValidSessionId).WithMessage("The session id is not one the gateway makes.");
     }
 }

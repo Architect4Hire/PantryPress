@@ -123,6 +123,38 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
     }
 
     [Fact]
+    public async Task An_account_that_never_confirmed_its_address_is_not_granted_and_nothing_changes()
+    {
+        await using var services = await OperatorServicesAsync(admins: string.Empty);
+        var email = NewEmail();
+        var (account, stamp) = await CreateAccountAsync(services, email, confirmed: false);
+
+        var refused = await GrantAsync(services, email);
+
+        // Signing up with an address proves nothing about who reads it (PP1.12): no role, no new stamp, no audit entry.
+        Assert.False(refused.IsSuccess);
+        Assert.Equal(AccountErrors.EmailNotVerified.Code, refused.Error!.Code);
+        Assert.False(await IsPlatformAdminAsync(services, account));
+        Assert.Equal(stamp, await SecurityStampAsync(services, account));
+        Assert.Empty(await AuditEntriesAsync(services, account));
+    }
+
+    [Fact]
+    public async Task The_operator_list_does_not_grant_an_unconfirmed_account_and_counts_it_unresolved()
+    {
+        var email = NewEmail();
+        await using var setup = await OperatorServicesAsync(admins: string.Empty);
+        var (account, _) = await CreateAccountAsync(setup, email, confirmed: false);
+
+        await using var services = await OperatorServicesAsync(email);
+        var report = await ReconcileAsync(services);
+
+        Assert.Equal(0, report.Granted);
+        Assert.Equal(1, report.Unresolved);
+        Assert.False(await IsPlatformAdminAsync(services, account));
+    }
+
+    [Fact]
     public async Task The_operator_list_grants_the_listed_account_and_revokes_a_holder_it_leaves_out()
     {
         var listedEmail = NewEmail();
@@ -177,13 +209,18 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
     private Task<ServiceProvider> OperatorServicesAsync(string admins) =>
         TestDatabase.CreateOperatorServicesAsync(database.App, admins, Timeout);
 
-    private static async Task<(AccountId Account, string Stamp)> CreateAccountAsync(IServiceProvider services, string email)
+    // Confirmed unless a test says otherwise: only an account that answered an email sent to its address may be
+    // granted the role (PP1.12).
+    private static async Task<(AccountId Account, string Stamp)> CreateAccountAsync(
+        IServiceProvider services,
+        string email,
+        bool confirmed = true)
     {
         await using var scope = services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
 
-        var user = new ApplicationUser { UserName = email, Email = email };
+        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = confirmed };
         var created = await users.CreateAsync(user, Password);
         Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Code)));
         await db.SaveChangesAsync(Timeout);

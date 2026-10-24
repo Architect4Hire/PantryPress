@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Audit;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -59,6 +60,7 @@ public static class AccountsServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Scoped<IUserStore<ApplicationUser>, AccountUserStore>());
 
         services.AddScoped<AccountsUnitOfWork>();
+        services.AddScoped<SessionRevocationRepository>();
         services.AddScoped<AccountsDataLayer>();
         services.AddAuditLog();
         return identity;
@@ -83,26 +85,68 @@ public static class AccountsServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers the Accounts module (ACCT-001, ACCT-003): Identity over <see cref="AccountUserStore"/>, the token
-    /// providers, the facades, and their validators. The host also registers <c>PantryPressDbContext</c>, the clock,
-    /// data protection, and the email queue. The <paramref name="configuration"/> section binds
-    /// <see cref="AccountsOptions"/>, checked at startup.
+    /// What the Worker does for the Accounts module (PP1.10b, PP1.12): Identity over <see cref="AccountUserStore"/> with
+    /// the link-token providers, the account emails it delivers from the outbox, and the housekeeping its sweep runs.
+    /// The <paramref name="configuration"/> section binds <see cref="AccountsOptions"/> - the admin app's origin for the
+    /// links - checked at startup. The host also registers <c>PantryPressDbContext</c>, the clock, the outbox dispatcher,
+    /// an <see cref="Managers.Email.IEmailGateway"/>, and data protection with the API's application name, since the
+    /// links it makes are checked by the API and the store reads what the API protected.
     /// </summary>
-    public static IServiceCollection AddAccounts(
+    /// <remarks>
+    /// <paramref name="sendsEmail"/> is false where there is no email provider yet - anywhere but local Development
+    /// until PP13.1. The Worker then claims no account email at all: messages wait in the outbox, visible in its backlog
+    /// gauge, and go out once a provider is configured, while the rest of the Worker carries on (PP1.12).
+    /// </remarks>
+    public static IServiceCollection AddAccountsWorker(
+        this IServiceCollection services,
+        Microsoft.Extensions.Configuration.IConfiguration configuration,
+        bool sendsEmail)
+    {
+        services.AddAccountsIdentity().AddAccountTokenProviders();
+        if (sendsEmail)
+        {
+            services.AddAccountEmailDelivery(configuration);
+        }
+
+        services.AddScoped<IAccountMaintenance, AccountMaintenanceFacade>();
+        return services;
+    }
+
+    /// <summary>
+    /// The outbox handler that sends account email, and what it builds the email from (PP1.10b). Part of
+    /// <see cref="AddAccountsWorker"/>; on its own only for a test host that already registered <see cref="AddAccounts"/>
+    /// and delivers its own outbox.
+    /// </summary>
+    internal static IServiceCollection AddAccountEmailDelivery(
         this IServiceCollection services,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
+        // Both checked at startup: a host that sends account email has the link origin and a provider, or it refuses to
+        // start rather than claim account email and poison every message for want of one.
         services.AddOptions<AccountsOptions>()
             .Bind(configuration)
             .Validate(o => o.IsValid(), "Accounts:AppBaseUrl must be the admin app's absolute HTTPS origin.")
+            .Validate<IServiceProvider>(
+                (_, provider) => provider.GetService<Managers.Email.IEmailGateway>() is not null,
+                "No email gateway is registered. Account email is sent from the outbox here (PP1.10b); outside "
+                + "Development a provider arrives with PP13.1.")
             .ValidateOnStart();
-
-        services.AddAccountsIdentity()
-            .AddTokenProvider<EmailConfirmationTokenProvider>(EmailConfirmationTokenProvider.Name)
-            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.Name)
-            .AddTokenProvider<AuthenticatorCodeProvider>(AuthenticatorCodeProvider.Name);
-
         services.AddSingleton(sp => new AccountEmails(sp.GetRequiredService<IOptions<AccountsOptions>>().Value.AppBaseUrl));
+        services.AddScoped<AccountMailDataLayer>();
+        services.AddOutboxHandler<AccountEmailMessage, AccountEmailHandler>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the Accounts module (ACCT-001, ACCT-003): Identity over <see cref="AccountUserStore"/>, the token
+    /// providers, the facades, and their validators, and the outbox the facades stage account email in (PP1.10b). The
+    /// host also registers <c>PantryPressDbContext</c>, the clock, and data protection. The API sends no email itself:
+    /// the Worker does, from the outbox, so this host needs no link origin and no email gateway.
+    /// </summary>
+    public static IServiceCollection AddAccounts(this IServiceCollection services)
+    {
+        services.AddAccountsIdentity().AddAccountTokenProviders();
+        services.AddOutbox();
 
         services.AddScoped<IValidator<RegisterAccountRequest>, RegisterAccountRequestValidator>();
         services.AddScoped<IValidator<VerifyEmailRequest>, VerifyEmailRequestValidator>();
@@ -114,6 +158,8 @@ public static class AccountsServiceCollectionExtensions
         services.AddScoped<IValidator<EnableTwoFactorRequest>, EnableTwoFactorRequestValidator>();
         services.AddScoped<IValidator<SecondFactorRequest>, SecondFactorRequestValidator>();
         services.AddScoped<IValidator<SignInRequest>, SignInRequestValidator>();
+        services.AddScoped<IValidator<CurrentSessionRequest>, CurrentSessionRequestValidator>();
+        services.AddScoped<IValidator<EndSessionRequest>, EndSessionRequestValidator>();
 
         services.AddScoped<IAccountRegistrationFacade, AccountRegistrationFacade>();
         services.AddScoped<IPasswordFacade, PasswordFacade>();
@@ -122,6 +168,13 @@ public static class AccountsServiceCollectionExtensions
         services.AddScoped<IAccountPublishingEligibility, AccountPublishingEligibility>();
         return services;
     }
+
+    // The API checks the links the Worker makes, so both register the same providers under the same names.
+    private static IdentityBuilder AddAccountTokenProviders(this IdentityBuilder identity) =>
+        identity
+            .AddTokenProvider<EmailConfirmationTokenProvider>(EmailConfirmationTokenProvider.Name)
+            .AddTokenProvider<PasswordResetTokenProvider>(PasswordResetTokenProvider.Name)
+            .AddTokenProvider<AuthenticatorCodeProvider>(AuthenticatorCodeProvider.Name);
 
     // Approved at PP1.2 and PP1.3: 12–128 characters with no composition rules, unique emails that double as user
     // names, sign-in before confirmation (publishing waits for it instead), and lockout after five wrong passwords or
@@ -142,8 +195,8 @@ public static class AccountsServiceCollectionExtensions
         options.SignIn.RequireConfirmedAccount = false;
 
         options.Lockout.AllowedForNewUsers = true;
-        options.Lockout.MaxFailedAccessAttempts = 5;
-        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.MaxFailedAccessAttempts = LockoutRules.MaxFailedAttempts;
+        options.Lockout.DefaultLockoutTimeSpan = LockoutRules.Lockout;
 
         options.Tokens.EmailConfirmationTokenProvider = EmailConfirmationTokenProvider.Name;
         options.Tokens.PasswordResetTokenProvider = PasswordResetTokenProvider.Name;

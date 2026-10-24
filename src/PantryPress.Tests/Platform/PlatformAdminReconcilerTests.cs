@@ -65,6 +65,23 @@ public sealed class PlatformAdminReconcilerTests
         Assert.DoesNotContain("newcomer@", warning.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task An_address_whose_account_never_confirmed_it_is_not_granted_and_loses_a_role_it_holds()
+    {
+        // Whoever signs up first with an address on the list is only claiming it until an email sent there is answered
+        // (PP1.12), so the address resolves to nobody - which is also what takes the role from an account in that state.
+        var squatter = _admins.AddAccount("ops@example.test", holdsRole: true, confirmed: false);
+
+        var report = await Reconciler("ops@example.test").RunAsync(CancellationToken.None);
+
+        Assert.Equal(new PlatformAdminReconcileReport(true, Granted: 0, Revoked: 1, Unresolved: 1), report);
+        Assert.DoesNotContain(squatter, _admins.Holders);
+        var warning = Assert.Single(_logger.Collector.GetSnapshot(), r => r.Level == LogLevel.Warning);
+        Assert.Contains("o***@example.test", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("not confirmed", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("ops@", warning.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -129,6 +146,7 @@ public sealed class PlatformAdminReconcilerTests
     {
         private readonly Dictionary<string, AccountId> _accounts = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<AccountId> _holders = [];
+        private readonly HashSet<AccountId> _unconfirmed = [];
 
         public Error? FailWith { get; set; }
 
@@ -136,10 +154,15 @@ public sealed class PlatformAdminReconcilerTests
 
         public IReadOnlyCollection<AccountId> Holders => _holders;
 
-        public AccountId AddAccount(string email, bool holdsRole = false)
+        public AccountId AddAccount(string email, bool holdsRole = false, bool confirmed = true)
         {
             var account = new AccountId(Guid.NewGuid());
             _accounts[email] = account;
+            if (!confirmed)
+            {
+                _unconfirmed.Add(account);
+            }
+
             if (holdsRole)
             {
                 _holders.Add(account);
@@ -163,6 +186,11 @@ public sealed class PlatformAdminReconcilerTests
             if (!_accounts.TryGetValue(email, out var account))
             {
                 return Task.FromResult(Result<PlatformAdminOutcome>.Failure(AccountErrors.AccountNotFound));
+            }
+
+            if (_unconfirmed.Contains(account))
+            {
+                return Task.FromResult(Result<PlatformAdminOutcome>.Failure(AccountErrors.EmailNotVerified));
             }
 
             return Task.FromResult(Result<PlatformAdminOutcome>.Success(

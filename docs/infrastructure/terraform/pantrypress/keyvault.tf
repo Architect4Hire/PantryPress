@@ -76,10 +76,23 @@ resource "azurerm_key_vault_secret" "redis_connection" {
   depends_on = [time_sleep.deployer_key_vault]
 }
 
-# Protects the gateway's and ApiService's data-protection key ring once PP19 persists it to the blob container below
-# (PP1.3b, PP1.6). Until the code uses it, it costs nothing and changes nothing.
+# Protects ApiService's data-protection key ring once PP19 persists it to its blob container (PP1.3b); the Worker reads
+# it too, because it makes the links in account email (PP1.10b). Until the code uses it, it costs nothing and changes
+# nothing.
 resource "azurerm_key_vault_key" "data_protection" {
   name         = "data-protection"
+  key_vault_id = azurerm_key_vault.pantrypress.id
+  key_type     = "RSA"
+  key_size     = 2048
+  key_opts     = ["wrapKey", "unwrapKey"]
+
+  depends_on = [time_sleep.deployer_key_vault]
+}
+
+# The gateway's own: its session tickets and antiforgery tokens (PP1.6, PP1.7), kept apart from the ring that signs
+# reset links (PP1.12, storage.tf).
+resource "azurerm_key_vault_key" "data_protection_gateway" {
+  name         = "data-protection-gateway"
   key_vault_id = azurerm_key_vault.pantrypress.id
   key_type     = "RSA"
   key_size     = 2048
@@ -106,9 +119,13 @@ resource "azurerm_role_assignment" "secret_reader" {
 }
 
 resource "azurerm_role_assignment" "data_protection_key" {
-  for_each = toset(["gateway", "apiservice"])
+  for_each = {
+    gateway    = azurerm_key_vault_key.data_protection_gateway.resource_versionless_id
+    apiservice = azurerm_key_vault_key.data_protection.resource_versionless_id
+    worker     = azurerm_key_vault_key.data_protection.resource_versionless_id
+  }
 
-  scope                = azurerm_key_vault_key.data_protection.resource_versionless_id
+  scope                = each.value
   role_definition_name = "Key Vault Crypto Service Encryption User"
   principal_id         = azurerm_user_assigned_identity.app[each.key].principal_id
 }

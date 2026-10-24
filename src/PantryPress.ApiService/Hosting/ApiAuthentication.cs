@@ -45,8 +45,8 @@ internal static partial class ApiAuthentication
     }
 
     /// <summary>
-    /// The session the gateway forwards (ACCT-002; PP1.6). The gateway's cookie names an account and the security
-    /// stamp its session was issued against; everything the caller is allowed to do is read from the database here, on
+    /// The session the gateway forwards (ACCT-002; PP1.6). The gateway's cookie names an account, the security stamp its
+    /// session was issued against, and the session's own id (PP1.12); everything the caller is allowed to do is read from the database here, on
     /// every request, so a changed password, a changed second factor, or a revoked platform role ends a session at its
     /// next request rather than whenever a cached copy happens to expire (ACCT-005).
     /// </summary>
@@ -90,12 +90,20 @@ internal static partial class ApiAuthentication
                 return AuthenticateResult.NoResult();
             }
 
-            // Whether this session may act at all - the stamp, the account, and the second-step rule - is the
-            // facade's to decide; this handler only turns its answer into a ticket or a 401.
+            // Every complete session the gateway holds has an id (PP1.12); a request without one names no session.
+            if (Request.Headers[GatewaySession.SessionIdHeader] is not [{ } sessionId]
+                || !SessionLimits.IsValidSessionId(sessionId))
+            {
+                return AuthenticateResult.NoResult();
+            }
+
+            // Whether this session may act at all - the stamp, a sign-out, the account, and the second-step rule - is
+            // the facade's to decide; this handler only turns its answer into a ticket or a 401.
             var secondFactorVerified = Request.Headers[GatewaySession.SecondFactorHeader] == GatewaySession.True;
             var identity = await sessions.ResolveAsync(
                 new AccountId(id),
                 stamp,
+                sessionId,
                 secondFactorVerified,
                 Context.RequestAborted);
             if (identity is null)
@@ -109,14 +117,17 @@ internal static partial class ApiAuthentication
                 new(ClaimTypes.Email, identity.Email),
             };
 
-            if (secondFactorVerified)
+            // What the session has proved now, as the facade judged it - not the gateway's word that it once did.
+            if (identity.SecondFactorVerified)
             {
                 claims.Add(new Claim(AccountClaims.TwoFactorVerified, AccountClaims.Yes));
             }
 
             claims.AddRange(identity.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+            // Named by the account id, never the email address, so nothing that logs a principal's name logs an email.
             var principal = new ClaimsPrincipal(
-                new ClaimsIdentity(claims, Scheme.Name, ClaimTypes.Email, ClaimTypes.Role));
+                new ClaimsIdentity(claims, Scheme.Name, ClaimTypes.NameIdentifier, ClaimTypes.Role));
             return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
         }
 

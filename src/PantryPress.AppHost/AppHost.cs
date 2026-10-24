@@ -75,9 +75,9 @@ var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice
 builder.AddProject<Projects.PantryPress_Site>("site")
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
-// The Worker delivers the transactional outbox and sweeps expired rows (PP1.10), so it needs the database; like the
-// API, it starts only once the migrations are in.
-builder.AddProject<Projects.PantryPress_Worker>("worker")
+// The Worker delivers the transactional outbox - account email included (PP1.10b) - and sweeps expired rows (PP1.10), so
+// it needs the database; like the API, it starts only once the migrations are in.
+var worker = builder.AddProject<Projects.PantryPress_Worker>("worker")
     .WithReference(db)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
@@ -107,12 +107,13 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
         }
     });
 
-// Links in account emails open the admin app (PP1.2). The origin is set here, never taken from a request's Host header:
-// locally the gateway at app.localhost, elsewhere the deployed admin origin from a parameter.
+// Links in account emails open the admin app (PP1.2). The Worker writes them, since it sends account email from the
+// outbox (PP1.10b). The origin is set here, never taken from a request's Host header: locally the gateway at
+// app.localhost, elsewhere the deployed admin origin from a parameter.
 var isLocalDevelopment = builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment();
 if (!isLocalDevelopment)
 {
-    apiService.WithEnvironment("Accounts__AppBaseUrl", builder.AddParameter("app-base-url"));
+    worker.WithEnvironment("Accounts__AppBaseUrl", builder.AddParameter("app-base-url"));
 }
 
 // The admin SPA's dev server (PP-D08: client-rendered). Browsers are meant to reach it through the gateway's catch-all
@@ -150,12 +151,12 @@ if (isLocalDevelopment)
     });
 
     // Locally, email links open the admin app through the gateway at app.localhost.
-    apiService.WithEnvironment(
+    worker.WithEnvironment(
         "Accounts__AppBaseUrl",
         ReferenceExpression.Create($"https://app.localhost:{gateway.GetEndpoint("https").Property(EndpointProperty.Port)}"));
 
-    // The development email sink's catcher (external.md: every provider has a local fake). Mail sent by the local
-    // gateway lands here and is read in its web UI; nothing leaves the machine. Messages live only as long as the
+    // The development email sink's catcher (external.md: every provider has a local fake). Mail the Worker sends through the
+    // development email gateway lands here and is read in its web UI; nothing leaves the machine. Messages live only as long as the
     // container. Azure Communication Services replaces it outside Development (PP13.1).
     var mail = builder.AddContainer("mail", "axllent/mailpit", "v1.31.2")
         .WithEnvironment("MP_DISABLE_VERSION_CHECK", "true")
@@ -163,10 +164,10 @@ if (isLocalDevelopment)
         .WithEndpoint(targetPort: 1025, name: "smtp")
         .WithHttpHealthCheck("/readyz", endpointName: "http");
 
-    // ApiService sends account email through the sink (PP1.2). It does not wait for the catcher: sends retry, and a
-    // missed confirmation email is recovered by asking for another.
+    // The Worker sends account email through the sink (PP1.10b). It does not wait for the catcher: the outbox retries
+    // a send that fails, with backoff, until the catcher is up.
     var smtp = mail.GetEndpoint("smtp");
-    apiService
+    worker
         .WithEnvironment("DevelopmentMail__Host", smtp.Property(EndpointProperty.Host))
         .WithEnvironment("DevelopmentMail__Port", smtp.Property(EndpointProperty.Port));
 

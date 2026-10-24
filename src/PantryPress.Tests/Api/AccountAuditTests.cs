@@ -157,7 +157,7 @@ public sealed class AccountAuditTests(AccountApiFixture fixture)
         {
             var signedIn = await fixture.WithServiceAsync<ISessionFacade, Result<SessionStart>>(
                 f => f.SignInAsync(new SignInRequest(email, $"wrong password number {i}"), default));
-            Assert.Equal(i < 5 ? AccountErrors.InvalidCredentials : AccountErrors.TooManyAttempts, signedIn.Error);
+            Assert.Equal(i < 5 ? AccountErrors.InvalidCredentials.Code : AccountErrors.TooManyAttempts.Code, signedIn.Error!.Code);
         }
 
         var entry = Assert.Single(await EntriesAsync(account));
@@ -203,6 +203,53 @@ public sealed class AccountAuditTests(AccountApiFixture fixture)
             Assert.DoesNotContain(local, value ?? string.Empty, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("example.test", value ?? string.Empty, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public async Task A_reset_that_first_confirms_the_address_clears_a_second_factor_set_up_before_it()
+    {
+        // An account from before PP1.12, when an unconfirmed account could turn on two-step sign-in: whoever set it up
+        // never proved they read the inbox, and the reset link has just reached the person who does.
+        var email = AccountApiFixture.NewEmail();
+        var account = await fixture.RegisterAsync(email);
+        await fixture.WithServiceAsync<PantryPressDbContext, int>(async db =>
+        {
+            var user = await db.Users.SingleAsync(u => u.Id == account.Value);
+            user.TwoFactorEnabled = true;
+            return await db.SaveChangesAsync();
+        });
+        Assert.True(await fixture.WithAccountAsync(account, (_, user) => Task.FromResult(user.TwoFactorEnabled)));
+
+        var (linkAccount, token) = await RequestResetAsync(email);
+        using var reset = await fixture.Client().PostAsJsonAsync(
+            Reset,
+            new ResetPasswordRequest(linkAccount, token, AccountApiFixture.SecondPassphrase));
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+
+        var (confirmed, twoFactor) = await fixture.WithAccountAsync(
+            account,
+            (_, user) => Task.FromResult((user.EmailConfirmed, user.TwoFactorEnabled)));
+        Assert.True(confirmed);
+        Assert.False(twoFactor);
+        Assert.Equal(
+            [AccountAudit.TwoFactorDisabled, AccountAudit.PasswordReset],
+            (await EntriesAsync(account)).Select(e => e.Action));
+    }
+
+    [Fact]
+    public async Task A_reset_on_a_confirmed_account_leaves_its_second_factor_alone()
+    {
+        var email = AccountApiFixture.NewEmail();
+        var account = await fixture.RegisterConfirmedAsync(email);
+        await EnableAsync(account, await BeginSetupAsync(account));
+
+        var (linkAccount, token) = await RequestResetAsync(email);
+        using var reset = await fixture.Client().PostAsJsonAsync(
+            Reset,
+            new ResetPasswordRequest(linkAccount, token, AccountApiFixture.SecondPassphrase));
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+
+        Assert.True(await fixture.WithAccountAsync(account, (_, user) => Task.FromResult(user.TwoFactorEnabled)));
     }
 
     private Task<List<AuditEntry>> EntriesAsync(AccountId account) =>

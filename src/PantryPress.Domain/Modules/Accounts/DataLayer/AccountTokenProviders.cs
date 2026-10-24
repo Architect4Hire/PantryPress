@@ -75,14 +75,14 @@ internal abstract class LinkTokenProvider(IDataProtectionProvider dataProtection
 
 /// <summary>Email confirmation links: 24 hours (approved at PP1.2).</summary>
 internal sealed class EmailConfirmationTokenProvider(IDataProtectionProvider dataProtection, IClock clock)
-    : LinkTokenProvider(dataProtection, clock, Name, TimeSpan.FromHours(24))
+    : LinkTokenProvider(dataProtection, clock, Name, LinkRules.EmailConfirmationLifetime)
 {
     public const string Name = "PantryPress.EmailConfirmation";
 }
 
 /// <summary>Password reset links: one hour (approved at PP1.3), and single-use through the security stamp.</summary>
 internal sealed class PasswordResetTokenProvider(IDataProtectionProvider dataProtection, IClock clock)
-    : LinkTokenProvider(dataProtection, clock, Name, TimeSpan.FromHours(1))
+    : LinkTokenProvider(dataProtection, clock, Name, LinkRules.PasswordResetLifetime)
 {
     public const string Name = "PantryPress.PasswordReset";
 }
@@ -124,7 +124,9 @@ internal sealed class AuthenticatorCodeProvider(IClock clock) : IUserTwoFactorTo
         }
 
         var lastUsed = await manager.GetAuthenticationTokenAsync(user, AccountTokens.Provider, AccountTokens.AuthenticatorLastStep);
-        if (long.TryParse(lastUsed, NumberStyles.None, CultureInfo.InvariantCulture, out var last) && step <= last)
+        if (TwoFactorRules.IsReplay(
+            step,
+            long.TryParse(lastUsed, NumberStyles.None, CultureInfo.InvariantCulture, out var last) ? last : null))
         {
             return false;
         }

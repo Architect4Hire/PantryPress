@@ -118,7 +118,7 @@ public sealed class SessionCookieTests
         Assert.Equal(HttpStatusCode.OK, forwarded.StatusCode);
         var request = Assert.Single(mine.Forwarded);
         Assert.Null(request.Header(SessionHeaders.Account));
-        Assert.Null(request.Header(SessionHeaders.Secret));
+        Assert.Null(request.Header(SessionHeaders.Stamp));
     }
 
     [Fact]

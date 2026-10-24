@@ -1,17 +1,19 @@
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
+using PantryPress.Domain.Modules.Accounts.Contracts;
 
 namespace PantryPress.Worker.Outbox;
 
 /// <summary>
 /// The Worker's periodic sweep (PP1.10): samples the outbox backlog for its gauge, purges finished outbox messages past
-/// their retention, and purges idempotency keys past theirs (PP1.9 left that here). Every step is a batched,
-/// idempotent delete, so several Workers sweeping at once only share the work.
+/// their retention, idempotency keys past theirs (PP1.9 left that here), and sign-outs no session can outlive any more
+/// (PP1.12). Every step is a batched, idempotent delete, so several Workers sweeping at once only share the work.
 /// </summary>
 internal sealed partial class OutboxMaintenance(
     IOutboxStore outbox,
     IIdempotencyStore idempotency,
+    IServiceScopeFactory scopes,
     OutboxMetrics metrics,
     TimeProvider time,
     IOptions<OutboxOptions> options,
@@ -46,9 +48,16 @@ internal sealed partial class OutboxMaintenance(
         metrics.ReadyAge(await outbox.GetReadyAgeAsync(cancellationToken));
         var messages = await PurgeAsync(batch => outbox.PurgeAsync(batch, cancellationToken));
         var keys = await PurgeAsync(batch => idempotency.PurgeExpiredAsync(batch, cancellationToken));
-        if (messages + keys > 0)
+        var signOuts = await PurgeAsync(async batch =>
         {
-            LogPurged(logger, messages, keys);
+            // Each batch in a scope of its own, so no context is held across the sweep.
+            await using var scope = scopes.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<IAccountMaintenance>()
+                .PurgeExpiredSessionRevocationsAsync(batch, cancellationToken);
+        });
+        if (messages + keys + signOuts > 0)
+        {
+            LogPurged(logger, messages, keys, signOuts);
         }
     }
 
@@ -81,8 +90,10 @@ internal sealed partial class OutboxMaintenance(
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Purged {Messages} outbox messages and {Keys} idempotency keys.")]
-    private static partial void LogPurged(ILogger logger, int messages, int keys);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Purged {Messages} outbox messages, {Keys} idempotency keys, and {SignOuts} expired sign-outs.")]
+    private static partial void LogPurged(ILogger logger, int messages, int keys, int signOuts);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "The outbox sweep failed; it runs again at the next interval.")]
     private static partial void LogSweepFailed(ILogger logger, Exception exception);

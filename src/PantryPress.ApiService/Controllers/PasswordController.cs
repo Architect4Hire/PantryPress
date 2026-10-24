@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PantryPress.ApiService.Hosting;
@@ -24,6 +25,9 @@ public sealed class PasswordController(IPasswordFacade passwords) : ApiControlle
 
     /// <summary>Sets a new password with the account id and token from the reset link. A link works once.</summary>
     [HttpPost("reset")]
+    [EndpointDescription(
+        "A link works once. If this answer is lost and the request is sent again, the retry is refused with "
+        + "invalid-reset-link although the new password is already set: sign in with it.")]
     [EnableRateLimiting(ApiRateLimits.AnonymousAccount)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiProblems.ContentType)]
@@ -34,6 +38,9 @@ public sealed class PasswordController(IPasswordFacade passwords) : ApiControlle
     /// <summary>Changes the password of the signed-in account. Wrong current passwords count toward lockout.</summary>
     [HttpPost("change")]
     [RefreshesSession]
+    [EndpointDescription(
+        "Ends the account's other sessions. If this answer is lost, a retry is answered 401 session-ended, because the "
+        + "session it carried was bound to the old password; the new password is set, so sign in with it.")]
     [Authorize]
     [EnableRateLimiting(ApiRateLimits.SignedInAccount)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -42,16 +42,19 @@ public sealed class SessionForwardingTests
     }
 
     [Fact]
-    public async Task An_anonymous_request_is_forwarded_with_no_identity_at_all()
+    public async Task An_anonymous_request_is_vouched_for_but_names_nobody()
     {
         await using var gateway = new GatewayFactory("Development");
 
         using var browser = gateway.CreateBrowser();
         using var response = await browser.PostAsJsonAsync("/api/v1/account/register", new { email = "cook@example.test" });
 
+        // The secret, so ApiService believes the browser's address for its per-address limits (PP1.12) - and nothing
+        // else, so it names no account.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var forwarded = Assert.Single(gateway.Forwarded);
-        foreach (var header in SessionHeaders.Request)
+        Assert.Equal(TestSecrets.GatewaySecret, forwarded.Header(SessionHeaders.Secret));
+        foreach (var header in SessionHeaders.Request.Where(h => h != SessionHeaders.Secret && h != SessionHeaders.ViaProxy))
         {
             Assert.Null(forwarded.Header(header));
         }
@@ -86,7 +89,9 @@ public sealed class SessionForwardingTests
         }
         else
         {
-            foreach (var header in SessionHeaders.Request)
+            // The gateway's own secret, which names nobody (PP1.12), and none of the client's inventions.
+            Assert.Equal(TestSecrets.GatewaySecret, forwarded.Header(SessionHeaders.Secret));
+            foreach (var header in SessionHeaders.Request.Where(h => h != SessionHeaders.Secret && h != SessionHeaders.ViaProxy))
             {
                 Assert.Null(forwarded.Header(header));
             }
@@ -142,6 +147,67 @@ public sealed class SessionForwardingTests
         using var next = await browser.GetAsync(Route);
         Assert.Equal(SessionFixtures.RotatedStamp, gateway.Forwarded.Last().Header(SessionHeaders.Stamp));
         Assert.Equal(HttpStatusCode.NoContent, next.StatusCode);
+    }
+
+    [Fact]
+    public async Task Turning_two_step_sign_in_on_keeps_the_callers_session_with_its_second_step_passed()
+    {
+        // The request gave a valid code itself, so the re-issued session counts as having passed the second step; without
+        // that, the account would now owe a step this session never took and it would end at its next request (PP1.12).
+        await using var gateway = new GatewayFactory(
+            "Development",
+            sessions: _ => SessionFixtures.Accepted(),
+            forward: () =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Headers.Add(SessionHeaders.NewStamp, SessionFixtures.RotatedStamp);
+                response.Headers.Add(SessionHeaders.SecondStepPassed, SessionHeaders.SecondStepPassedValue);
+                return response;
+            });
+        using var browser = await gateway.SignedInAsync();
+
+        using var enabled = await browser.PostAsJsonAsync("/api/v1/account/two-factor/enable", new { code = "123456" });
+
+        Assert.Equal(HttpStatusCode.OK, enabled.StatusCode);
+        Assert.False(enabled.Headers.Contains(SessionHeaders.SecondStepPassed));
+        using var next = await browser.GetAsync(Route);
+        Assert.Equal(SessionFixtures.RotatedStamp, gateway.Forwarded.Last().Header(SessionHeaders.Stamp));
+        Assert.Equal(SessionHeaders.True, gateway.Forwarded.Last().Header(SessionHeaders.SecondFactor));
+    }
+
+    [Fact]
+    public async Task A_new_stamp_alone_carries_no_second_step()
+    {
+        await using var gateway = new GatewayFactory(
+            "Development",
+            sessions: _ => SessionFixtures.Accepted(),
+            forward: () =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.NoContent);
+                response.Headers.Add(SessionHeaders.NewStamp, SessionFixtures.RotatedStamp);
+                return response;
+            });
+        using var browser = await gateway.SignedInAsync();
+
+        using var changed = await browser.PostAsJsonAsync("/api/v1/account/password/change", new { currentPassword = "x", newPassword = "y" });
+        using var next = await browser.GetAsync(Route);
+
+        Assert.Null(gateway.Forwarded.Last().Header(SessionHeaders.SecondFactor));
+    }
+
+    [Fact]
+    public async Task Everything_the_proxy_forwards_is_marked_as_forwarded()
+    {
+        // ApiService's internal surface refuses a request carrying the mark (PP1.12), so nothing the proxy forwards can
+        // reach it - and a client's own copy of the mark is taken away like every other X-PP- header.
+        await using var gateway = new GatewayFactory("Development", sessions: _ => SessionFixtures.Accepted());
+        using var browser = gateway.CreateBrowser();
+        using var request = new HttpRequestMessage(HttpMethod.Get, Route);
+        request.Headers.Add(SessionHeaders.ViaProxy, "forged");
+
+        using var response = await browser.SendAsync(request);
+
+        Assert.Equal(SessionHeaders.ViaProxyValue, Assert.Single(gateway.Forwarded).Header(SessionHeaders.ViaProxy));
     }
 
     [Fact]

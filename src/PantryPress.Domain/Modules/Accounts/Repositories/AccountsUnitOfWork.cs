@@ -36,6 +36,26 @@ internal sealed class AccountsUnitOfWork(PantryPressDbContext db, ILookupNormali
         }
     }
 
+    /// <summary>
+    /// Saves a staged sign-out. Two sign-outs of one session can race - a retried request, two tabs - and the primary key
+    /// lets one in; the other finds the session already revoked, which is exactly what it asked for.
+    /// </summary>
+    public async Task SaveRevocationAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            if (!await db.Set<RevokedSession>().AsNoTracking().AnyAsync(r => r.SessionId == sessionId, cancellationToken))
+            {
+                throw;
+            }
+        }
+    }
+
     public async Task<SaveOutcome> SaveNewAccountAsync(string email, CancellationToken cancellationToken)
     {
         try

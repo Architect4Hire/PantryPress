@@ -67,11 +67,26 @@ public sealed record SessionStart(
 
 /// <summary>
 /// Who a forwarded session belongs to, rebuilt from the database on every request (PP1.6), so a password change, a
-/// two-step change, or a revoked platform role ends other sessions at their next request.
+/// two-step change, or a revoked platform role ends other sessions at their next request. <see cref="SecondFactorVerified"/>
+/// is what the session has proved now, not what it once did: true only while the account still has two-step sign-in
+/// (PP1.12), so an operator who turns it off stops meeting the <c>PlatformAdmin</c> policy at once.
 /// </summary>
 public sealed record SessionIdentity(
     Guid AccountId,
     string Email,
     bool EmailVerified,
     bool TwoFactorEnabled,
+    bool SecondFactorVerified,
     IReadOnlyList<string> Roles);
+
+/// <summary>
+/// What the gateway knows about a complete session when it asks whether it still stands (PP1.12): the account, the
+/// security stamp and session id from its ticket, and whether the ticket says the second step was passed.
+/// </summary>
+public sealed record CurrentSessionRequest(Guid AccountId, string SecurityStamp, string SessionId, bool SecondFactorVerified);
+
+/// <summary>A session the database still stands behind, as the admin app is told about it. No stamp, no token.</summary>
+public sealed record CurrentSession(Guid AccountId, string Email, bool EmailVerified, bool SecondFactorVerified);
+
+/// <summary>The session to sign out for good (PP1.12): the account it belongs to and the id from its ticket.</summary>
+public sealed record EndSessionRequest(Guid AccountId, string SessionId);

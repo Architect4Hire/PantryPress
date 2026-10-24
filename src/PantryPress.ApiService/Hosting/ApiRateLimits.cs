@@ -25,6 +25,13 @@ public sealed class ApiRateLimitOptions
     /// it already limits sign-in per address at the browser's end (PP1.8). This is the backstop behind that.
     /// </summary>
     public int SignInPerMinute { get; set; } = 300;
+
+    /// <summary>
+    /// Requests per minute across every caller for the internal session checks - whether a session still stands, and
+    /// signing one out (PP1.12). Its own ceiling, never the sign-in one: every admin page load asks, and a busy platform
+    /// must neither crowd out sign-in nor have a sign-out refused. The gateway limits both per address in front of it.
+    /// </summary>
+    public int SessionChecksPerMinute { get; set; } = 6_000;
 }
 
 internal static class ApiRateLimits
@@ -32,6 +39,7 @@ internal static class ApiRateLimits
     public const string AnonymousAccount = "account-anonymous";
     public const string SignedInAccount = "account-signed-in";
     public const string SignIn = "account-sign-in";
+    public const string SessionCheck = "account-session-check";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -41,7 +49,8 @@ internal static class ApiRateLimits
         services.AddOptions<ApiRateLimitOptions>()
             .Bind(configuration)
             .Validate(
-                o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SignInPerMinute > 0,
+                o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SignInPerMinute > 0
+                    && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
             .ValidateOnStart();
 
@@ -60,6 +69,12 @@ internal static class ApiRateLimits
             {
                 var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
                 return RateLimitPartition.GetFixedWindowLimiter(SignIn, _ => PerMinute(limits.SignInPerMinute));
+            });
+
+            options.AddPolicy(SessionCheck, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(SessionCheck, _ => PerMinute(limits.SessionChecksPerMinute));
             });
 
             // Partitioned by account; an unauthenticated caller is turned away by [Authorize] before it matters, but

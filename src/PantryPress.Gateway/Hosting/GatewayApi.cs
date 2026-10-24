@@ -37,6 +37,10 @@ internal static class GatewayApi
     public const string ServerErrorCode = "unexpected-error";
     public const string ServerErrorTitle = "Something went wrong on our side. Please try again in a moment.";
 
+    /// <summary>A session that is over (the API's <c>AccountErrors.SessionEnded</c>), as <c>GET /session</c> reports it.</summary>
+    public const string SessionEndedCode = "session-ended";
+    public const string SessionEndedTitle = "You've been signed out. Sign in again to pick up where you left off.";
+
     // After the forwarded /api/v1 route (Order 1) and far ahead of the Development SPA catch-all (Order 1000), so
     // which endpoint answers never depends on route-precedence subtleties.
     private const int FallbackOrder = 2;

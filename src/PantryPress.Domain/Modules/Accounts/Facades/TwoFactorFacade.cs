@@ -2,8 +2,9 @@ using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Audit;
-using PantryPress.Domain.Managers.Email;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -13,8 +14,9 @@ using PantryPress.Domain.Modules.Accounts.Repositories;
 namespace PantryPress.Domain.Modules.Accounts.Facades;
 
 /// <summary>
-/// Optional two-step sign-in with an authenticator app and recovery codes (ACCT-001; PP1.3). Turning it on needs a
-/// working code; turning it off or replacing recovery codes needs the password. Wrong passwords and codes count toward
+/// Optional two-step sign-in with an authenticator app and recovery codes (ACCT-001; PP1.3). Setting it up needs a
+/// confirmed email address (PP1.12) and turning it on a working code; turning it off or replacing recovery codes needs
+/// the password. Wrong passwords and codes count toward
 /// lockout, and every change emails a notice and is audited with the save (PP1.11).
 /// </summary>
 internal sealed partial class TwoFactorFacade(
@@ -22,9 +24,9 @@ internal sealed partial class TwoFactorFacade(
     IValidator<ConfirmPasswordRequest> passwordValidator,
     IValidator<SecondFactorRequest> secondFactorValidator,
     AccountsDataLayer data,
-    AccountEmails emails,
-    IEmailQueue emailQueue,
+    IOutbox outbox,
     IAuditLog audit,
+    IClock clock,
     IOptions<Microsoft.AspNetCore.Identity.IdentityOptions> identityOptions,
     ILogger<TwoFactorFacade> logger) : ITwoFactorFacade
 {
@@ -50,6 +52,11 @@ internal sealed partial class TwoFactorFacade(
         if (user.TwoFactorEnabled)
         {
             return AccountErrors.TwoFactorAlreadyOn;
+        }
+
+        if (!TwoFactorRules.MaySetUp(user.EmailConfirmed))
+        {
+            return AccountErrors.EmailNotVerified;
         }
 
         // A fresh key every time: a key shown before (and perhaps seen by someone else) is never turned on later.
@@ -84,32 +91,38 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.TwoFactorAlreadyOn;
         }
 
+        // Checked again here, not only at setup: a key made before PP1.12 required it must not be turned on either.
+        if (!TwoFactorRules.MaySetUp(user.EmailConfirmed))
+        {
+            return AccountErrors.EmailNotVerified;
+        }
+
         if (!await data.HasAuthenticatorKeyAsync(user))
         {
             return AccountErrors.TwoFactorSetupRequired;
         }
 
-        if (await data.IsLockedOutAsync(user))
+        if (await AccountGuards.LockedOutAsync(data, clock, user) is { } locked)
         {
-            return AccountErrors.TooManyAttempts;
+            return locked;
         }
 
         if (!await data.VerifyAuthenticatorCodeAsync(user, request.Code))
         {
-            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCode, cancellationToken);
+            return await RefuseCodeAsync(user, request.Code, cancellationToken);
         }
 
         await data.SetTwoFactorEnabledAsync(user, enabled: true);
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
         audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorEnabled, account), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOn, clock.UtcNow), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
         }
 
         LogEnabled(logger, user.Id);
-        emailQueue.Enqueue(emails.TwoFactorTurnedOn(Guid.NewGuid(), user.Email!));
         return new RecoveryCodeList(codes);
     }
 
@@ -129,7 +142,7 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.Password, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, clock, user, request.Password, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -144,13 +157,13 @@ internal sealed partial class TwoFactorFacade(
         await data.ForgetSecondFactorsAsync(user);
         await data.ClearFailedAttemptsAsync(user);
         audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOff, clock.UtcNow), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
         }
 
         LogDisabled(logger, user.Id);
-        emailQueue.Enqueue(emails.TwoFactorTurnedOff(Guid.NewGuid(), user.Email!));
         return Result.Success;
     }
 
@@ -170,7 +183,7 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.Password, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, clock, user, request.Password, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -183,13 +196,13 @@ internal sealed partial class TwoFactorFacade(
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
         audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodesReplaced, account), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodesReplaced, clock.UtcNow), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
         }
 
         LogCodesReplaced(logger, user.Id);
-        emailQueue.Enqueue(emails.RecoveryCodesReplaced(Guid.NewGuid(), user.Email!));
         return new RecoveryCodeList(codes);
     }
 
@@ -214,9 +227,9 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.TwoFactorOff;
         }
 
-        if (await data.IsLockedOutAsync(user))
+        if (await AccountGuards.LockedOutAsync(data, clock, user) is { } locked)
         {
-            return AccountErrors.TooManyAttempts;
+            return locked;
         }
 
         var usedRecoveryCode = !Totp.TryNormalize(request.Code, out var code);
@@ -225,13 +238,17 @@ internal sealed partial class TwoFactorFacade(
             : await data.VerifyAuthenticatorCodeAsync(user, code);
         if (!accepted)
         {
-            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCode, cancellationToken);
+            return usedRecoveryCode
+                ? await AccountGuards.FailAsync(data, audit, clock, user, AccountErrors.InvalidCode, cancellationToken)
+                : await RefuseCodeAsync(user, code, cancellationToken);
         }
 
         await data.ClearFailedAttemptsAsync(user);
         if (usedRecoveryCode)
         {
+            // The email says how many codes are left, counted when the Worker sends it.
             audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodeUsed, account), siteId: null);
+            outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodeUsed, clock.UtcNow), siteId: null);
         }
 
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
@@ -243,11 +260,17 @@ internal sealed partial class TwoFactorFacade(
         if (usedRecoveryCode)
         {
             LogRecoveryCodeUsed(logger, user.Id);
-            emailQueue.Enqueue(emails.RecoveryCodeUsed(Guid.NewGuid(), user.Email!, await data.CountRecoveryCodesAsync(user)));
         }
 
         return Result.Success;
     }
+
+    // A right code sent again is refused - each works once - but is not a guess, so it costs nothing toward lockout: the
+    // retry of a sign-in whose answer was lost must not lock its owner out (PP1.12). Anything else is a wrong code.
+    private async Task<Error> RefuseCodeAsync(ApplicationUser user, string code, CancellationToken cancellationToken) =>
+        await data.IsUsedAuthenticatorCodeAsync(user, code, clock.UtcNow)
+            ? AccountErrors.CodeAlreadyUsed
+            : await AccountGuards.FailAsync(data, audit, clock, user, AccountErrors.InvalidCode, cancellationToken);
 
     // Groups of four, lower case, as authenticator apps show keys typed by hand.
     private static string FormatKey(string key) =>

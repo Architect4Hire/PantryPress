@@ -3,7 +3,10 @@
 ## Accounts
 
 - ASP.NET Core Identity in `Modules/Accounts`. Email verification required before publishing (ACCT-001).
-- Optional TOTP two-factor; required for `PlatformAdmin`.
+- Optional TOTP two-factor; required for `PlatformAdmin`. Setting it up needs a confirmed email address (PP1.12), and a
+  reset that confirms an address for the first time clears a second factor the account already had. An authenticator
+  code works once; the same right code sent again is refused (`code-already-used`) without counting toward lockout.
+- Lockout after 5 wrong passwords or codes, for 15 minutes; its 429 carries `Retry-After` (PP1.12).
 - Disposable-email blocking at signup (ACCT-003 default yes).
 
 ## Browser boundary (BFF)
@@ -24,6 +27,11 @@
   account's others end.
 - **The second step is bound to the first:** the half-finished ticket carries the stamp, and the second-factor check
   refuses a code whose stamp does not match before counting any attempt, so a code alone never completes a sign-in.
+- **A session ends when it is meant to (PP1.12).** Each complete session has its own random id (`X-PP-Sid`) and its
+  sign-in time in the ticket. Signing out revokes the id at the API (`RevokedSessions`, remembered 24 hours, purged by the
+  Worker), so a copy of the cookie stops working wherever it is presented; and a session ends 12 hours after sign-in
+  however busy it is kept, on top of the 8-hour sliding window. The second-step claim counts only while the account still
+  has two-step sign-in, so an operator who turns it off stops meeting the `PlatformAdmin` policy at once.
 
 ## Roles and policies
 
@@ -32,7 +40,7 @@
 | Owner | site | Everything, including billing, members, domains, publishing keys |
 | Editor | site | All content, design, and moderation |
 | Author | site | Own posts only; cannot publish when review is required (POST-010) |
-| PlatformAdmin | platform | Operator console only, audited |
+| PlatformAdmin | platform | Operator console only, audited; granted only to an account that confirmed its address (PP1.12) |
 
 - Policies are named (`SiteOwner`, `SiteEditor`, `SiteAuthor`, `PlatformAdmin`) and checked in controllers;
   facades re-check resource ownership (an Author editing someone else's post).

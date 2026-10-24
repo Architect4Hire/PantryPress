@@ -17,6 +17,8 @@ public interface IAccountRoles
     /// <summary>
     /// Gives the account the platform role. True when it did not have it; false when nothing changed, so a repeated
     /// grant is a no-op. A real grant also rotates the security stamp, which ends the account's other sessions.
+    /// <see cref="AccountErrors.EmailNotVerified"/> for an account that has not confirmed its address: an address on the
+    /// operator's list proves nothing about who signed up with it until an email sent there has been answered (PP1.12).
     /// </summary>
     Task<Result<bool>> GrantPlatformAdminAsync(
         AccountId account,

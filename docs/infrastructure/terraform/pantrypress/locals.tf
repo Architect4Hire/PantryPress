@@ -129,7 +129,6 @@ locals {
       env = {
         "ConnectionStrings__pantrypress" = local.sql_connection["apiservice"]
         "ConnectionStrings__blobs"       = local.blob_endpoint
-        "Accounts__AppBaseUrl"           = local.admin_origin
       }
       secret_env = { "Gateway__SharedSecret" = "gateway-secret" }
       secrets    = { "gateway-secret" = azurerm_key_vault_secret.gateway_secret.versionless_id }
@@ -170,6 +169,8 @@ locals {
       env = {
         "ConnectionStrings__pantrypress" = local.sql_connection["worker"]
         "ConnectionStrings__blobs"       = local.blob_endpoint
+        # The Worker sends account email from the outbox (PP1.10b), so the links in it are written here.
+        "Accounts__AppBaseUrl" = local.admin_origin
       }
       secret_env = { "ConnectionStrings__redis" = "redis-connection" }
       secrets    = { "redis-connection" = azurerm_key_vault_secret.redis_connection.versionless_id }

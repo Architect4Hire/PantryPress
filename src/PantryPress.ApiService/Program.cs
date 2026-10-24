@@ -20,11 +20,11 @@ builder.AddSqlServerDbContext<PantryPressDbContext>("pantrypress");
 builder.Services.AddDataProtection().SetApplicationName("PantryPress");
 
 // Facades stage side effects in the transactional outbox, which commits with their own save; the Worker delivers them
-// (PP1.10). The API only writes: it never registers the dispatcher.
+// (PP1.10). The API only writes: it never registers the dispatcher, and it sends no email of its own - account email is
+// staged there too and sent by the Worker (PP1.10b), so this host needs no email gateway and no link origin.
 builder.Services.AddOutbox();
 
-builder.Services.AddAccounts(builder.Configuration.GetSection("Accounts"));
-builder.AddApiEmail();
+builder.Services.AddAccounts();
 builder.Services.AddApiControllers();
 builder.Services.AddGatewayTrust(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddApiAuthentication();
@@ -53,6 +53,9 @@ app.UseGatewayForwardedClient();
 app.UseRequestLimits();
 app.UseNoStoreByDefault();
 app.MapDefaultEndpoints();
+
+// The internal surface is the gateway's alone (PP1.6): anyone else is answered "not here" before anything counts them.
+app.UseInternalSurfaceGuard();
 
 app.UseAuthentication();
 app.UseAuthorization();

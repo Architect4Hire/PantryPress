@@ -694,7 +694,7 @@ PantryPress:
 | Phase | Name | Delivers | Requirements |
 | --- | --- | --- | --- |
 | **PP0** | Repository and runtime foundation | Decisions record, toolkit, solution, AppHost, SQL, Redis, blob, migration service, Angular workspace, first run | ARCH-001, section 6 |
-| **PP1** | Identity, gateway, and browser boundary | Accounts, BFF, cookies, antiforgery, edge hardening, idempotency, outbox, audit | ACCT-001–005; PSEC-003 |
+| **PP1** | Identity, gateway, and browser boundary | Accounts, BFF, cookies, antiforgery, edge hardening, idempotency, outbox, audit | ACCT-001–003, 005; PSEC-003 |
 | **PP2** | Sites, membership, and tenancy | Site, slug, SiteHost, members and roles, site filters, two-site harness, public site API host | SITE-001–005, 008–010; ARCH-003, 015; PSEC-004, 007 |
 | **PP3** | Design system and admin shell | `@pantrypress/ui` foundation, admin primitives, admin app shell, site switcher | PP-D07; THM-003 (admin) |
 | **PP4** | Recipes and calculations | Recipe model, ingredient parsing, scaling, conversion, JSON-LD, recipe editor | RCP-001–009 |
@@ -712,7 +712,7 @@ PantryPress:
 | **PP16** | Analytics | Beacon, aggregates, dashboard, GA4 option | ANL-001–004 |
 | **PP17** | Custom domains | Verification, managed certificates, canonical switching | DOM-001–005 |
 | **PP18** | Publishing API and CreatorPantry connection | Keys, Publish Format, endpoints, media ingest, OpenAPI, contract tests, connect screen | API-001–009; ARCH-009; BIZ-010; PSEC-008 |
-| **PP19** | Operations and launch readiness | Shared-platform and app IaC, CI/CD, operator console, abuse, alerts, status page, legal, drills, launch gate | OPS-001–012; CMP-001–002; PNFR-003–007; BIZ-008–009 |
+| **PP19** | Operations and launch readiness | Shared-platform and app IaC, CI/CD, operator console, abuse, alerts, status page, legal, drills, account deletion and export, launch gate | OPS-001–012; CMP-001–002; PNFR-003–007; BIZ-008–009; ACCT-004 |
 | **PP20** | WordPress import | WXR and recipe-plugin import, media, comments, redirects | IMP-001–004; BIZ-011 |
 
 ### 7.2 Checkpoints

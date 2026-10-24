@@ -73,6 +73,14 @@ internal static class ApiProblems
 
         problem.Title = error.Title;
         problem.Extensions[CodeKey] = error.Code;
+
+        // A lockout says how long in words and, here, in seconds (PP1.12); never less than one.
+        if (error.RetryAfter is { } wait)
+        {
+            controller.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         return new ObjectResult(problem) { StatusCode = status, ContentTypes = { ContentType } };
     }
 

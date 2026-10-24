@@ -30,6 +30,12 @@ public sealed record Error(ErrorKind Kind, string Code, string Title)
     /// <summary>Plain-language messages per field, for <see cref="ErrorKind.Validation"/> errors only.</summary>
     public IReadOnlyDictionary<string, string[]> Fields { get; init; } = new Dictionary<string, string[]>();
 
+    /// <summary>
+    /// How long to wait before trying again, for <see cref="ErrorKind.TooManyAttempts"/>: hosts send it as
+    /// <c>Retry-After</c>, so the plain title has a machine-readable half (PP1.12).
+    /// </summary>
+    public TimeSpan? RetryAfter { get; init; }
+
     public static Error Validation(IReadOnlyDictionary<string, string[]> fields) =>
         new(ErrorKind.Validation, "validation-failed", "Some of the details need another look.") { Fields = fields };
 }

@@ -1,6 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
-using PantryPress.Domain.Managers.Email;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
@@ -13,8 +13,8 @@ namespace PantryPress.Domain.Modules.Accounts.Facades;
 
 /// <summary>
 /// Sign-up and email confirmation (ACCT-001, ACCT-003; PP1.2). No enumeration: a new address and a registered one get
-/// the same answer, both hash the password, and email is sent from a queue after the response, so neither the body,
-/// the status, nor the time to send reveals which addresses have accounts.
+/// the same answer, both hash the password, and email is sent by the Worker from the outbox (PP1.10b), so neither the
+/// body, the status, nor the time to send reveals which addresses have accounts.
 /// </summary>
 internal sealed partial class AccountRegistrationFacade(
     IValidator<RegisterAccountRequest> registerValidator,
@@ -22,8 +22,7 @@ internal sealed partial class AccountRegistrationFacade(
     IValidator<ResendVerificationRequest> resendValidator,
     AccountsDataLayer data,
     IClock clock,
-    AccountEmails emails,
-    IEmailQueue emailQueue,
+    IOutbox outbox,
     ILogger<AccountRegistrationFacade> logger) : IAccountRegistrationFacade
 {
     public async Task<Result> RegisterAsync(RegisterAccountRequest request, CancellationToken cancellationToken)
@@ -54,13 +53,16 @@ internal sealed partial class AccountRegistrationFacade(
                 });
         }
 
-        if (await data.SaveNewAccountAsync(request.Email, cancellationToken) == SaveOutcome.EmailTaken)
+        // The first confirmation email is staged with the account, so the two are saved together or not at all. Staging
+        // validates the account again, and a concurrent sign-up for the address may have been saved meanwhile: the same
+        // answer as "existing", as at creation.
+        if (await StageVerificationAsync(user) == Staged.AddressTaken
+            || await data.SaveNewAccountAsync(request.Email, cancellationToken) == SaveOutcome.EmailTaken)
         {
             return Result.Success;
         }
 
         LogRegistered(logger, user.Id);
-        await SendVerificationAsync(user, cancellationToken);
         return Result.Success;
     }
 
@@ -99,24 +101,48 @@ internal sealed partial class AccountRegistrationFacade(
         return Result.Success;
     }
 
-    // Saves the throttle before queuing, so a failed save sends nothing and the person can simply ask again.
+    // A resend: staged with the throttle it spends and saved, so both are saved or neither is. A failed save sends
+    // nothing, and the person can simply ask again.
     private async Task SendVerificationAsync(ApplicationUser user, CancellationToken cancellationToken)
+    {
+        if (await StageVerificationAsync(user) == Staged.Yes
+            && await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
+        {
+            LogNotSent(logger, user.Id);
+        }
+    }
+
+    // The email, and the throttle it spends, staged for the caller's one save. The Worker makes the link when it sends
+    // the email (PP1.10b).
+    private async Task<Staged> StageVerificationAsync(ApplicationUser user)
     {
         var throttle = await data.GetEmailThrottleAsync(user, ThrottledEmail.Verification);
         if (!EmailThrottle.TryTake(throttle, clock.UtcNow, out var allowance))
         {
             LogThrottled(logger, user.Id);
-            return;
+            return Staged.Throttled;
         }
 
-        await data.SetEmailThrottleAsync(user, ThrottledEmail.Verification, allowance);
-        var token = await data.CreateEmailConfirmationTokenAsync(user);
-        if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
+        var set = await data.TrySetEmailThrottleAsync(user, ThrottledEmail.Verification, allowance);
+        if (!set.Succeeded)
         {
-            return;
+            return set.Errors.Any(e => e.Code is "DuplicateEmail" or "DuplicateUserName")
+                ? Staged.AddressTaken
+                : throw new InvalidOperationException(
+                    $"An account change was refused: {string.Join(", ", set.Errors.Select(e => e.Code))}.");
         }
 
-        emailQueue.Enqueue(emails.Verification(Guid.NewGuid(), user.Email!, new AccountId(user.Id), token));
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.Verification, clock.UtcNow), siteId: null);
+        return Staged.Yes;
+    }
+
+    private enum Staged
+    {
+        Yes,
+        Throttled,
+
+        /// <summary>A new account's address was taken by a concurrent sign-up while it was being staged.</summary>
+        AddressTaken,
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Account {AccountId} was created.")]
@@ -124,4 +150,9 @@ internal sealed partial class AccountRegistrationFacade(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A confirmation email for account {AccountId} was throttled.")]
     private static partial void LogThrottled(ILogger logger, Guid accountId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A confirmation email for account {AccountId} was not sent: the account changed at the same time. Asking again sends one.")]
+    private static partial void LogNotSent(ILogger logger, Guid accountId);
 }

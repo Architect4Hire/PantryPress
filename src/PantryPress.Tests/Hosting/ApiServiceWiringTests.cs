@@ -4,18 +4,24 @@ using Aspire.Hosting.Testing;
 
 namespace PantryPress.Tests.Hosting;
 
-// PP1.2b and PP1.2c: ApiService gets the database and the admin app origin for email links from the AppHost, plus the
-// mail sink in local Development only (aspire.md: no hard-coded endpoints).
+// PP1.2b and PP1.2c: the database and the admin app origin for email links come from the AppHost, plus the mail sink in
+// local Development only (aspire.md: no hard-coded endpoints). Since PP1.10b the Worker sends account email from the
+// outbox, so the origin and the sink are the Worker's, and ApiService has neither.
 public sealed class ApiServiceWiringTests
 {
     [Fact]
-    public async Task ApiService_gets_the_database_mail_sink_and_link_origin_from_the_AppHost()
+    public async Task The_worker_gets_the_mail_sink_and_link_origin_and_ApiService_the_database_alone()
     {
         await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>();
         var apiService = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "apiservice");
+        var worker = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "worker");
 
-        var variables = await GetEnvironmentAsync(apiService, appHost.ExecutionContext);
+        var api = await GetEnvironmentAsync(apiService, appHost.ExecutionContext);
+        var variables = await GetEnvironmentAsync(worker, appHost.ExecutionContext);
 
+        Assert.Contains("ConnectionStrings__pantrypress", api.Keys);
+        Assert.DoesNotContain(api.Keys, k => k.StartsWith("DevelopmentMail__", StringComparison.Ordinal));
+        Assert.DoesNotContain("Accounts__AppBaseUrl", api.Keys);
         Assert.Contains("ConnectionStrings__pantrypress", variables.Keys);
         Assert.Contains("DevelopmentMail__Host", variables.Keys);
         Assert.Contains("DevelopmentMail__Port", variables.Keys);
@@ -27,16 +33,16 @@ public sealed class ApiServiceWiringTests
     }
 
     [Fact]
-    public async Task Published_ApiService_takes_the_link_origin_from_a_parameter_and_has_no_mail_sink()
+    public async Task The_published_worker_takes_the_link_origin_from_a_parameter_and_has_no_mail_sink()
     {
         var outputPath = Directory.CreateTempSubdirectory("pantrypress-publish-").FullName;
         try
         {
             await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>(
                 ["--operation", "publish", "--output-path", outputPath]);
-            var apiService = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "apiservice");
+            var worker = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "worker");
 
-            var variables = await GetEnvironmentAsync(apiService, appHost.ExecutionContext);
+            var variables = await GetEnvironmentAsync(worker, appHost.ExecutionContext);
 
             var origin = Assert.IsType<ParameterResource>(variables["Accounts__AppBaseUrl"]);
             Assert.Equal("app-base-url", origin.Name);

@@ -29,6 +29,12 @@ internal static class GatewaySession
     /// <summary>Set when the session passed the second sign-in step (<see cref="AccountClaims.TwoFactorVerified"/>).</summary>
     public const string SecondFactorHeader = "X-PP-Mfa";
 
+    /// <summary>
+    /// The session's own id, minted by the gateway at sign-in (PP1.12). A signed-out session is refused by it, so a copy
+    /// of the cookie stops working the moment its owner signs out.
+    /// </summary>
+    public const string SessionIdHeader = "X-PP-Sid";
+
     public const string True = "true";
 
     /// <summary>
@@ -45,13 +51,33 @@ internal static class GatewaySession
     /// </summary>
     public const string NewStampHeader = "X-PP-New-Stamp";
 
-    /// <summary>Told apart from a plain 401 so the admin app can say "you were signed out" rather than "sign in".</summary>
-    public const string EndedCode = "session-ended";
+    /// <summary>
+    /// On a response, beside <see cref="NewStampHeader"/>: the request passed the second step itself - it turned two-step
+    /// sign-in on with a valid code - so the re-issued session carries the second-step claim (PP1.12). Without it the
+    /// caller's own session would end at its next request, since the account now owes a second step it never passed.
+    /// Stripped by the gateway.
+    /// </summary>
+    public const string SecondStepPassedHeader = "X-PP-Second-Step";
 
-    public const string EndedTitle = "You've been signed out. Sign in again to pick up where you left off.";
+    public const string SecondStepPassed = "passed";
+
+    /// <summary>
+    /// On every request the gateway's proxy forwards (PP1.12). The internal surface refuses a request carrying it, so
+    /// nothing the proxy forwards can reach that surface, whatever a path or route mistake might one day let through;
+    /// only the gateway's own session client, which never sets it, can.
+    /// </summary>
+    public const string ViaProxyHeader = "X-PP-Via";
+
+    public const string ViaProxy = "proxy";
+
+    /// <summary>Told apart from a plain 401 so the admin app can say "you were signed out" rather than "sign in".</summary>
+    public static readonly string EndedCode = AccountErrors.SessionEnded.Code;
+
+    public static readonly string EndedTitle = AccountErrors.SessionEnded.Title;
 
     /// <summary>Every header the gateway owns. The gateway strips all of them from an inbound request.</summary>
-    public static readonly string[] RequestHeaders = [SecretHeader, AccountHeader, StampHeader, SecondFactorHeader];
+    public static readonly string[] RequestHeaders =
+        [SecretHeader, AccountHeader, StampHeader, SecondFactorHeader, SessionIdHeader, ViaProxyHeader];
 }
 
 /// <summary>The secret the gateway proves itself with. Set by the AppHost (locally) or Key Vault (PP19).</summary>
@@ -108,6 +134,34 @@ internal static class GatewayTrustExtensions
 
         services.AddSingleton<GatewayTrust>();
         return services;
+    }
+}
+
+internal static class InternalSurfaceGuard
+{
+    /// <summary>
+    /// Answers any request under the internal surface that cannot present the gateway's secret, or that the gateway's
+    /// proxy forwarded rather than its session client sent, with the 404 an unknown route gets, before authentication
+    /// and the rate limiter (PP1.12). <see cref="GatewayOnlyAttribute"/> refuses the
+    /// same callers, but only once MVC runs - after the sign-in ceiling has counted them, so a stranger could spend the
+    /// gateway's allowance and learn from a 429 that the surface exists. The status-code pages write the problem.
+    /// </summary>
+    public static IApplicationBuilder UseInternalSurfaceGuard(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        var prefix = new PathString("/" + Http.ApiSurfaces.InternalV1Route);
+        return app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase)
+                && (!context.RequestServices.GetRequiredService<GatewayTrust>().IsFromGateway(context.Request)
+                    || context.Request.Headers.ContainsKey(GatewaySession.ViaProxyHeader)))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            await next(context);
+        });
     }
 }
 

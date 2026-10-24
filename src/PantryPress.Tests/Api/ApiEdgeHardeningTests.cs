@@ -76,6 +76,78 @@ public sealed class ApiEdgeHardeningTests
         Assert.Equal("too-many-requests", await second.CodeAsync());
     }
 
+    [Fact]
+    public async Task A_stranger_at_the_internal_surface_is_not_there_and_spends_nothing()
+    {
+        // The sign-in ceiling is one request here. A caller without the secret is answered "not here" before the rate
+        // limiter counts it (PP1.12), so it can neither learn the surface exists from a 429 nor spend the allowance
+        // the gateway signs people in with.
+        using var api = ApiServiceFactory.WithoutDatabase(
+            extraSettings: new Dictionary<string, string?> { ["RateLimits:SignInPerMinute"] = "1" },
+            signInWithTestHeader: false);
+        using var client = api.CreateClient();
+
+        for (var i = 0; i < 3; i++)
+        {
+            using var stranger = await client.PostAsJsonAsync(
+                "/api/internal/v1/sessions/credentials",
+                new { email = "cook@example.test", password = "a long kitchen phrase" });
+            Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
+            Assert.Equal("not-found", await stranger.CodeAsync());
+            Assert.Null(stranger.Headers.RetryAfter);
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/internal/v1/sessions/credentials")
+        {
+            Content = JsonContent.Create(new { email = "cook@example.test", password = "a long kitchen phrase" }),
+        };
+        request.Headers.TryAddWithoutValidation(GatewaySession.SecretHeader, TestSecrets.GatewaySecret);
+        using var gateway = await client.SendAsync(request);
+
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, gateway.StatusCode);
+        Assert.NotEqual(HttpStatusCode.NotFound, gateway.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_internal_surface_refuses_what_the_gateways_proxy_forwarded()
+    {
+        // The secret is right, but the request came through the proxy rather than the gateway's session client.
+        using var api = ApiServiceFactory.WithoutDatabase(signInWithTestHeader: false);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/internal/v1/sessions/credentials")
+        {
+            Content = JsonContent.Create(new { email = "cook@example.test", password = "a long kitchen phrase" }),
+        };
+        request.Headers.TryAddWithoutValidation(GatewaySession.SecretHeader, TestSecrets.GatewaySecret);
+        request.Headers.TryAddWithoutValidation(GatewaySession.ViaProxyHeader, GatewaySession.ViaProxy);
+
+        using var response = await api.CreateClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("not-found", await response.CodeAsync());
+    }
+
+    [Fact]
+    public async Task Session_checks_never_spend_the_sign_in_ceiling()
+    {
+        // Every admin page load asks whether its session still stands; that must never crowd out sign-in or have a
+        // sign-out refused (PP1.12). The sign-in ceiling is one request here, and three checks all get past it.
+        using var api = ApiServiceFactory.WithoutDatabase(
+            extraSettings: new Dictionary<string, string?> { ["RateLimits:SignInPerMinute"] = "1" },
+            signInWithTestHeader: false);
+        using var client = api.CreateClient();
+
+        for (var i = 0; i < 3; i++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/internal/v1/sessions/end")
+            {
+                Content = JsonContent.Create(new { accountId = Guid.NewGuid(), sessionId = Guid.NewGuid().ToString("N") }),
+            };
+            request.Headers.TryAddWithoutValidation(GatewaySession.SecretHeader, TestSecrets.GatewaySecret);
+            using var response = await client.SendAsync(request);
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, response.StatusCode);
+        }
+    }
+
     private static ApiServiceFactory Limited() =>
         ApiServiceFactory.WithoutDatabase(
             extraSettings: new Dictionary<string, string?> { ["RateLimits:AnonymousAccountPerIpPerMinute"] = "1" });

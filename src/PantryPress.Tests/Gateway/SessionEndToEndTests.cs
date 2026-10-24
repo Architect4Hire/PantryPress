@@ -85,6 +85,11 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
         Assert.Equal("complete", view.RootElement.GetProperty("stage").GetString());
         Assert.False(view.RootElement.GetProperty("emailVerified").GetBoolean());
 
+        // What the browser can read names the account and nothing that could act for it: no stamp, no token (ACCT-002).
+        Assert.Equal(
+            ["accountId", "email", "emailVerified", "secondFactorVerified", "stage"],
+            view.RootElement.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+
         // The gateway holds the session; the browser holds a cookie and no token. A real browser is sent here over
         // HTTPS (app.localhost locally), which is what a Secure cookie needs; this test replays the cookie by hand.
         var session = Cookie(signedIn, SessionCookie.CompleteName);
@@ -126,10 +131,27 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
 
         Assert.Equal(HttpStatusCode.NoContent, signedOut.StatusCode);
 
-        // The browser's copy is gone. The ticket itself keeps working until it expires or the account's security stamp
-        // moves: there is no server-side session store yet (recorded for PP1.11).
+        // The browser's copy is gone...
         Assert.NotNull(signedOut.Headers.GetValues("Set-Cookie")
             .FirstOrDefault(value => value.StartsWith($"{SessionCookie.CompleteName}=;", StringComparison.Ordinal)));
+
+        // ...and so is the session itself (PP1.12): a copy of the cookie, kept from before the sign-out, reaches nothing.
+        using var replayed = await SendAsync(
+            client,
+            host,
+            HttpMethod.Get,
+            "/api/v1/account/two-factor",
+            timeout.Token,
+            cookie: session);
+        Assert.Equal(HttpStatusCode.Unauthorized, replayed.StatusCode);
+        using var replayedSession = await SendAsync(
+            client,
+            host,
+            HttpMethod.Get,
+            "/api/v1/account/session",
+            timeout.Token,
+            cookie: session);
+        Assert.Equal(HttpStatusCode.Unauthorized, replayedSession.StatusCode);
     }
 
     private static string? Cookie(HttpResponseMessage response, string name)

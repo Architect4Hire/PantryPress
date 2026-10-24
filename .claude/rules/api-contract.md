@@ -9,11 +9,28 @@ Applies to admin API, public site API, and publishing API.
   second step, read, sign out) is answered by `PantryPress.Gateway`, because the gateway holds the cookie (PP1.6,
   `gateway.md`). Its request and response records live in `PantryPress.Gateway/Contracts/`, and a test pins the path
   under the declared admin prefix and the gateway's own `/api` endpoints to exactly that set.
-- `api/internal/v1` on ApiService is the gateway's alone (PP1.6): the gateway calls it to check credentials, the BFF
-  never forwards it, every route on it refuses a caller without the gateway's shared secret, and the host refuses to
-  start if a controller there forgets that guard. It is never routed at the edge.
+- `api/internal/v1` on ApiService is the gateway's alone (PP1.6): the gateway calls it to check credentials and the second
+  step, to ask whether a session still stands (`sessions/current`), and to sign a session out (`sessions/end`) (PP1.12).
+  The BFF never forwards it, a caller without the gateway's shared secret is answered the unknown-route 404 before
+  authentication or a rate limiter counts it, every controller there carries the guard as well, and the host refuses to
+  start if one forgets it. It is never routed at the edge.
 - Request and response types are records in `Contracts/` per module, never EF entities.
-- Errors are RFC 9457 problem details with a stable `code` and a plain-language `title`.
+- Errors are RFC 9457 problem details with a stable `code` and a plain-language `title`. Codes are kebab-case and one
+  meaning each; a test reads every place one is declared (PP1.12). A route's declared 400 is `ValidationProblemDetails`
+  with `errors` optional, because it is either a validation failure or a plain refusal. A lockout's 429 carries
+  `Retry-After`.
+- The admin document declares what the gateway answers on its own before a request arrives (401 for a half-finished or
+  ended session, 400 `antiforgery-failed` and 403 `cross-origin-blocked` on a write, 502 and 504), because the admin client
+  is written from it. A write that cannot be repeated safely says in its description what a retry after a lost answer
+  gets (PP1.12).
+- Admin v1 - the gateway's session routes included - has no client outside this repository until the admin app ships
+  (PP3.8) and public sign-up opens (BIZ-009). Until that release it is pre-release: a breaking change is allowed when
+  the OpenAPI document, the contract tests, and the decision log change in the same commit (PP1.12 used this for the
+  confirmed-email 403s, the session id header, and the current-session check; PP12.3 will for the spam challenge's
+  sign-up field). From that release on, the breaking-change rule below applies to it in full. The publishing API is
+  never pre-release (API-009).
+- `session-ended` is a 401 everywhere the admin app meets it. On the internal surface it is a 400 the gateway acts on
+  (clearing its cookie and answering 401), because there it is a refusal of the gateway's request, not of a browser.
 - Pagination is cursor-based with `limit` (max 100).
 - Every write that can be retried accepts `Idempotency-Key`; a replay returns the stored result (PP1.9). A route opts in
   with `[Idempotent]` (optionally `Required = true`), and the host refuses to start if that is on a read or on a route

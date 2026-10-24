@@ -1,7 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using PantryPress.Domain.Managers.Audit;
-using PantryPress.Domain.Managers.Email;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
@@ -23,8 +23,7 @@ internal sealed partial class PasswordFacade(
     IValidator<ChangePasswordRequest> changeValidator,
     AccountsDataLayer data,
     IClock clock,
-    AccountEmails emails,
-    IEmailQueue emailQueue,
+    IOutbox outbox,
     IAuditLog audit,
     ILogger<PasswordFacade> logger) : IPasswordFacade
 {
@@ -48,11 +47,19 @@ internal sealed partial class PasswordFacade(
             return Result.Success;
         }
 
+        // Staged with the throttle it spends; the Worker makes the one-hour link when it sends the email (PP1.10b), and
+        // sends nothing if the account's stamp has moved since now - which would have voided a link made now.
         await data.SetEmailThrottleAsync(user, ThrottledEmail.PasswordReset, allowance);
-        var token = await data.CreatePasswordResetTokenAsync(user);
-        if (await data.SaveChangesAsync(cancellationToken) == SaveOutcome.Saved)
+        outbox.Enqueue(
+            new AccountEmailMessage(
+                user.Id,
+                AccountEmailKind.PasswordReset,
+                clock.UtcNow,
+                LinkRules.StampFingerprint(await data.GetSecurityStampAsync(user))),
+            siteId: null);
+        if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
-            emailQueue.Enqueue(emails.PasswordReset(Guid.NewGuid(), user.Email!, new AccountId(user.Id), token));
+            LogNotSent(logger, user.Id);
         }
 
         return Result.Success;
@@ -71,6 +78,7 @@ internal sealed partial class PasswordFacade(
             return AccountErrors.InvalidResetLink;
         }
 
+        var confirmedBefore = user.EmailConfirmed;
         var reset = await data.ResetPasswordAsync(user, request.Token, request.NewPassword);
         if (!reset.Succeeded)
         {
@@ -82,14 +90,23 @@ internal sealed partial class PasswordFacade(
         await data.ClearLockoutAsync(user);
 
         // The holder of the emailed link is the account acting on itself.
-        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordReset, new AccountId(user.Id)), siteId: null);
+        var account = new AccountId(user.Id);
+        if (TwoFactorRules.ResetClearsSecondFactor(confirmedBefore, user.TwoFactorEnabled))
+        {
+            // A second factor set up before anyone proved they read this inbox was not necessarily the owner's.
+            await data.SetTwoFactorEnabledAsync(user, enabled: false);
+            await data.ForgetSecondFactorsAsync(user);
+            audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), siteId: null);
+        }
+
+        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordReset, account), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
         }
 
         LogPasswordReset(logger, user.Id);
-        emailQueue.Enqueue(emails.PasswordChanged(Guid.NewGuid(), user.Email!));
         return Result.Success;
     }
 
@@ -109,7 +126,7 @@ internal sealed partial class PasswordFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.CurrentPassword, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, clock, user, request.CurrentPassword, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -122,13 +139,13 @@ internal sealed partial class PasswordFacade(
 
         await data.ClearFailedAttemptsAsync(user);
         audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordChanged, account), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
         }
 
         LogPasswordChanged(logger, user.Id);
-        emailQueue.Enqueue(emails.PasswordChanged(Guid.NewGuid(), user.Email!));
         return Result.Success;
     }
 
@@ -140,6 +157,11 @@ internal sealed partial class PasswordFacade(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A password reset email for account {AccountId} was throttled.")]
     private static partial void LogThrottled(ILogger logger, Guid accountId);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A reset email for account {AccountId} was not sent: the account changed at the same time. Asking again sends one.")]
+    private static partial void LogNotSent(ILogger logger, Guid accountId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The password for account {AccountId} was reset.")]
     private static partial void LogPasswordReset(ILogger logger, Guid accountId);

@@ -13,6 +13,12 @@ public sealed class GatewayRateLimitOptions
     /// per-account lockout caps attempts against one account, and this caps attempts across many.
     /// </summary>
     public int SessionPerIpPerMinute { get; set; } = 20;
+
+    /// <summary>
+    /// Current-session reads and sign-outs a minute from one address (PP1.12). Each asks the API, so each is limited -
+    /// but generously, since every admin page load reads the session once.
+    /// </summary>
+    public int SessionChecksPerIpPerMinute { get; set; } = 120;
 }
 
 /// <summary>
@@ -27,6 +33,7 @@ public sealed class GatewayRateLimitOptions
 internal static class GatewayRateLimits
 {
     public const string SessionPerIp = "session-per-ip";
+    public const string SessionChecksPerIp = "session-checks-per-ip";
 
     /// <summary>One shared bucket for a request whose address we cannot see, so it is never a way around the limit.</summary>
     private const string UnknownAddress = "unknown";
@@ -36,23 +43,15 @@ internal static class GatewayRateLimits
         ArgumentNullException.ThrowIfNull(services);
         services.AddOptions<GatewayRateLimitOptions>()
             .Bind(configuration)
-            .Validate(o => o.SessionPerIpPerMinute > 0, "Gateway:SessionPerIpPerMinute must be positive.")
+            .Validate(
+                o => o.SessionPerIpPerMinute > 0 && o.SessionChecksPerIpPerMinute > 0,
+                "Gateway:SessionPerIpPerMinute and Gateway:SessionChecksPerIpPerMinute must be positive.")
             .ValidateOnStart();
 
         services.AddRateLimiter(options =>
         {
-            options.AddPolicy(SessionPerIp, context =>
-            {
-                var limits = context.RequestServices.GetRequiredService<IOptions<GatewayRateLimitOptions>>().Value;
-                var address = context.Connection.RemoteIpAddress?.ToString() ?? UnknownAddress;
-                return RateLimitPartition.GetFixedWindowLimiter(address, _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = limits.SessionPerIpPerMinute,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0,
-                    AutoReplenishment = true,
-                });
-            });
+            options.AddPolicy(SessionPerIp, context => PerAddress(context, limits => limits.SessionPerIpPerMinute));
+            options.AddPolicy(SessionChecksPerIp, context => PerAddress(context, limits => limits.SessionChecksPerIpPerMinute));
 
             options.OnRejected = async (context, cancellationToken) =>
             {
@@ -67,5 +66,18 @@ internal static class GatewayRateLimits
         });
 
         return services;
+    }
+
+    private static RateLimitPartition<string> PerAddress(HttpContext context, Func<GatewayRateLimitOptions, int> permits)
+    {
+        var limits = context.RequestServices.GetRequiredService<IOptions<GatewayRateLimitOptions>>().Value;
+        var address = context.Connection.RemoteIpAddress?.ToString() ?? UnknownAddress;
+        return RateLimitPartition.GetFixedWindowLimiter(address, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permits(limits),
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        });
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PantryPress.ApiService.Hosting;
@@ -25,11 +26,15 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
     public Task<IActionResult> GetStatus(CancellationToken cancellationToken) =>
         ForAccount(account => twoFactor.GetStatusAsync(account, cancellationToken), OkOr);
 
-    /// <summary>A new shared key for the authenticator app. Refused while two-step sign-in is on.</summary>
+    /// <summary>
+    /// A new shared key for the authenticator app. Refused while two-step sign-in is on, and until the email address
+    /// is confirmed (403 <c>email-not-verified</c>, PP1.12), as is turning it on.
+    /// </summary>
     [HttpPost("setup")]
     [AnswersWithSecret]
     [RefreshesSession]
     [ProducesResponseType<AuthenticatorSetup>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiProblems.ContentType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
     public Task<IActionResult> BeginSetup(CancellationToken cancellationToken) =>
         ForAccount(account => twoFactor.BeginSetupAsync(account, cancellationToken), OkOr);
@@ -37,9 +42,13 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
     /// <summary>Turns two-step sign-in on with a code from the app, and returns recovery codes to save.</summary>
     [HttpPost("enable")]
     [AnswersWithSecret]
-    [RefreshesSession]
+    [RefreshesSession(PassesSecondStep = true)]
+    [EndpointDescription(
+        "Answers with recovery codes once, so it is never replayed. If this answer is lost, two-step sign-in is on: a "
+        + "retry is answered 401 session-ended; sign in with a code from the app, and replace the recovery codes.")]
     [ProducesResponseType<RecoveryCodeList>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiProblems.ContentType)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ApiProblems.ContentType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
     public Task<IActionResult> Enable(EnableTwoFactorRequest request, CancellationToken cancellationToken) =>
         ForAccount(account => twoFactor.EnableAsync(account, request, cancellationToken), OkOr);
@@ -47,6 +56,9 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
     /// <summary>Turns two-step sign-in off after the password is confirmed.</summary>
     [HttpPost("disable")]
     [RefreshesSession]
+    [EndpointDescription(
+        "Ends the account's other sessions. If this answer is lost, a retry is answered 401 session-ended; two-step "
+        + "sign-in is off, so sign in with the password alone.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiProblems.ContentType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]

@@ -27,6 +27,22 @@ public sealed class TwoFactorApiTests(AccountApiFixture fixture)
     }
 
     [Fact]
+    public async Task Two_step_sign_in_waits_for_a_confirmed_email_address()
+    {
+        // A second factor on an unconfirmed account would be whoever signed up first with the address, and would stand
+        // between the real owner and their account after a reset (PP1.12).
+        var account = await fixture.RegisterAsync(AccountApiFixture.NewEmail());
+
+        await AssertProblemAsync(await fixture.Client(account).PostAsync(Setup, null), HttpStatusCode.Forbidden, "email-not-verified");
+        await AssertProblemAsync(
+            await fixture.Client(account).PostAsJsonAsync(Enable, new EnableTwoFactorRequest("123456")),
+            HttpStatusCode.Forbidden,
+            "email-not-verified");
+        Assert.False((await GetStatusAsync(account)).IsEnabled);
+        Assert.Null(await fixture.WithAccountAsync(account, (users, user) => users.GetAuthenticatorKeyAsync(user)));
+    }
+
+    [Fact]
     public async Task Setup_returns_a_key_and_link_that_are_never_cached()
     {
         var email = AccountApiFixture.NewEmail();
@@ -114,12 +130,20 @@ public sealed class TwoFactorApiTests(AccountApiFixture fixture)
         var key = await BeginSetupAsync(account);
         await EnableAsync(account, key);
 
-        // The code used to turn it on cannot be used again; the next one can, once.
-        Assert.Equal(AccountErrors.InvalidCode, (await VerifyAsync(account, CodeFor(key))).Error);
+        // The code used to turn it on cannot be used again; the next one can, once. A right code sent again is refused
+        // as used, and costs nothing toward lockout: the retry of a sign-in whose answer was lost is not a guess (PP1.12).
+        Assert.Equal(AccountErrors.CodeAlreadyUsed, (await VerifyAsync(account, CodeFor(key))).Error);
         fixture.Time.Advance(TimeSpan.FromSeconds(Totp.StepSeconds));
         var next = CodeFor(key);
         Assert.True((await VerifyAsync(account, next)).IsSuccess);
-        Assert.Equal(AccountErrors.InvalidCode, (await VerifyAsync(account, next)).Error);
+        for (var i = 0; i < 6; i++)
+        {
+            Assert.Equal(AccountErrors.CodeAlreadyUsed, (await VerifyAsync(account, next)).Error);
+        }
+
+        Assert.Equal(0, await fixture.WithAccountAsync(account, (users, user) => users.GetAccessFailedCountAsync(user)));
+        Assert.Equal(AccountErrors.InvalidCode, (await VerifyAsync(account, WrongCode(key))).Error);
+        Assert.Equal(1, await fixture.WithAccountAsync(account, (users, user) => users.GetAccessFailedCountAsync(user)));
     }
 
     [Fact]
@@ -213,10 +237,9 @@ public sealed class TwoFactorApiTests(AccountApiFixture fixture)
                 i < 5 ? "invalid-code" : "too-many-attempts");
         }
 
-        await AssertProblemAsync(
-            await fixture.Client(account).PostAsJsonAsync(Enable, new EnableTwoFactorRequest(CodeFor(key))),
-            HttpStatusCode.TooManyRequests,
-            "too-many-attempts");
+        using var locked = await fixture.Client(account).PostAsJsonAsync(Enable, new EnableTwoFactorRequest(CodeFor(key)));
+        Assert.InRange(Assert.NotNull(locked.Headers.RetryAfter?.Delta), TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(15));
+        await AssertProblemAsync(locked, HttpStatusCode.TooManyRequests, "too-many-attempts");
     }
 
     private async Task<string> BeginSetupAsync(AccountId account)

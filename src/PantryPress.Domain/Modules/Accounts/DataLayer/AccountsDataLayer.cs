@@ -6,12 +6,17 @@ using PantryPress.Domain.Modules.Accounts.Repositories;
 namespace PantryPress.Domain.Modules.Accounts.DataLayer;
 
 /// <summary>
-/// The Accounts data layer (ARCH-002): composes Identity's user manager over <see cref="AccountUserStore"/> and the
-/// <see cref="AccountsUnitOfWork"/> for the facades. Platform roles are not here: they live in
-/// <see cref="AccountRolesDataLayer"/>, which only the operator's process registers (ACCT-005). Nothing here saves except <see cref="SaveChangesAsync"/> and
-/// <see cref="SaveNewAccountAsync"/>; every other call only stages changes.
+/// The Accounts data layer (ARCH-002): composes Identity's user manager over <see cref="AccountUserStore"/>, the signed-out
+/// sessions in <see cref="SessionRevocationRepository"/>, and the <see cref="AccountsUnitOfWork"/> for the facades.
+/// Platform roles are not here: they live in <see cref="AccountRolesDataLayer"/>, which only the operator's process
+/// registers (ACCT-005). Nothing here saves except <see cref="SaveChangesAsync"/>, <see cref="SaveNewAccountAsync"/>, and
+/// <see cref="SaveRevocationAsync"/>, which the facades call, and <see cref="PurgeExpiredRevocationsAsync"/>, one batched
+/// delete statement for the Worker's sweep; every other call only stages changes.
 /// </summary>
-internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOfWork unitOfWork)
+internal sealed class AccountsDataLayer(
+    AccountUserManager users,
+    AccountsUnitOfWork unitOfWork,
+    SessionRevocationRepository revocations)
 {
     // Hashing a password for an address that already has an account makes both sign-up paths do the same slow work.
     private static readonly ApplicationUser TimingUser = new();
@@ -35,7 +40,15 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
         users.GetAuthenticationTokenAsync(user, AccountTokens.Provider, AccountTokens.EmailThrottle(kind));
 
     public async Task SetEmailThrottleAsync(ApplicationUser user, ThrottledEmail kind, string state) =>
-        Ensure(await users.SetAuthenticationTokenAsync(user, AccountTokens.Provider, AccountTokens.EmailThrottle(kind), state));
+        Ensure(await TrySetEmailThrottleAsync(user, kind, state));
+
+    /// <summary>
+    /// <see cref="SetEmailThrottleAsync"/> for an account that is not saved yet, where Identity validates the account
+    /// again and a concurrent sign-up for the same address can already have been saved: the facade reads that refusal
+    /// as the race it lost (PP1.12).
+    /// </summary>
+    public Task<IdentityResult> TrySetEmailThrottleAsync(ApplicationUser user, ThrottledEmail kind, string state) =>
+        users.SetAuthenticationTokenAsync(user, AccountTokens.Provider, AccountTokens.EmailThrottle(kind), state);
 
     public Task<string> CreateEmailConfirmationTokenAsync(ApplicationUser user) =>
         users.GenerateEmailConfirmationTokenAsync(user);
@@ -74,6 +87,31 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
     public Task<bool> CheckPasswordAsync(ApplicationUser user, string password) => users.CheckPasswordAsync(user, password);
 
     public Task<bool> IsLockedOutAsync(ApplicationUser user) => users.IsLockedOutAsync(user);
+
+    /// <summary>When the lockout ends, or null for none. Identity sets it from the system clock.</summary>
+    public Task<DateTimeOffset?> GetLockoutEndAsync(ApplicationUser user) => users.GetLockoutEndDateAsync(user);
+
+    /// <summary>
+    /// Whether <paramref name="code"/> is an authenticator code this account already used (PP1.12): it matches a time
+    /// step at or before the last one accepted. Read only; a right new code is checked by
+    /// <see cref="VerifyAuthenticatorCodeAsync"/>.
+    /// </summary>
+    public async Task<bool> IsUsedAuthenticatorCodeAsync(ApplicationUser user, string code, DateTimeOffset now)
+    {
+        var key = await users.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(key) || !Totp.TryNormalize(code, out var normalized)
+            || Totp.Match(Base32.Decode(key), normalized, Totp.StepAt(now)) is not { } step)
+        {
+            return false;
+        }
+
+        var lastUsed = await users.GetAuthenticationTokenAsync(user, AccountTokens.Provider, AccountTokens.AuthenticatorLastStep);
+        return TwoFactorRules.IsReplay(
+            step,
+            long.TryParse(lastUsed, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var last)
+                ? last
+                : null);
+    }
 
     /// <summary>Counts a wrong password or code; enough of them lock the account (Identity lockout options).</summary>
     public async Task RecordFailedAttemptAsync(ApplicationUser user) => Ensure(await users.AccessFailedAsync(user));
@@ -132,6 +170,33 @@ internal sealed class AccountsDataLayer(AccountUserManager users, AccountsUnitOf
     /// them: changing them is <see cref="AccountRolesDataLayer"/>'s alone, in the operator's process (ACCT-005).
     /// </summary>
     public async Task<IReadOnlyList<string>> GetRolesAsync(ApplicationUser user) => [.. await users.GetRolesAsync(user)];
+
+    /// <summary>Whether this session was signed out (PP1.12): one keyed, untracked read per forwarded request.</summary>
+    public Task<bool> IsSessionRevokedAsync(string sessionId, CancellationToken cancellationToken) =>
+        revocations.IsRevokedAsync(sessionId, cancellationToken);
+
+    /// <summary>
+    /// Stages a sign-out, unless the session is already signed out; true when something was staged for
+    /// <see cref="SaveRevocationAsync"/>.
+    /// </summary>
+    public async Task<bool> StageRevocationAsync(RevokedSession revocation, CancellationToken cancellationToken)
+    {
+        if (await revocations.IsRevokedAsync(revocation.SessionId, cancellationToken))
+        {
+            return false;
+        }
+
+        revocations.Stage(revocation);
+        return true;
+    }
+
+    /// <summary>Saves a staged sign-out; losing a race to a second sign-out of the same session is done too.</summary>
+    public Task SaveRevocationAsync(string sessionId, CancellationToken cancellationToken) =>
+        unitOfWork.SaveRevocationAsync(sessionId, cancellationToken);
+
+    /// <summary>Deletes up to <paramref name="batchSize"/> sign-outs that no session can outlive any more.</summary>
+    public Task<int> PurgeExpiredRevocationsAsync(DateTimeOffset now, int batchSize, CancellationToken cancellationToken) =>
+        revocations.PurgeExpiredAsync(now, batchSize, cancellationToken);
 
     // Staged changes fail only through Identity's own validators, which the facades have already satisfied.
     private static void Ensure(IdentityResult result)

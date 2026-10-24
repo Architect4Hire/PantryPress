@@ -12,7 +12,7 @@ PantryPress is its own repository and Aspire application. It shares **no code** 
 borrows CreatorPantry's delivery discipline: one seam per prompt, plan first, explicit restrictions,
 checkpoints, and separate audit prompts.
 
-**These are deliberately small.** The document has **21 phases (PP0–PP20) and 257 microprompts**. Run one
+**These are deliberately small.** The document has **21 phases (PP0–PP20) and 258 microprompts**. Run one
 prompt at a time. A prompt may cross layers only when it is explicitly a vertical-integration or
 verification prompt.
 
@@ -323,7 +323,7 @@ the rest is recorded above.
 
 ## PP1 — Identity, gateway, and browser boundary
 
-### PP1.1 ApplicationUser and identity store
+### PP1.1 ApplicationUser and identity store - done
 
 ```text
 SCOPE: Add ApplicationUser to PantryPressDbContext with ASP.NET Core Identity stores and the initial
@@ -332,6 +332,14 @@ CONSTRAINT: ACCT-001; auth.md.
 RESTRICTION: No endpoints yet. Migration reviewed before it is applied.
 BEHAVIOR: Plan, wait for approval, implement, apply through MigrationService, test.
 ```
+
+*PP1.1 delivery note (recorded at PP1.12):* shipped before this file kept delivery notes, and found unmarked by the PP1.12
+audit. `ApplicationUser` (`Modules/Accounts`) over Identity's EF Core stores in `PantryPressDbContext`, with the Identity
+schema pinned to Version 2 with bounded keys and no passkeys, and the unique `EmailIndex` that is the last word on
+concurrent sign-ups; migration `InitialIdentity`, applied only by MigrationService. Evidence: `IdentityModelTests`
+(the model holds the Identity stores and nothing undeclared; the pinned schema; the unique email index; a host that did
+not pin the schema is refused), `IdentityStoreTests`, and `MigrationServiceRegistrationTests` (the design-time and
+registered models match the migrations).
 
 ### PP1.2 Registration and email verification - done
 
@@ -409,7 +417,8 @@ These differ from the approved text or add to it:
   call. Identity's own `UpdateAsync` re-attaches the user and breaks the concurrency check on a second update, so the
   store overrides it.
 - **Email:** sent after commit through an in-process `IEmailQueue` (`Managers/Email`) drained by a background worker
-  that retries transient failures twice. A crash loses queued mail; resend is the recovery until PP1.10. The
+  that retries transient failures twice. A crash loses queued mail; resend is the recovery until PP1.10 (replaced by the
+  outbox at PP1.10b). The
   per-address throttle (1 a minute, 5 an hour, per kind) is stored in Identity's user-token table, so no migration.
 - **Disposable domains:** the CC0 blocklist from `disposable-email-domains` (commit b5e699f, 9,925 domains),
   embedded; parent domains are matched.
@@ -1109,7 +1118,7 @@ headers, and a controller's own 400 kept; and the gateway passing the key and th
 `architecture-reviewer`, `api-contract-checker`, and `site-isolation-auditor`; every blocker and major finding is either
 fixed above or recorded here.
 
-### PP1.10 Transactional outbox
+### PP1.10 Transactional outbox - done
 
 ```text
 SCOPE: Add a transactional outbox and dispatcher in the Worker with at-least-once delivery and idempotent
@@ -1229,6 +1238,33 @@ Verification:
 - Reviewers: `architecture-reviewer` and `site-isolation-auditor`. Every blocker and major finding is either fixed above
   (the lease charged at the claim, exception text in logs, stranded claims, the head-of-queue row, the free `siteId`
   default, site ids in payloads) or recorded here.
+
+*PP1.10b delivery note (done at PP1.12, owner's "fix all", 2026-10-24):* account email is on the outbox, and the
+in-process queue is gone (`IEmailQueue`, `InProcessEmailQueue`, and ApiService's `ApiEmail`).
+
+- **Differs from the approved split, deliberately.** The plan had `IEmailQueue` stage an `email.send` message carrying
+  the email. What shipped is `accounts.email` (`AccountEmailMessage`, Accounts-owned): the account id, the kind of email,
+  when it was asked for, and - for a reset - a one-way fingerprint of the security stamp. The Worker's
+  `AccountEmailHandler` reads the address and makes any link when it sends, so no address and no live reset token ever
+  sits in `OutboxMessages`, where a poisoned row keeps its payload for 30 days. A link email that waited longer than its
+  link lives, or a reset whose account's stamp has moved since, is not sent (the person asks again).
+- **Staging.** Each facade stages its email immediately before its one save; sign-up stages the first confirmation email
+  in the same save as the account. A save that loses a race drops the staged message with the change, and a dropped
+  resend or reset is logged.
+- **Delivery.** The email's id is the outbox message id, sent as `Message-ID`, so a redelivery is recognizable; it does
+  send again, the one written exception to "idempotent on the message id" (`backend.md`). A refused recipient, or an
+  address no email can be written to, is poisoned at once; a transient failure is retried with the outbox's backoff.
+  The provider call goes through `AccountMailDataLayer` (ARCH-002).
+- **Hosts.** ApiService sends no email and needs no link origin. The Worker registers the email handler only where it
+  has a provider - local Development, the mail sink - and otherwise claims no account email at all: messages wait,
+  visible in the backlog gauge, `/health` reports `account-email` degraded, and the rest of the Worker runs. PP1.2a's
+  "refuse to start without a provider" became that, because a Worker that refuses to start takes the dispatcher and the
+  sweep down with it. A Worker that would send outside Development without a persisted key ring refuses to start: it
+  makes the links ApiService checks. The AppHost and the Terraform moved `Accounts__AppBaseUrl` and the mail sink to the
+  Worker and gave it ApiService's key ring; the gateway's ring is now a container and key of its own.
+- **Recorded for later prompts:** PP19 must persist ApiService's key ring, shared with the Worker, before PP13.1 sends
+  deployed email (PP13.1's text now says so). The recovery-code count in its email is read when it is sent, so two codes
+  used in quick succession both report the later count.
 
 ### PP1.11 Audit log - done
 
@@ -1365,7 +1401,7 @@ Verification:
   above. Of the minor ones, the boundary scan's reach, validation before staging, the at-sign normalization, the
   publishing-key target, and the missing tests are fixed; the rest are recorded above.
 
-### PP1.12 Identity and boundary audit
+### PP1.12 Identity and boundary audit - done
 
 ```text
 SCOPE: Audit PP1 against ACCT-001–005 and PSEC-003. Report only.
@@ -1373,6 +1409,76 @@ CONSTRAINT: Template L.
 UTILIZATION: architecture-reviewer, api-contract-checker.
 BEHAVIOR: Return findings and checkpoint evidence. Wait for approval before fixes.
 ```
+
+*PP1.12 delivery note (done 2026-10-24):* the audit (Template L, `architecture-reviewer` and `api-contract-checker`)
+found 1 blocker, 4 high, 8 medium and 13 low findings; the owner approved "fix all and run until green". Everything below
+shipped in one change, which the constitution would have split - three seams at least (PP1.10b, session revocation, the
+small rule fixes) - and is recorded here as one because the owner asked for one.
+
+- **Blocker, fixed: PlatformAdmin went to whoever signed up first with a listed address.** A grant now needs a confirmed
+  address; an unconfirmed listed address is a masked warning and resolves to nobody, which also revokes a holder in that
+  state. Two-step sign-in needs a confirmed address too, and a reset that first confirms one clears a second factor the
+  account already had, so a squatter's authenticator cannot stand between the owner and the account.
+- **High, fixed:**
+  - *Anonymous routes shared one rate-limit bucket.* The gateway vouched only for signed-in requests, so ApiService saw
+    its address for sign-up and reset. It now sends its secret on every forwarded admin request; a test replays what the
+    real gateway forwards into the real ApiService.
+  - *Sign-out revoked nothing, and sessions slid for ever.* Each complete session has an id; sign-out revokes it
+    (`RevokedSessions`, migration `SessionRevocations`), so a copied cookie stops working, and a session ends 12 hours
+    after sign-in however busy (decision log). Proven end to end over real TLS.
+  - *PP1.10 was unfinished.* PP1.10b, above.
+  - *ACCT-004 had no prompt.* PP19.11a now builds account deletion and export; the requirement maps to PP19.
+- **Medium, fixed:** the second-step claim counts only while the account has two-step sign-in; `GET /session` asks the
+  API (and an address confirmed since sign-in now shows as confirmed); the gateway's session routes declare every status
+  they answer, and an unreachable or slow API is a 502; the admin document declares the gateway's own answers, with each
+  route's 401 worded for whether it needs a sign-in; a lockout's 429 carries `Retry-After`; a right authenticator code
+  sent twice is refused as used without counting toward lockout; writes that cannot be repeated say in the document what
+  a retry after a lost answer gets; the module-boundary scan sees a root-namespace or relative reference; and the
+  hand-offs that lived only in delivery notes are in their prompts (PP5.13 and PP5.14 cite ACCT-001's publishing check,
+  PP12.3 puts the spam challenge on sign-up, PP2.8 reserves `app`).
+- **Low, fixed:** the session-refresh filter reads the action's result, not a response status that is still 200; rules
+  moved from the facades into `Business/AccountSecurityRules.cs`; the principal is named by the account id; the
+  internal surface answers strangers before authentication and the rate limiter (and declares `credentials`' 409);
+  `ValidationProblemDetails` has `errors` optional; a catalogue test checks every problem code; the expired half-finished
+  cookie is cleared; the gateway's mirrored records sit in `Contracts/`; Domain references no `Microsoft.Extensions.Hosting`;
+  PP1.1 is marked done with a note, and the decision log has PP1.10's row.
+- **The reviews of the fix changed it again** (`architecture-reviewer`, `api-contract-checker`, `integration-reviewer`):
+  the session checks have their own limits on both sides, never the sign-in ceiling; turning two-step sign-in on keeps the
+  caller's session, with the second step passed (`X-PP-Second-Step`); everything the proxy forwards is marked
+  (`X-PP-Via`) and the internal surface refuses it; sign-up is one save; the Worker sends email only with a provider;
+  stale links are not sent; the gateway's key ring is apart from the one that signs reset links; and the admin v1
+  "pre-release" rule is written down, in `api-contract.md` and the decision log.
+- **Declined, with reasons:**
+  - *Rotating the stamp when an address is first confirmed* (architecture review). It would end a squatter's running
+    sessions, but a squatter who knows the password signs straight back in, and it would break confirming twice with the
+    same link. The residual risk - an owner who confirms an account they never created - is PP19's: the operator console
+    should email the account when PlatformAdmin is granted, and operators should sign up themselves before they are listed.
+  - *Equalizing the timing of a wrong password on a real account with an unknown address* (contract review). The real
+    one saves a failed-attempt count; faking a write for an unknown address would be a write for nothing. The gateway's
+    20-a-minute limit per address bounds the measurement; PP12.3 reviews sign-up and sign-in timing together.
+  - *A second secret for the gateway's session client* (architecture review). The proxy mark gives the same protection -
+    nothing forwarded reaches the internal surface - without another secret to provision and rotate.
+- **Deployment ordering:** ship the gateway and ApiService together. A new ApiService needs `X-PP-Sid`, and a new gateway
+  needs `sessions/current` and `sessions/end`; everyone is signed out once, because older cookies carry no session id.
+  The migration job runs first, as always. `SessionRevocations` (Template K, reviewed with the change by
+  `architecture-reviewer`) is additive: one table, a binary-collated primary key, an index on `ExpiresAt`, no foreign keys
+  and no backfill. Rolling it back drops the sign-outs, which older code never reads.
+- **Checkpoint (PP1.12):** "A blogger can register, verify email, sign in through the BFF, refresh, and sign out without
+  exposing a token" - met, and proven by `AccountEmailEndToEndTests` on the real AppHost over TLS: sign-up through the
+  gateway, the Worker's email in the mail catcher, the link confirming the address, sign-in setting only `HttpOnly`,
+  `Secure`, host-only cookies with a view that holds no stamp or token, the session read again from the database's word,
+  and sign-out after which a copy of the cookie reaches nothing. There is no admin screen for it yet (PP3.8).
+- **Not verified:** no browser has run the flow (PP3.8 builds the screens); the Terraform was edited without a
+  `terraform validate` (no CLI here); the deployed key-ring behaviour waits for PP19.
+- **Environment, not code:** one full run had 20 account tests answer 500 because their fixture's SQL container stopped
+  answering mid-run (connections forcibly closed, then "server not found"), the load symptom PP1.10a recorded. The same
+  tests passed alone, and the final full runs passed twice in a row.
+- **Local note:** an `aspire run` that restarts its migration service applies the additive `SessionRevocations`
+  migration to the persistent local database. Nothing to undo. Signed-in browsers are signed out once.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` 809 of 809, twice in a row (704 before this prompt).
 
 ## PP2 — Sites, membership, and tenancy
 
@@ -1447,8 +1553,10 @@ BEHAVIOR: Plan, wait for approval, implement and apply it to Site and SiteMember
 
 ```text
 SCOPE: Implement the SITE-002 slug policy with a versioned reserved list stored as platform reference data.
-CONSTRAINT: SITE-002; Template A.
-RESTRICTION: ASCII only, case-insensitive comparison.
+CONSTRAINT: SITE-002; PSEC-003; Template A.
+RESTRICTION: ASCII only, case-insensitive comparison. The list reserves every host PantryPress itself answers on,
+`app` above all: the BFF's `__Host-` cookies are host-only for app.pantrypress.app, and a tenant site on that host
+would share the admin app's origin (PP1.12).
 BEHAVIOR: Plan, wait for approval, implement with table-driven tests.
 ```
 
@@ -1858,7 +1966,8 @@ BEHAVIOR: Plan, wait for approval, implement.
 
 ```text
 SCOPE: Implement the POST-006 readiness check as a deterministic domain service and endpoint.
-CONSTRAINT: POST-006.
+CONSTRAINT: POST-006; ACCT-001 (an unconfirmed email address is a blocking item, from
+IAccountPublishingEligibility, which PP1.2c built for this).
 BEHAVIOR: Plan, wait for approval, implement with a test per item.
 ```
 
@@ -1867,7 +1976,8 @@ BEHAVIOR: Plan, wait for approval, implement with a test per item.
 ```text
 SCOPE: Implement publish (immutable published revision of the post and referenced recipes), unpublish, and
 republish, raising an outbox event for page-data builds.
-CONSTRAINT: POST-005, PP-D04; Template D.
+CONSTRAINT: POST-005, PP-D04; ACCT-001 (publish and schedule ask IAccountPublishingEligibility and refuse
+email-not-verified); Template D.
 RESTRICTION: Idempotent. Never deletes published revisions. Status becomes live only after the page-data
 build confirms (PP7).
 BEHAVIOR: Plan, wait for approval, implement with replay and two-site tests.
@@ -2866,8 +2976,9 @@ BEHAVIOR: Plan, wait for approval, migrate, test.
 ### PP12.3 Spam challenge gateway
 
 ```text
-SCOPE: Add a typed gateway for the spam challenge (default Cloudflare Turnstile) server-side verification.
-CONSTRAINT: ENG-003; Template F.
+SCOPE: Add a typed gateway for the spam challenge (default Cloudflare Turnstile) server-side verification, and
+require it on account sign-up as well as on reader forms.
+CONSTRAINT: ENG-003, ACCT-003, BIZ-009 (on sign-up before public sign-up opens; PP1.2 deferred it here); Template F.
 RESTRICTION: Fail closed to "held for moderation", never to "approved".
 BEHAVIOR: Verify the current API, plan, wait for approval, implement with fake tests.
 ```
@@ -2963,8 +3074,11 @@ Newsletter **signup and CSV export only**. Composing, configuring, and sending n
 ```text
 SCOPE: Add a typed gateway for Azure Communication Services Email for transactional mail only, with templates
 for signup confirmation, contact form delivery, and moderation digest.
-CONSTRAINT: PP-D14; Template F.
-RESTRICTION: No bulk or broadcast capability is exposed. No live call in default CI.
+CONSTRAINT: PP-D14; Template F. Registered in the Worker, which sends account email from the outbox (PP1.10b), so the
+Worker's AddAccountsWorker sendsEmail becomes true wherever the gateway is configured.
+RESTRICTION: No bulk or broadcast capability is exposed. No live call in default CI. Deployed account email needs
+ApiService's key ring persisted and shared with the Worker first (PP19): the Worker makes the links ApiService checks,
+and refuses to start sending outside Development without it (PP1.12).
 BEHAVIOR: Verify the current API, plan, wait for approval, implement with fake tests.
 ```
 
@@ -3616,6 +3730,22 @@ CONSTRAINT: OPS-005.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
 
+### PP19.11a Account deletion and export
+
+```text
+SCOPE: Add self-service account deletion with a grace period, and a self-service export of the account and the
+sites it owns, through the account API.
+CONSTRAINT: ACCT-004, OPS-011, BIZ-006; auth.md; Template B. DECIDE: the grace period.
+RESTRICTION: Deletion asks for the password and, with two-step sign-in, a code; it signs out every session (rotates
+the security stamp) and is reversible until the grace period ends. Content is never lost inside it. The export is
+no-store and never reaches a log. Owned sites follow the site deletion path; the audit log's pseudonymous ids follow
+OPS-011's decision.
+BEHAVIOR: Plan, wait for approval, implement with tests.
+```
+
+*Added at PP1.12 (owner-approved "fix all", 2026-10-24):* the audit found ACCT-004 listed for PP1 and PP19 but built by
+no prompt. PP19.12 extends the export this prompt creates.
+
 ### PP19.12 Reader data requests
 
 ```text
@@ -3927,7 +4057,7 @@ BEHAVIOR: Show inputs, outputs, and rebuild triggers, wait for approval, impleme
 | Requirements | Primary phase |
 | --- | --- |
 | ARCH-001, section 6 | PP0 |
-| ACCT-001–005; PSEC-003 | PP1 |
+| ACCT-001–003, 005; PSEC-003 | PP1 |
 | SITE-001–005, 008–010; ARCH-003, 015; PSEC-004, 007 | PP2 |
 | PP-D07 (design system) | PP3 |
 | RCP-001–009 | PP4 |

@@ -39,8 +39,13 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - Side effects that must survive a crash (purges, emails, page-data builds) go through the transactional
   outbox (PP1.10). The facade stages a message with `IOutbox.Enqueue` *before* its save, so the message commits or
   rolls back with the change; only the Worker delivers. A message type implements `IOutboxMessage` with a stable
-  `OutboxType` name and carries ids, not data (64 KiB at most). Its one handler (`AddOutboxHandler`, registered in the
-  Worker) is idempotent on the message id: delivery is at least once and in no particular order. A handler throws
+  `OutboxType` name and carries ids, not data (64 KiB at most). Account email is the first real one (PP1.10b): the
+  message names the account and the kind of email, and the Worker reads the address and makes any link when it sends,
+  so no address or live token ever sits in the outbox. Its one handler (`AddOutboxHandler`, registered in the
+  Worker) is idempotent on the message id: delivery is at least once and in no particular order. The one written
+  exception is an external effect that cannot share a transaction with a record of it: account email is sent again on
+  redelivery, under the same `Message-ID` so the mailbox can recognize the repeat, and a link email that waited longer
+  than its link lives is not sent at all (PP1.12). A handler throws
   `OutboxPermanentFailureException` when retrying cannot help, and re-resolves the site from `OutboxDelivery.SiteId`
   before calling a facade. A Worker claims only the types it has handlers for.
 - Idempotency has two owners (PP1.9). Replaying the stored answer to a retried `Idempotency-Key` is host plumbing in

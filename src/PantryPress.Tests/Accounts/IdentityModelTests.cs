@@ -25,12 +25,14 @@ public sealed class IdentityModelTests
     ];
 
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
-    // PP1.10's transactional outbox (Managers/Outbox), and PP1.11's audit log (Managers/Audit).
+    // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), and PP1.12's signed-out
+    // sessions (Modules/Accounts).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
         typeof(OutboxMessage),
         typeof(AuditEntry),
+        typeof(RevokedSession),
     ];
 
     [Fact]

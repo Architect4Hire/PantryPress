@@ -10,7 +10,8 @@ namespace PantryPress.Domain.Modules.Platform.Facades;
 /// Applies <see cref="PlatformOptions.Admins"/>, the operator's list, as the whole truth about who holds
 /// <c>PlatformAdmin</c> (ACCT-005), by the rule in <see cref="PlatformAdminReconciliation"/>: addresses on the list are
 /// granted, holders that are not on it are revoked, and a run with nothing to change changes nothing. An address with no
-/// account is a warning; the next run picks it up.
+/// account, or whose account has not confirmed it, is a warning and resolves to nobody - so a holder in that state is
+/// revoked - and the next run picks it up (PP1.12).
 /// <para>
 /// A failure throws rather than returning a result, deliberately: the only caller is the migration job, whose non-zero
 /// exit is what keeps every dependent from starting on a half-applied list, so a result would only be rethrown there.
@@ -48,14 +49,23 @@ internal sealed partial class PlatformAdminReconciler(
             var outcome = await admins.GrantAsync(email, PlatformAdminActors.OperatorConfiguration, ListedReason, cancellationToken);
             if (!outcome.IsSuccess)
             {
-                if (outcome.Error.Code != AccountErrors.AccountNotFound.Code)
+                if (outcome.Error.Code == AccountErrors.AccountNotFound.Code)
+                {
+                    // Nobody has signed up with this address yet, so nobody holds the role under it either.
+                    LogNoAccount(logger, MaskedEmail.From(email));
+                }
+                else if (outcome.Error.Code == AccountErrors.EmailNotVerified.Code)
+                {
+                    // Someone signed up with the address but has never answered an email sent to it, so it is not yet
+                    // known to be the operator's. It resolves to nobody, which also revokes the role if it is held.
+                    LogUnconfirmed(logger, MaskedEmail.From(email));
+                }
+                else
                 {
                     throw new InvalidOperationException(
                         $"Granting PlatformAdmin to {MaskedEmail.From(email)} failed with '{outcome.Error.Code}'.");
                 }
 
-                // Nobody has signed up with this address yet, so nobody holds the role under it either.
-                LogNoAccount(logger, MaskedEmail.From(email));
                 unresolved++;
                 continue;
             }
@@ -104,7 +114,12 @@ internal sealed partial class PlatformAdminReconciler(
     private static partial void LogNoAccount(ILogger logger, string maskedEmail);
 
     [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The PlatformAdmin list names {MaskedEmail}, whose account has not confirmed its email address; it was not granted")]
+    private static partial void LogUnconfirmed(ILogger logger, string maskedEmail);
+
+    [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "PlatformAdmin list applied: {Listed} listed, {Granted} granted, {Revoked} revoked, {Unresolved} without an account")]
+        Message = "PlatformAdmin list applied: {Listed} listed, {Granted} granted, {Revoked} revoked, {Unresolved} without a confirmed account")]
     private static partial void LogApplied(ILogger logger, int listed, int granted, int revoked, int unresolved);
 }

@@ -39,7 +39,7 @@ resource "azurerm_storage_account" "pantrypress" {
 # still open item O-04. Front Door Standard cannot use Private Link, so when O-04 lands the account (or a separate
 # public-media account) must admit Front Door - decide that there.
 resource "azurerm_storage_container" "pantrypress" {
-  for_each = toset(["media-originals", "media-public", "pagedata", "data-protection"])
+  for_each = toset(["media-originals", "media-public", "pagedata", "data-protection", "data-protection-gateway"])
 
   name                  = each.value
   storage_account_id    = azurerm_storage_account.pantrypress.id
@@ -82,10 +82,18 @@ resource "azurerm_role_assignment" "blob_access" {
   principal_id         = azurerm_user_assigned_identity.app[each.key].principal_id
 }
 
+# Two key rings, kept apart (PP1.12). ApiService's protects authenticator keys and signs the links in account email, and
+# the Worker shares it because it makes those links (PP1.10b). The gateway's protects its session tickets and
+# antiforgery tokens and nothing else: the gateway faces the internet and holds every session's account and stamp, so it
+# must never be able to read the ring a password-reset link is signed with.
 resource "azurerm_role_assignment" "data_protection_blob" {
-  for_each = toset(["gateway", "apiservice"])
+  for_each = {
+    gateway    = "data-protection-gateway"
+    apiservice = "data-protection"
+    worker     = "data-protection"
+  }
 
-  scope                = azurerm_storage_container.pantrypress["data-protection"].id
+  scope                = azurerm_storage_container.pantrypress[each.value].id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.app[each.key].principal_id
 }

@@ -1,7 +1,11 @@
+using System.Buffers.Text;
+using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using PantryPress.Gateway.Contracts;
 
 namespace PantryPress.Gateway.Hosting;
 
@@ -26,6 +30,18 @@ internal static class SessionClaims
 
     public const string EmailVerified = "pp:email-verified";
 
+    /// <summary>
+    /// The session's own id: 32 random bytes, minted at sign-in and kept for the session's whole life (PP1.12). Signing
+    /// out revokes it at the API, so the cookie is refused from then on, whoever presents it.
+    /// </summary>
+    public const string SessionId = "pp:sid";
+
+    /// <summary>
+    /// When the person signed in, in Unix seconds (PP1.12). The ticket's own issue time moves every time the sliding
+    /// window renews it, so the absolute lifetime is measured from this instead.
+    /// </summary>
+    public const string AuthenticatedAt = "pp:auth-time";
+
     public const string True = "true";
 }
 
@@ -46,6 +62,14 @@ internal static class SessionCookie
     /// <summary>A working day, slid forward while the person keeps working. Not persistent: closing the browser ends it.</summary>
     public static readonly TimeSpan CompleteLifetime = TimeSpan.FromHours(8);
 
+    /// <summary>
+    /// However busy the person keeps it, a session ends this long after the password was given (PP1.12; NIST SP 800-63B's
+    /// reauthentication bound for a second factor). Without it the sliding window renewed a ticket for ever, so a copied
+    /// cookie that kept being used never ran out. ApiService remembers a sign-out for longer than this, and a test pins
+    /// the two together.
+    /// </summary>
+    public static readonly TimeSpan CompleteAbsoluteLifetime = TimeSpan.FromHours(12);
+
     /// <summary>Long enough to read a code off a phone, short enough that a stolen password is not a standing invitation.</summary>
     public static readonly TimeSpan SecondFactorLifetime = TimeSpan.FromMinutes(5);
 
@@ -55,9 +79,25 @@ internal static class SessionCookie
         // never be read as a complete one. PP19 makes this key ring persistent: until then a gateway restart signs
         // everyone out.
         services.AddDataProtection().SetApplicationName("PantryPress.Gateway");
+        services.AddGatewayClock();
 
         services.AddAuthentication(SessionSchemes.Complete)
-            .AddCookie(SessionSchemes.Complete, options => Configure(options, CompleteName, CompleteLifetime, sliding: true))
+            .AddCookie(SessionSchemes.Complete, options =>
+            {
+                Configure(options, CompleteName, CompleteLifetime, sliding: true);
+
+                // Read on every request that carries the cookie: a session past its absolute lifetime is over, and the
+                // cookie goes with it, however recently it was used (PP1.12).
+                options.Events.OnValidatePrincipal = async context =>
+                {
+                    var now = context.HttpContext.RequestServices.GetRequiredService<GatewayClock>().UtcNow;
+                    if (context.Principal is { } user && IsPastAbsoluteLifetime(user, now))
+                    {
+                        context.RejectPrincipal();
+                        await context.HttpContext.SignOutAsync(SessionSchemes.Complete);
+                    }
+                };
+            })
             .AddCookie(
                 SessionSchemes.SecondFactor,
                 options => Configure(options, SecondFactorName, SecondFactorLifetime, sliding: false));
@@ -98,14 +138,24 @@ internal static class SessionCookie
         return Principal(SessionSchemes.SecondFactor, claims);
     }
 
-    public static ClaimsPrincipal CompletePrincipal(SessionStart session, bool secondFactorVerified)
+    public static ClaimsPrincipal CompletePrincipal(
+        SessionStart session,
+        bool secondFactorVerified,
+        string sessionId,
+        DateTimeOffset authenticatedAt)
     {
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentException.ThrowIfNullOrEmpty(sessionId);
         List<Claim> claims =
         [
             new(ClaimTypes.NameIdentifier, session.AccountId.ToString("D")),
             new(ClaimTypes.Email, session.Email),
             new(SessionClaims.Stamp, session.SecurityStamp),
+            new(SessionClaims.SessionId, sessionId),
+            new(
+                SessionClaims.AuthenticatedAt,
+                authenticatedAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
+                ClaimValueTypes.Integer64),
         ];
 
         if (session.EmailVerified)
@@ -121,13 +171,29 @@ internal static class SessionCookie
         return Principal(SessionSchemes.Complete, claims);
     }
 
-    /// <summary>The same session against a new security stamp, after a request that rotated it (PP1.6).</summary>
-    public static ClaimsPrincipal WithStamp(ClaimsPrincipal user, string stamp)
+    /// <summary>A new session id: 32 bytes from the system's cryptographic generator, base64url.</summary>
+    public static string NewSessionId() => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+
+    /// <summary>
+    /// The same session against a new security stamp, after a request that rotated it (PP1.6). Its id and sign-in time
+    /// carry over, so it is still the same session to sign out and still ends when it would have.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="passedSecondStep"/> when the request that rotated it passed the second step itself - it turned
+    /// two-step sign-in on with a valid code - so the session goes on carrying that claim (PP1.12).
+    /// </remarks>
+    public static ClaimsPrincipal WithStamp(ClaimsPrincipal user, string stamp, bool passedSecondStep = false)
     {
         ArgumentNullException.ThrowIfNull(user);
         var claims = user.Claims
-            .Where(claim => !string.Equals(claim.Type, SessionClaims.Stamp, StringComparison.Ordinal))
+            .Where(claim => !string.Equals(claim.Type, SessionClaims.Stamp, StringComparison.Ordinal)
+                && !(passedSecondStep && string.Equals(claim.Type, SessionClaims.SecondFactorVerified, StringComparison.Ordinal)))
             .Append(new Claim(SessionClaims.Stamp, stamp));
+        if (passedSecondStep)
+        {
+            claims = claims.Append(new Claim(SessionClaims.SecondFactorVerified, SessionClaims.True));
+        }
+
         return Principal(SessionSchemes.Complete, [.. claims]);
     }
 
@@ -148,6 +214,28 @@ internal static class SessionCookie
         return user.FindFirstValue(SessionClaims.Stamp);
     }
 
+    public static string? SessionId(ClaimsPrincipal user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        return user.FindFirstValue(SessionClaims.SessionId);
+    }
+
+    /// <summary>
+    /// Whether a complete session is past its absolute lifetime, or carries no sign-in time or id - a ticket from
+    /// before PP1.12, with nothing to sign it out by. Either way it is over.
+    /// </summary>
+    public static bool IsPastAbsoluteLifetime(ClaimsPrincipal user, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        return !long.TryParse(
+                user.FindFirstValue(SessionClaims.AuthenticatedAt),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var seconds)
+            || string.IsNullOrEmpty(SessionId(user))
+            || now - DateTimeOffset.FromUnixTimeSeconds(seconds) >= CompleteAbsoluteLifetime;
+    }
+
     public static string Email(ClaimsPrincipal user)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -160,8 +248,9 @@ internal static class SessionCookie
         return user.HasClaim(claim, SessionClaims.True);
     }
 
+    // Named by the account id, so nothing that logs a principal's name logs an email address.
     private static ClaimsPrincipal Principal(string scheme, IEnumerable<Claim> claims) =>
-        new(new ClaimsIdentity(claims, scheme, ClaimTypes.Email, ClaimTypes.Role));
+        new(new ClaimsIdentity(claims, scheme, ClaimTypes.NameIdentifier, ClaimTypes.Role));
 
     private static void Configure(CookieAuthenticationOptions options, string name, TimeSpan lifetime, bool sliding)
     {
