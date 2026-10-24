@@ -8,8 +8,13 @@ namespace PantryPress.Domain.Modules.Platform.Facades;
 
 /// <summary>
 /// Applies <see cref="PlatformOptions.Admins"/>, the operator's list, as the whole truth about who holds
-/// <c>PlatformAdmin</c> (ACCT-005): addresses on the list are granted, holders that are not on it are revoked, and a
-/// run with nothing to change changes nothing. An address with no account is a warning; the next run picks it up.
+/// <c>PlatformAdmin</c> (ACCT-005), by the rule in <see cref="PlatformAdminReconciliation"/>: addresses on the list are
+/// granted, holders that are not on it are revoked, and a run with nothing to change changes nothing. An address with no
+/// account is a warning; the next run picks it up.
+/// <para>
+/// A failure throws rather than returning a result, deliberately: the only caller is the migration job, whose non-zero
+/// exit is what keeps every dependent from starting on a half-applied list, so a result would only be rethrown there.
+/// </para>
 /// </summary>
 internal sealed partial class PlatformAdminReconciler(
     IPlatformAdminFacade admins,
@@ -28,10 +33,8 @@ internal sealed partial class PlatformAdminReconciler(
             throw new InvalidOperationException("Platform:Admins is not a list of email addresses.");
         }
 
-        if (listed.Count == 0)
+        if (!PlatformAdminReconciliation.HasOpinion(listed))
         {
-            // No list, no opinion. Leaving the holders alone means a missing or emptied secret cannot lock the
-            // operators out of their own platform.
             LogNoList(logger);
             return PlatformAdminReconcileReport.NotConfigured;
         }
@@ -71,7 +74,7 @@ internal sealed partial class PlatformAdminReconciler(
         }
 
         var revoked = 0;
-        foreach (var holder in holders.Value.Where(h => !intended.Contains(h)))
+        foreach (var holder in PlatformAdminReconciliation.Unlisted(holders.Value, intended))
         {
             var outcome = await admins.RevokeAsync(holder, PlatformAdminActors.OperatorConfiguration, UnlistedReason, cancellationToken);
             if (!outcome.IsSuccess)

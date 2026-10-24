@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -44,8 +45,8 @@ public static class AccountsServiceCollectionExtensions
         });
 
     /// <summary>
-    /// Identity itself: the pinned schema, the stores over <see cref="AccountUserStore"/>, the user manager, and the
-    /// unit of work the facades commit. <see cref="AddAccounts"/> and <see cref="AddAccountRoles"/> both start here and
+    /// Identity itself: the pinned schema, the stores over <see cref="AccountUserStore"/>, the user manager, the unit
+    /// of work the facades commit, and the audit log they record security changes in (PP1.11). <see cref="AddAccounts"/> and <see cref="AddAccountRoles"/> both start here and
     /// no host calls both: the API serves accounts, the operator's process administers the platform role.
     /// </summary>
     private static IdentityBuilder AddAccountsIdentity(this IServiceCollection services)
@@ -59,6 +60,7 @@ public static class AccountsServiceCollectionExtensions
 
         services.AddScoped<AccountsUnitOfWork>();
         services.AddScoped<AccountsDataLayer>();
+        services.AddAuditLog();
         return identity;
     }
 

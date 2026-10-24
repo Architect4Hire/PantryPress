@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Platform.Contracts;
 using PantryPress.Domain.Modules.Platform.Facades;
@@ -11,7 +12,7 @@ namespace PantryPress.Tests.Platform;
 public sealed class PlatformAdminFacadeTests
 {
     private const string Email = "ops.lead@example.test";
-    private const string Actor = PlatformAdminActors.OperatorConfiguration;
+    private static readonly AuditActor Actor = PlatformAdminActors.OperatorConfiguration;
 
     private readonly FakeAccountRoles _accounts = new();
     private readonly FakeLogger<PlatformAdminFacade> _logger = new();
@@ -29,7 +30,7 @@ public sealed class PlatformAdminFacadeTests
         var audit = Assert.Single(_logger.Collector.GetSnapshot());
         Assert.Equal("PlatformAdminGranted", audit.Id.Name);
         Assert.Equal(LogLevel.Information, audit.Level);
-        Assert.Contains(Actor, audit.Message, StringComparison.Ordinal);
+        Assert.Contains(Actor.ToString(), audit.Message, StringComparison.Ordinal);
         Assert.Contains(account.Value.ToString(), audit.Message, StringComparison.Ordinal);
         Assert.Contains("on-call rotation", audit.Message, StringComparison.Ordinal);
     }

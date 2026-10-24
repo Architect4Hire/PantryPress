@@ -22,6 +22,16 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    and is flagged by the invariant hook elsewhere.
 10. Background jobs carry `SiteId` in their payload and set `ISiteContext` before touching data.
 
+## Operator tables (written exceptions)
+
+Two shared-kernel tables carry a nullable `SiteId` without being site-owned: `OutboxMessages` (PP1.10), which the
+dispatcher reads across sites, and `AuditEntries` (PP1.11), which only the operator reads across sites (OPS-006). Neither
+implements `ISiteOwned` or has a query filter, so the global filter must key on `ISiteOwned`, never on a property named
+`SiteId`. No route reads either table, and a boundary test keeps every file outside its own `Managers/` folder from
+naming it. Until PP2.4 their writers take the site as an argument said out loud; PP2.4 takes it from `ISiteContext`
+(refusing a site that differs from the context, and `null` for a `site.*` audit action) while keeping an explicit "no
+site" path for account and platform work.
+
 ## Two-site test (required)
 
 Any change that touches site-owned, public, or reader data adds a test using the two-site harness:

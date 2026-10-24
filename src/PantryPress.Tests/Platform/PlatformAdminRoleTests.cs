@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -56,7 +57,16 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
         Assert.Equal(stampAfterGrant, stampAfterRepeat);
         var audit = Assert.Single(AuditLines(services, "PlatformAdminGranted"));
         Assert.Contains(account.Value.ToString(), audit.Message, StringComparison.Ordinal);
-        Assert.Contains(PlatformAdminActors.OperatorConfiguration, audit.Message, StringComparison.Ordinal);
+        Assert.Contains(PlatformAdminActors.OperatorConfiguration.ToString(), audit.Message, StringComparison.Ordinal);
+
+        // PP1.11: and durably, saved with the grant itself.
+        var entry = Assert.Single(await AuditEntriesAsync(services, account));
+        Assert.Equal(AccountAudit.PlatformAdminGranted, entry.Action);
+        Assert.Equal("operator-configuration", entry.ActorKind);
+        Assert.Null(entry.ActorId);
+        Assert.Null(entry.SiteId);
+        Assert.Equal("listed", entry.Reason);
+        Assert.DoesNotContain(email, entry.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -74,6 +84,31 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
         Assert.False(await IsPlatformAdminAsync(services, account));
         Assert.NotEqual(stampAsAdmin, await SecurityStampAsync(services, account));
         Assert.Single(AuditLines(services, "PlatformAdminRevoked"));
+        Assert.Equal(
+            [(AccountAudit.PlatformAdminGranted, "listed"), (AccountAudit.PlatformAdminRevoked, "unlisted")],
+            (await AuditEntriesAsync(services, account)).Select(e => (e.Action, e.Reason)));
+    }
+
+    // PP1.11: an entry that would be refused is checked before the role change is staged, so nothing is left waiting on
+    // the context for a later save to carry.
+    [Fact]
+    public async Task A_reason_the_audit_log_refuses_changes_nothing()
+    {
+        await using var services = await OperatorServicesAsync(admins: string.Empty);
+        var email = NewEmail();
+        var (account, stamp) = await CreateAccountAsync(services, email);
+
+        await using (var scope = services.CreateAsyncScope())
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() => scope.ServiceProvider.GetRequiredService<IPlatformAdminFacade>()
+                .GrantAsync(email, PlatformAdminActors.OperatorConfiguration, $"asked for by {email}", Timeout));
+            var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+            Assert.DoesNotContain(db.ChangeTracker.Entries(), e => e.State != EntityState.Unchanged);
+        }
+
+        Assert.False(await IsPlatformAdminAsync(services, account));
+        Assert.Equal(stamp, await SecurityStampAsync(services, account));
+        Assert.Empty(await AuditEntriesAsync(services, account));
     }
 
     [Fact]
@@ -107,6 +142,14 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
         Assert.True(await IsPlatformAdminAsync(services, listed));
         Assert.False(await IsPlatformAdminAsync(services, former));
         Assert.Contains(AuditLines(services, "PlatformAdminRevoked"), r => r.Message.Contains(former.Value.ToString(), StringComparison.Ordinal));
+        var granted = Assert.Single(await AuditEntriesAsync(services, listed));
+        Assert.Equal(
+            (AccountAudit.PlatformAdminGranted, "listed in the operator's PlatformAdmin list"),
+            (granted.Action, granted.Reason));
+        var revoked = (await AuditEntriesAsync(services, former)).Last();
+        Assert.Equal(
+            (AccountAudit.PlatformAdminRevoked, "no longer in the operator's PlatformAdmin list"),
+            (revoked.Action, revoked.Reason));
     }
 
     [Fact]
@@ -124,6 +167,7 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
         Assert.Equal(PlatformAdminReconcileReport.NotConfigured, report);
         Assert.True(await IsPlatformAdminAsync(services, account));
         Assert.Equal(stamp, await SecurityStampAsync(services, account));
+        Assert.Single(await AuditEntriesAsync(services, account));
     }
 
     private static CancellationToken Timeout => CancellationToken.None;
@@ -185,6 +229,16 @@ public sealed class PlatformAdminRoleTests(MigratedDatabase database)
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
         var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == account.Value, Timeout);
         return user.SecurityStamp!;
+    }
+
+    private static async Task<List<AuditEntry>> AuditEntriesAsync(IServiceProvider services, AccountId account)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<AuditEntry>()
+            .AsNoTracking()
+            .Where(e => e.TargetKind == AccountAudit.TargetKind && e.TargetId == account.ToString())
+            .OrderBy(e => e.Id)
+            .ToListAsync(Timeout);
     }
 
     private static IEnumerable<FakeLogRecord> AuditLines(IServiceProvider services, string eventName) =>

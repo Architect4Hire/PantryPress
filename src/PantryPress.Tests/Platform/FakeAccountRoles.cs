@@ -1,3 +1,4 @@
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 
@@ -28,10 +29,18 @@ internal sealed class FakeAccountRoles : IAccountRoles
     public Task<AccountId?> FindByEmailAsync(string email, CancellationToken cancellationToken) =>
         Task.FromResult(_accounts.TryGetValue((email ?? string.Empty).Trim(), out var account) ? account : (AccountId?)null);
 
-    public Task<Result<bool>> GrantPlatformAdminAsync(AccountId account, CancellationToken cancellationToken) =>
+    public Task<Result<bool>> GrantPlatformAdminAsync(
+        AccountId account,
+        AuditActor actor,
+        string reason,
+        CancellationToken cancellationToken) =>
         Task.FromResult(FailWith is { } error ? Result<bool>.Failure(error) : Result<bool>.Success(_holders.Add(account)));
 
-    public Task<Result<bool>> RevokePlatformAdminAsync(AccountId account, CancellationToken cancellationToken) =>
+    public Task<Result<bool>> RevokePlatformAdminAsync(
+        AccountId account,
+        AuditActor actor,
+        string reason,
+        CancellationToken cancellationToken) =>
         Task.FromResult(FailWith is { } error ? Result<bool>.Failure(error) : Result<bool>.Success(_holders.Remove(account)));
 
     public Task<Result<IReadOnlyList<AccountId>>> ListPlatformAdminsAsync(CancellationToken cancellationToken) =>

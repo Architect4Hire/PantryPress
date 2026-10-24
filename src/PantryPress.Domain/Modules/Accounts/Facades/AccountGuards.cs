@@ -1,3 +1,4 @@
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
@@ -14,6 +15,7 @@ internal static class AccountGuards
     /// </summary>
     public static async Task<Error?> CheckPasswordAsync(
         AccountsDataLayer data,
+        IAuditLog audit,
         ApplicationUser user,
         string password,
         CancellationToken cancellationToken)
@@ -28,17 +30,28 @@ internal static class AccountGuards
             return null;
         }
 
-        return await FailAsync(data, user, AccountErrors.IncorrectPassword, cancellationToken);
+        return await FailAsync(data, audit, user, AccountErrors.IncorrectPassword, cancellationToken);
     }
 
-    /// <summary>Records a wrong password or code and returns the error to show, which becomes lockout at the limit.</summary>
+    /// <summary>
+    /// Records a wrong password or code and returns the error to show, which becomes lockout at the limit. The attempt
+    /// that locks the account is audited with the save (PP1.11); PantryPress locks it, so the actor is the system.
+    /// </summary>
     public static async Task<Error> FailAsync(
         AccountsDataLayer data,
+        IAuditLog audit,
         ApplicationUser user,
         Error error,
         CancellationToken cancellationToken)
     {
+        var wasLockedOut = await data.IsLockedOutAsync(user);
         await data.RecordFailedAttemptAsync(user);
+        if (!wasLockedOut && await data.IsLockedOutAsync(user))
+        {
+            var account = new AccountId(user.Id);
+            audit.Record(new AuditEvent(AccountAudit.LockedOut, AuditActor.System, AccountAudit.Target(account)), siteId: null);
+        }
+
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;

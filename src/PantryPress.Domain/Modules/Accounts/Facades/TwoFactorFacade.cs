@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Managers.Validation;
@@ -14,7 +15,7 @@ namespace PantryPress.Domain.Modules.Accounts.Facades;
 /// <summary>
 /// Optional two-step sign-in with an authenticator app and recovery codes (ACCT-001; PP1.3). Turning it on needs a
 /// working code; turning it off or replacing recovery codes needs the password. Wrong passwords and codes count toward
-/// lockout, and every change emails a notice.
+/// lockout, and every change emails a notice and is audited with the save (PP1.11).
 /// </summary>
 internal sealed partial class TwoFactorFacade(
     IValidator<EnableTwoFactorRequest> enableValidator,
@@ -23,6 +24,7 @@ internal sealed partial class TwoFactorFacade(
     AccountsDataLayer data,
     AccountEmails emails,
     IEmailQueue emailQueue,
+    IAuditLog audit,
     IOptions<Microsoft.AspNetCore.Identity.IdentityOptions> identityOptions,
     ILogger<TwoFactorFacade> logger) : ITwoFactorFacade
 {
@@ -94,12 +96,13 @@ internal sealed partial class TwoFactorFacade(
 
         if (!await data.VerifyAuthenticatorCodeAsync(user, request.Code))
         {
-            return await AccountGuards.FailAsync(data, user, AccountErrors.InvalidCode, cancellationToken);
+            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCode, cancellationToken);
         }
 
         await data.SetTwoFactorEnabledAsync(user, enabled: true);
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorEnabled, account), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -126,7 +129,7 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, user, request.Password, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.Password, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -140,6 +143,7 @@ internal sealed partial class TwoFactorFacade(
         await data.SetTwoFactorEnabledAsync(user, enabled: false);
         await data.ForgetSecondFactorsAsync(user);
         await data.ClearFailedAttemptsAsync(user);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -166,7 +170,7 @@ internal sealed partial class TwoFactorFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, user, request.Password, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.Password, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -178,6 +182,7 @@ internal sealed partial class TwoFactorFacade(
 
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodesReplaced, account), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -220,10 +225,15 @@ internal sealed partial class TwoFactorFacade(
             : await data.VerifyAuthenticatorCodeAsync(user, code);
         if (!accepted)
         {
-            return await AccountGuards.FailAsync(data, user, AccountErrors.InvalidCode, cancellationToken);
+            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCode, cancellationToken);
         }
 
         await data.ClearFailedAttemptsAsync(user);
+        if (usedRecoveryCode)
+        {
+            audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodeUsed, account), siteId: null);
+        }
+
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             // Two requests raced with the same code; the other one won and this one is refused.

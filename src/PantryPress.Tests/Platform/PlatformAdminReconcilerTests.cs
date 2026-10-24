@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Platform;
@@ -121,7 +122,7 @@ public sealed class PlatformAdminReconcilerTests
     private PlatformAdminReconciler Reconciler(string? admins) =>
         new(_admins, Options.Create(new PlatformOptions { Admins = admins ?? string.Empty }), _logger);
 
-    private sealed record Call(string Kind, string Actor, string Reason);
+    private sealed record Call(string Kind, AuditActor Actor, string Reason);
 
     // The audited facade as the reconciliation sees it: accounts by address, who holds the role, and what was asked.
     private sealed class FakePlatformAdminFacade : IPlatformAdminFacade
@@ -149,7 +150,7 @@ public sealed class PlatformAdminReconcilerTests
 
         public Task<Result<PlatformAdminOutcome>> GrantAsync(
             string email,
-            string actor,
+            AuditActor actor,
             string reason,
             CancellationToken cancellationToken)
         {
@@ -170,7 +171,7 @@ public sealed class PlatformAdminReconcilerTests
 
         public Task<Result<PlatformAdminOutcome>> RevokeAsync(
             AccountId account,
-            string actor,
+            AuditActor actor,
             string reason,
             CancellationToken cancellationToken)
         {

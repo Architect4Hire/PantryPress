@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Platform.Business;
@@ -8,15 +9,15 @@ namespace PantryPress.Domain.Modules.Platform.Facades;
 
 /// <summary>
 /// The audited platform-role path (ACCT-005; PP1.4). It orchestrates the Accounts module through
-/// <see cref="IAccountRoles"/> and writes one audit line per real change: who asked, what changed, which account, and
-/// why. Email addresses are masked; the durable audit log arrives at PP1.11 and reads the same events.
+/// <see cref="IAccountRoles"/>, which records the durable audit entry in the same save as the change (PP1.11), and
+/// writes one log line per real change: who asked, what changed, which account, and why. Never an email address.
 /// </summary>
 internal sealed partial class PlatformAdminFacade(IAccountRoles accounts, ILogger<PlatformAdminFacade> logger)
     : IPlatformAdminFacade
 {
     public async Task<Result<PlatformAdminOutcome>> GrantAsync(
         string email,
-        string actor,
+        AuditActor actor,
         string reason,
         CancellationToken cancellationToken)
     {
@@ -26,7 +27,7 @@ internal sealed partial class PlatformAdminFacade(IAccountRoles accounts, ILogge
             return AccountErrors.AccountNotFound;
         }
 
-        var granted = await accounts.GrantPlatformAdminAsync(account.Value, cancellationToken);
+        var granted = await accounts.GrantPlatformAdminAsync(account.Value, actor, reason, cancellationToken);
         if (!granted.IsSuccess)
         {
             return granted.Error;
@@ -34,7 +35,7 @@ internal sealed partial class PlatformAdminFacade(IAccountRoles accounts, ILogge
 
         if (granted.Value)
         {
-            LogGranted(logger, actor, account.Value.Value, reason);
+            LogGranted(logger, actor.ToString(), account.Value.Value, reason);
         }
 
         return new PlatformAdminOutcome(account.Value, granted.Value);
@@ -42,11 +43,11 @@ internal sealed partial class PlatformAdminFacade(IAccountRoles accounts, ILogge
 
     public async Task<Result<PlatformAdminOutcome>> RevokeAsync(
         AccountId account,
-        string actor,
+        AuditActor actor,
         string reason,
         CancellationToken cancellationToken)
     {
-        var revoked = await accounts.RevokePlatformAdminAsync(account, cancellationToken);
+        var revoked = await accounts.RevokePlatformAdminAsync(account, actor, reason, cancellationToken);
         if (!revoked.IsSuccess)
         {
             return revoked.Error;
@@ -54,7 +55,7 @@ internal sealed partial class PlatformAdminFacade(IAccountRoles accounts, ILogge
 
         if (revoked.Value)
         {
-            LogRevoked(logger, actor, account.Value, reason);
+            LogRevoked(logger, actor.ToString(), account.Value, reason);
         }
 
         return new PlatformAdminOutcome(account, revoked.Value);

@@ -47,6 +47,12 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   ApiService, ahead of MVC, over the store in `Managers/Idempotency` (`api-contract.md`). Making the work itself safe
   to repeat - a write whose retry cannot be replayed, such as one that rotates the caller's session - stays the
   facade's, as does completing a key in the same transaction as the write, if that is ever needed.
+- Security-relevant and operator actions are audited (PP1.11, ACCT-005, OPS-006). The facade records an `AuditEvent` with
+  `IAuditLog.Record` immediately before its one save, as with the outbox, so the entry commits or rolls back with the
+  change; a repeat that changes nothing records nothing. An entry is ids and codes only - actor, target, action,
+  optional site, a short reason - never an email, name, IP address, or content, and nothing may change or remove one
+  (the context's save guard and the table's trigger both refuse it). Each module owns its action codes in its
+  `Contracts/` (`AccountAudit`); the site is passed out loud, `null` for account and platform actions, until PP2.4.
 - Logging is structured; never log secrets, publishing keys, reader emails, or full request bodies.
 
 ## Persistence

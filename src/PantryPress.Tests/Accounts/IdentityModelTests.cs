@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
@@ -23,12 +24,13 @@ public sealed class IdentityModelTests
         typeof(IdentityUserToken<Guid>),
     ];
 
-    // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency) and
-    // PP1.10's transactional outbox (Managers/Outbox).
+    // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
+    // PP1.10's transactional outbox (Managers/Outbox), and PP1.11's audit log (Managers/Audit).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
         typeof(OutboxMessage),
+        typeof(AuditEntry),
     ];
 
     [Fact]
@@ -66,20 +68,25 @@ public sealed class IdentityModelTests
         Assert.Equal("[NormalizedEmail] IS NOT NULL", index.GetFilter());
     }
 
-    // Accounts are platform data (PP-D06): one account belongs to many sites through membership. The outbox is the one
-    // table with a SiteId that does not own by it (PP1.10): the dispatcher reads every site's messages and hands each its
-    // site, so the column is optional and nothing filters on it.
+    // Accounts are platform data (PP-D06): one account belongs to many sites through membership. Two tables carry a
+    // SiteId that they do not own by, so the column is optional and nothing filters on it: the outbox (PP1.10), whose
+    // dispatcher reads every site's messages and hands each its site, and the audit log (PP1.11), which the operator reads
+    // across sites (OPS-006).
     [Fact]
     public void Accounts_are_not_site_owned()
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
+        Type[] siteCarrying = [typeof(OutboxMessage), typeof(AuditEntry)];
 
         Assert.All(
-            db.Model.GetEntityTypes().Where(e => e.ClrType != typeof(OutboxMessage)),
+            db.Model.GetEntityTypes().Where(e => !siteCarrying.Contains(e.ClrType)),
             e => Assert.DoesNotContain(e.GetProperties(), p => p.Name == "SiteId"));
-        var outbox = db.Model.FindEntityType(typeof(OutboxMessage))!;
-        Assert.True(outbox.FindProperty(nameof(OutboxMessage.SiteId))!.IsNullable);
-        Assert.Empty(outbox.GetDeclaredQueryFilters());
+        Assert.All(siteCarrying, type =>
+        {
+            var entity = db.Model.FindEntityType(type)!;
+            Assert.True(entity.FindProperty("SiteId")!.IsNullable);
+            Assert.Empty(entity.GetDeclaredQueryFilters());
+        });
     }
 
     // EF Core caches the model per context type, so this context gets its own internal services; otherwise it could

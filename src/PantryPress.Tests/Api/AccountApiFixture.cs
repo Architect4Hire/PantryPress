@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
@@ -156,7 +157,7 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
             string.Empty,
             _timeout.Token);
         var granted = await operators.GetRequiredService<IAccountRoles>()
-            .GrantPlatformAdminAsync(account, _timeout.Token);
+            .GrantPlatformAdminAsync(account, AuditActor.OperatorConfiguration, "test fixture", _timeout.Token);
         Assert.True(granted.IsSuccess);
     }
 

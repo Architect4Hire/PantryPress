@@ -1230,7 +1230,7 @@ Verification:
   (the lease charged at the claim, exception text in logs, stranded claims, the head-of-queue row, the free `siteId`
   default, site ids in payloads) or recorded here.
 
-### PP1.11 Audit log
+### PP1.11 Audit log - done
 
 ```text
 SCOPE: Add an append-only audit log for security-relevant and operator actions, with actor, site, action,
@@ -1239,6 +1239,131 @@ CONSTRAINT: ACCT-005, OPS-006; backend.md.
 RESTRICTION: No personal data beyond what the action needs. No content bodies.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP1.11 delivery note (done):*
+
+- **Writing.** `IAuditLog` (scoped, `Managers/Audit`) stages an entry on the request's own context, exactly as the
+  outbox stages a message. The facade records it immediately before its one save, so the entry commits with the change
+  or is lost with it - a failed save, a rolled-back transaction, and a lost concurrency race all leave nothing (tested).
+  A repeat that changes nothing records nothing. Each module owns its action codes in its contracts (`AccountAudit`);
+  the kernel only checks their shape. `AddAccounts` and `AddAccountRoles` register the log themselves, so no host can
+  forget it.
+- **The record (owner-approved).** `AuditEntries`: an identity `bigint` key (append order, no GUID fragmentation), the
+  time from `IClock`, the action code, the actor kind (`account`, `operator-configuration`, `system`) with the account's
+  id for an account, an optional site, a target kind and id, an optional reason, and the W3C trace id. Ids and codes
+  only: no email, name, IP address, user agent, request body, content, or free-form details. A target id is letters,
+  digits, and `. _ : -`, so an email cannot be one, and a whole publishing key (`pp_live_…`) is refused. A reason is at
+  most 256 characters and refused if it contains an at sign, checked on the NFKC form so full-width ones count.
+- **Append-only, three layers.**
+  - The API has no update or delete.
+  - `PantryPressDbContext` refuses to save a modified or deleted entry, including one edited in place.
+  - The `TR_AuditEntries_AppendOnly` trigger refuses every update and delete in the database, which covers raw SQL and
+    `ExecuteUpdate`/`ExecuteDelete`. EF Core is told about the trigger (`HasTrigger`).
+  - The deployed app logins are `db_datareader`/`db_datawriter`, so they cannot drop or disable the trigger; only the
+    migration job is `db_owner`.
+- **Events.**
+  - Account (actor is the account itself): password changed, password reset (the link proves who), two-step on, two-step
+    off, recovery codes replaced, recovery code used.
+  - `account.locked-out`, actor `system`: only the wrong password or code that locks the account. The attempts before it
+    are not audited, and nor is a refused attempt on an account that is already locked.
+  - `account.platform-admin-granted` and `-revoked`, actor `operator-configuration`, with the reason. These are named
+    `account.*` rather than the planned `platform.*` because the Accounts module records them and the account is the
+    target.
+  - Not audited: successful sign-ins and authenticator codes, which stay in logs and telemetry (owner-approved), and
+    setting up an authenticator key, which turns nothing on.
+- **PlatformAdmin atomicity.** `IAccountRoles.Grant/RevokePlatformAdminAsync` now take the actor and reason, so
+  `AccountRolesFacade` records the entry in the same save as the role change and the new security stamp. The entry is
+  validated before anything is staged, so a refused reason cannot leave a role change on the context (tested).
+  `IPlatformAdminFacade` takes a typed `AuditActor`; its structured log lines stay.
+- **Tenancy.** The table is not `ISiteOwned` and has no filter, like `OutboxMessages`: only the operator reads it, across
+  sites (OPS-006). `tenancy.md` now names both tables as written exceptions. `SiteId` is nullable and passed out loud,
+  `Guid.Empty` refused, and every PP1.11 event records `null`. The `(SiteId, Id)` index is filtered to non-null sites;
+  `(TargetKind, TargetId, Id)` and `(ActorId, Id)` serve the console's "find by account". A boundary test keeps every
+  source file in every project, apart from `Managers/Audit` and the migrations, from naming the type or the table, so a
+  host cannot read it with raw SQL either. A probe proved the test fails on such a file; its first version could not
+  fail, because a scripting slip left backspace characters in the pattern, and that is fixed.
+- **Migration** `AuditLog` (Template K reviewed by `architecture-reviewer`): one table, three indexes, and the trigger.
+  It is additive, with no backfill, no foreign keys, and no locks on existing tables. Its rollback refuses while the
+  table has rows, because `DROP TABLE` fires no delete trigger and would silently erase the trail. The guard is not
+  covered by a test: rolling back the shared test database would break the other fixtures. Deployment: the migration
+  job must finish before an API revision that records entries serves traffic.
+- **PP1.4 fold-in.** The reconcile rule moved into `Business/PlatformAdminReconciliation` as a pure function. The
+  reconciler keeps its throws, with the reason written beside them: its only caller is the migration job, whose
+  non-zero exit is what keeps dependents from starting on a half-applied list.
+- **Declined from review, with reasons.** Detaching a staged entry when a save fails. The entry stays tracked beside the
+  change it describes, and that is deliberate: detaching only the entry would let a later save on the same scope commit
+  the change unaudited. `IAuditLog` documents the outbox's rule instead: a caller that gives up on a save gives up on
+  the scope.
+- **Not in this prompt:** reading the log, routes, or the console (PP19); retention, purge, and erasure (OPS-011); the
+  publishing-key actor (PP18); taking the site from `ISiteContext` (PP2.4); the sign-out revocation list from PP1.5's
+  note, which is a server-side session store and its own seam (PP1.12 should place it); lockout's `Retry-After`;
+  `DENY UPDATE, DELETE` for the app logins (IaC).
+
+Recorded for later prompts:
+- **PP2.4:**
+  - Take the site from `ISiteContext`, refusing a `siteId` that differs from the context, and `null` for a `site.*`
+    action. Keep an explicit "no site" path, so account and platform actions never inherit a request's site.
+  - The global filter keys on `ISiteOwned`, never on a `SiteId` property: `AuditEntry` sits beside `OutboxMessage` as a
+    written exception.
+  - Two-site tests: a mismatched-site record refused, and provisioning's `site.created` recorded with the new site.
+  - The `SiteId` stamping interceptor runs after the save guard; check the guard still sees the final tracked state.
+- **PP18:**
+  - A publishing-key actor kind. `ActorId` is read by `ActorKind`, so `IX_AuditEntries_Actor` becomes
+    `(ActorKind, ActorId, Id)` in that prompt's migration, and the key's stored id is what is recorded.
+  - Every publishing-API write is audited (PP18.9) with a two-site test using matching slugs.
+- **PP19:**
+  - The one reader lives in `Modules/Platform/`, behind `PlatformAdmin` with two-step sign-in, and is declared as the
+    boundary test's exception.
+  - Reads of site-scoped targets filter on `SiteId`, or record globally unique ids (a `PostId`, never a slug), so two
+    sites' `post:same-slug` never mix.
+  - Operator reasons arrive as input: validate them with FluentValidation at the facade and return a plain validation
+    error, rather than letting `AuditRules` throw.
+  - `TraceId` helps find logs but is not evidence: nothing re-roots an inbound `traceparent` at the gateway yet (PP9 does
+    it for the public tier).
+- **OPS-011:**
+  - Decide whether pseudonymous `ActorId`, `TargetId`, and `SiteId` survive account and site erasure, and set
+    retention: PP18.9 and PP19 add high-volume events.
+  - The trigger fires on statements that match no rows, so blanket erasure jobs and database-reset tools must leave
+    this table out. Changing the trigger is a migration of its own.
+- **PP1.12:**
+  - Place the sign-out revocation list.
+  - Note that `docs/architecture-decisions/pantrypress.md` has no PP1.10 row.
+- **Minor, recorded rather than fixed:** every save now runs change detection twice, once for the guard and once in
+  EF Core. That is cheap today; revisit it when the Worker builds page data with many tracked entities.
+- **Local note:** a running `aspire run` may apply the `AuditLog` migration to the persistent local database as soon as
+  it restarts its migration service. It is additive; nothing to undo.
+
+Verification:
+
+- `dotnet build PantryPress.slnx` gave 0 warnings and 0 errors, built to a separate artifacts path because a running
+  `aspire run` held the default outputs; tests ran with the same path as `UseArtifactsOutput` and `ArtifactsPath`.
+- `dotnet format PantryPress.slnx --verify-no-changes` is clean.
+- `dotnet test PantryPress.slnx`: 704 of 704 passed. The first full run had three failures, all model inventory tests that must
+  declare each new table on purpose (the entity list, the tables allowed a `SiteId`, and the migration list); they now
+  name the audit log.
+- New tests:
+  - Unit: action, target, reason, and actor rules, including the publishing-key prefix and the full-width at signs;
+    staging with the application clock and the trace id; refusals that stage nothing; two sites keeping their own site;
+    the save guard refusing an edited or removed entry; and the reconcile rule.
+  - Against the migrated schema:
+    - an entry committing with its save, and lost with a failed save, a rolled-back transaction, or a lost concurrency
+      race;
+    - append order;
+    - the context refusing a change or removal, and the trigger refusing raw SQL, `ExecuteUpdate`, and `ExecuteDelete`;
+    - the trigger present and enabled.
+  - Through the real ApiService routes:
+    - each account event writing exactly one entry, and refused or repeated requests writing none;
+    - lockout from a password change, from sign-in, and from wrong two-step codes, each audited once;
+    - an authenticator code at sign-in not audited;
+    - two accounts' trails kept apart;
+    - no column holding the account's email.
+  - Platform: grants, revocations, and the operator's list recorded with their actor and reason; a refused reason
+    changing nothing.
+  - The model inventory tests now declare the table.
+- Reviewers: `architecture-reviewer` (with the Template K review) and `site-isolation-auditor`. Neither found a blocker.
+  Their two major findings - the destructive rollback, and the tenancy exception that was not written down - are fixed
+  above. Of the minor ones, the boundary scan's reach, validation before staging, the at-sign normalization, the
+  publishing-key target, and the missing tests are fixed; the rest are recorded above.
 
 ### PP1.12 Identity and boundary audit
 

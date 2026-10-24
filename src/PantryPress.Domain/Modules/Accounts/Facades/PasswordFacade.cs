@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Managers.Time;
@@ -14,7 +15,7 @@ namespace PantryPress.Domain.Modules.Accounts.Facades;
 /// <summary>
 /// Password reset and change (ACCT-001; PP1.3). Forgot-password answers the same way for every address, like sign-up.
 /// Both reset and change rotate the security stamp, which voids outstanding links (and, from PP1.6, other sessions), and
-/// email a notice so the owner hears about a change they did not make.
+/// email a notice so the owner hears about a change they did not make. Both are audited with the save (PP1.11).
 /// </summary>
 internal sealed partial class PasswordFacade(
     IValidator<ForgotPasswordRequest> forgotValidator,
@@ -24,6 +25,7 @@ internal sealed partial class PasswordFacade(
     IClock clock,
     AccountEmails emails,
     IEmailQueue emailQueue,
+    IAuditLog audit,
     ILogger<PasswordFacade> logger) : IPasswordFacade
 {
     public async Task<Result> ForgotAsync(ForgotPasswordRequest request, CancellationToken cancellationToken)
@@ -78,6 +80,9 @@ internal sealed partial class PasswordFacade(
         // The link reached this inbox, so the address is confirmed, and the person who reads it is let back in.
         await data.MarkEmailConfirmedAsync(user);
         await data.ClearLockoutAsync(user);
+
+        // The holder of the emailed link is the account acting on itself.
+        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordReset, new AccountId(user.Id)), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -104,7 +109,7 @@ internal sealed partial class PasswordFacade(
             return AccountErrors.AccountNotFound;
         }
 
-        if (await AccountGuards.CheckPasswordAsync(data, user, request.CurrentPassword, cancellationToken) is { } refused)
+        if (await AccountGuards.CheckPasswordAsync(data, audit, user, request.CurrentPassword, cancellationToken) is { } refused)
         {
             return refused;
         }
@@ -116,6 +121,7 @@ internal sealed partial class PasswordFacade(
         }
 
         await data.ClearFailedAttemptsAsync(user);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordChanged, account), siteId: null);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;

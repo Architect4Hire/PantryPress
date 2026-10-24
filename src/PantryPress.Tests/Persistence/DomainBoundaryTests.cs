@@ -101,6 +101,41 @@ public sealed class DomainBoundaryTests
         }
     }
 
+    // PP1.11: the audit log holds every site's and account's entries with no query filter, and nothing may change one.
+    // Modules record through IAuditLog and read nothing; the context names the guard, never the entry. Every project is
+    // scanned, by type and by table name, so a host cannot read the table with raw SQL either. The migrations that create
+    // it are the one exception, and the operator console's reader (PP19) will be a declared one.
+    [Fact]
+    public void Only_the_audit_log_reaches_its_unfiltered_table()
+    {
+        var source = ModulesDirectory().Parent!.Parent!;
+        var allowed = new[]
+        {
+            Path.Combine(source.FullName, "PantryPress.Domain", "Managers", "Audit"),
+            Path.Combine(source.FullName, "PantryPress.MigrationService", "Migrations"),
+        };
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), @"\bAuditEntry\b|\bAuditEntryConfiguration\b|\bAuditEntries\b"),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches the audit table outside Managers/Audit.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
+
     private static DirectoryInfo ModulesDirectory([CallerFilePath] string testFile = "") =>
         new(Path.GetFullPath(Path.Combine(
             Path.GetDirectoryName(testFile)!,

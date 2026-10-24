@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Platform;
 using PantryPress.MigrationService;
@@ -48,6 +49,7 @@ internal static class TestDatabase
 
         var services = new ServiceCollection();
         services.AddFakeLogging();
+        services.AddApplicationClock();
         services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));

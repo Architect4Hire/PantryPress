@@ -1,10 +1,12 @@
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 
 namespace PantryPress.Domain.Modules.Platform.Contracts;
 
 /// <summary>
-/// Granting and revoking <c>PlatformAdmin</c> (ACCT-005; PP1.4). Every change is audited with who asked and why. There
+/// Granting and revoking <c>PlatformAdmin</c> (ACCT-005; PP1.4). Every real change is audited with who asked and why,
+/// durably in the same save as the change (PP1.11), and as a structured log line. There
 /// is no route to this facade and no self-service path: it is registered only in the operator's process, and the
 /// operator drives it through <see cref="IPlatformAdminReconciler"/>. The operator console (PP19) will add its own
 /// audited surface on top.
@@ -17,13 +19,13 @@ public interface IPlatformAdminFacade
     /// </summary>
     Task<Result<PlatformAdminOutcome>> GrantAsync(
         string email,
-        string actor,
+        AuditActor actor,
         string reason,
         CancellationToken cancellationToken);
 
     Task<Result<PlatformAdminOutcome>> RevokeAsync(
         AccountId account,
-        string actor,
+        AuditActor actor,
         string reason,
         CancellationToken cancellationToken);
 
@@ -40,7 +42,7 @@ public sealed record PlatformAdminOutcome(AccountId Account, bool Changed);
 public static class PlatformAdminActors
 {
     /// <summary>The operator's configured list, applied by the migration job.</summary>
-    public const string OperatorConfiguration = "operator:configuration";
+    public static AuditActor OperatorConfiguration => AuditActor.OperatorConfiguration;
 }
 
 /// <summary>

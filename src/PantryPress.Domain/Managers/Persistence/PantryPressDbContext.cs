@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Modules.Accounts;
 
 namespace PantryPress.Domain.Managers.Persistence;
@@ -20,6 +21,19 @@ public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> 
         EnsureIdentitySchemaIsPinned();
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(PantryPressDbContext).Assembly);
+    }
+
+    // Every other save overload ends in one of these two. The audit log is append-only (PP1.11).
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AuditLog.EnsureAppendOnly(ChangeTracker);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        AuditLog.EnsureAppendOnly(ChangeTracker);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     // Identity reads these from the host's IdentityOptions and silently falls back to Version 1 without them.

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
+using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -20,6 +21,7 @@ internal sealed partial class SessionFacade(
     IValidator<SignInRequest> signInValidator,
     AccountsDataLayer data,
     ITwoFactorFacade twoFactor,
+    IAuditLog audit,
     ILogger<SessionFacade> logger) : ISessionFacade
 {
     public async Task<Result<SessionStart>> SignInAsync(SignInRequest request, CancellationToken cancellationToken)
@@ -45,7 +47,7 @@ internal sealed partial class SessionFacade(
         if (!await data.CheckPasswordAsync(user, request.Password))
         {
             // Counts toward lockout and is committed straight away, so a failed sign-in still leaves its mark.
-            return await AccountGuards.FailAsync(data, user, AccountErrors.InvalidCredentials, cancellationToken);
+            return await AccountGuards.FailAsync(data, audit, user, AccountErrors.InvalidCredentials, cancellationToken);
         }
 
         await data.ClearFailedAttemptsAsync(user);
