@@ -131,10 +131,10 @@ Status is copied from the decisions record (`docs/architecture-decisions/pantryp
 | 0010 | 14-day trial, no free-forever tier | Trial lifecycle; smaller abuse surface | **Proposed** | D-10 (PP14) |
 | 0011 | Third-party scripts by allow-list | Per-site CSP generated from enabled integrations | Accepted, with open items | D-11 networks (PP15.5) |
 | 0012 | No AI anywhere | `invariant-guard.mjs` blocks AI SDKs, imports and model endpoints | Accepted | — |
-| 0013 | Wildcard domain on Front Door Standard; `__Host-pp-session` cookie; PSL entry | WAF custom rules plus origin lockdown instead of Premium | Accepted, with open items | D-13 Premium trigger |
+| 0013 | Wildcard domain on Front Door Standard; `__Host-pp-session` cookie; PSL entry | WAF custom rules plus origin lockdown instead of Premium | Accepted, with open items | D-13 Premium trigger; D-13b custom domains beyond one profile (PP17.1) |
 | 0014 | Newsletter signup and CSV export only | Transactional email only | Accepted | — |
 | 0015 | Publishing API with per-site keys | Idempotent, versioned, same facades as the editor; keys salted SHA-256 | Accepted | — |
-| 0016 | Shared Azure, separate data | Shared Front Door profile, Container Apps environment, monitoring workspace | Accepted, with open items | D-16 IaC owner (PP19) |
+| 0016 | Shared Azure, separate data | Shared Front Door profile, Container Apps environment, monitoring workspace | Accepted | — (D-16 closed 2026-10-24: Terraform `platform` stack in this repo) |
 | 0017 | Studio customization by typed settings | Settings become an immutable theme snapshot; 20 kept | Accepted, with open items | D-17, THM-001, THM-002, THM-010 |
 | 0018 | Section-based pages, no page builder | One section library for homepage and site pages | Accepted, with open items | POST-011 FAQPage (PP8) |
 
@@ -592,7 +592,7 @@ preserving wording, generating 301s, and never publishing without confirmation.
 
 ```mermaid
 flowchart TB
-    subgraph Shared[Shared with CreatorPantry, created by infra/platform]
+    subgraph Shared[Shared with CreatorPantry, one set per environment, created by the Terraform platform stack]
         AFD[Front Door Standard profile<br/>separate endpoints, routes, WAF policies]
         CAE[Container Apps environment + VNet<br/>separate apps and identities]
         MON[Log Analytics + App Insights<br/>separate cloud role names]
@@ -635,8 +635,8 @@ flowchart TB
 
 | Concern | Choice |
 | --- | --- |
-| IaC | `azd`-generated Bicep from the AppHost plus an `infra/platform` module for shared resources (DECIDE) |
-| Environments | dev (local Aspire), staging, production |
+| IaC | Terraform, run from a workstation without a pipeline (OPS-001 closed 2026-10-24): `bootstrap`, a shared `platform` stack, and a `pantrypress` stack under `docs/infrastructure/terraform/`. Plan, SKUs, and costs in `docs/infrastructure/README.md` |
+| Environments | local (Aspire), `dev` in Azure (the staging role), production |
 | CI | Back end, front end, golden files, accessibility, performance budget, Rich Results, publishing API contract tests on every PR |
 | CD | One approved, health-gated workflow with rollback; migrations run explicitly before deploy |
 | Observability | OpenTelemetry to the shared workspace; alerts on edge 5xx, origin latency, build backlog age, webhook failures, bounces, certificates, API errors, spend |
@@ -736,7 +736,7 @@ wording drift.
 | O-04 | Medium | **Public media has no Front Door route.** `media-public` is "via Front Door only", but PP9.2 defines no origin for blob media. | requirements 5.1 vs PP9.2 | Add a media origin group and route to PP9.2 |
 | O-05 | Medium | **Inline styles versus a strict CSP.** Spec 3.3 has SSR write a `<style>` block and inline custom properties. A strict per-site CSP (PSEC-002) must allow them, and byte-identical output (ARCH-005, ADR 0008) rules out per-request nonces. | spec 3.3 vs PSEC-002, ADR 0008 | Put CSP `style-src` hashes in the snapshot, or serve snapshot CSS as a hashed, cacheable file |
 | O-06 | High | **No prompt creates the base CI pipeline.** ADR 0001 gives PantryPress its own CI, ADR 0008 says "CI runs the RND-007 budget check on every build", and PP7.2b and PP11.18 add CI checks. The first CI prompt is PP19.3 "CI additions". | SCRUB vs ADR 0001, ADR 0008, OPS-002 | Add PP0.9: GitHub Actions running build, test, format and lint on every PR |
-| O-07 | Low | **Referenced skills are missing.** Prompts use `aspire-deployment` (5 times) and `aspire-monitoring` (twice); neither is in `.claude/skills/`. | SCRUB vs .claude/skills | Add them, or name the plugin that provides them |
+| O-07 | Low | **Referenced skills are missing.** Prompts used `aspire-deployment` (5 times) and use `aspire-monitoring` (twice); neither is in `.claude/skills/`. **Partly resolved 2026-10-24:** the `aspire-deployment` references now point at the `docs/infrastructure` plan and runbook. | SCRUB vs .claude/skills | Add `aspire-monitoring`, or name the plugin that provides it |
 | O-08 | Low | **Requirements section 6 is stale.** The repo copy still says "PP0 creates the toolkit". The project-files copy, the toolkit and PP0.2 say the toolkit ships with the repo starter. | requirements section 6 | Take the project-files wording |
 | O-09 | Low | **Editor role and design.** SITE-010 gives Editors "all content and moderation"; `auth.md` adds "design". Applying a theme purges the whole site. | requirements vs auth.md | Decide whether Editors can apply Studio changes |
 | O-10 | Low | **Derivative timing.** MED-002 and `media.md` say "generated on demand by the Worker"; PP6.5 pre-generates them into `media-public`. "On demand" could be read as request-time generation, which would need its own origin. | MED-002 vs PP6.5 | Reword as "on upload, asynchronously, by the Worker" |
@@ -760,15 +760,15 @@ the shape of the system.
 | D-02 | Front Door stale-on-error | Long TTL plus purge | PP9.4 |
 | D-07 | One UI library or two | One library, two entry points | PP3 |
 | POST-001 | Editor library | TipTap through an Angular wrapper | PP5.1 |
-| D-16 | Owner of the shared Azure resources | `infra/platform` in this repo | PP19 (PP9.1 needs it earlier, see note) |
+| D-13b | Custom domains beyond one Front Door Standard profile (100 per profile) | A second profile, or Premium, before 80 on a profile | PP17.1 |
 | D-10 | Trial or free Starter (ADR 0010 is still Proposed) | 14-day trial | PP14 |
 | D-17 | Plus versus Pro Studio split | Plus gets all but textures and Banner and Masthead | PP11 |
 | PP7.12 | Page-data versions kept | 5 | PP7.12 |
 | PP18.6 | API update after an editor change | None; the prompt must ask | PP18.6 |
 | SITE-004, PP7.3, PP8.10 | Slug renames per year, video hosts, search index size | None; each prompt must ask | Named prompt |
 
-**Note on D-16:** the register closes D-16 at PP19, but PP9.1 already writes `infra/platform` for
-non-production. Closing D-16 at PP9.1 would avoid building the module twice.
+**D-16 closed early (2026-10-24):** as this note used to suggest, D-16 closed ahead of PP9.1, together with
+OPS-001. The shared resources are the Terraform `platform` stack in this repository, one set per environment.
 
 ### 14.2 Risks
 
@@ -777,6 +777,8 @@ non-production. Closing D-16 at PP9.1 would avoid building the module twice.
 | Angular runtime plus hydration exceeds 100 KB | Breaks RND-007 and Core Web Vitals | PP7.2 spike first; vanilla island fallback (D-08) |
 | Full-site purge after a theme release | SSR load spike across all sites | Throttled batch purges (ARCH-012); PNFR-005 load drill |
 | No stale-on-error on Front Door Standard | An SSR outage shows errors on cache misses | Long TTLs, warm caches, health-gated deploys (D-02) |
+| Front Door Standard caps a profile at 100 custom domains and 10 endpoints | DOM-001 fills one profile long before 2,000 sites | A second profile or Premium before 80 domains, with a platform-wide count in PP17.1 (D-13b) |
+| Inbound traffic to an external Container Apps environment cannot be filtered by NSG | An origin reachable without Front Door would bypass the WAF and cache | Per-app ingress allow-list from the `AzureFrontDoor.Backend` service tag, refreshed by each Terraform plan, plus the `X-Azure-FDID` check (PP9.3) |
 | Tenant isolation bug | Worst-case incident | Filters, stamping, hook, two-site tests, isolation auditor (ADR 0003) |
 | Trial subdomains abused | Reputation and blocklisting of `pantrypress.app` | PSL entry, trial, velocity limits, Safe Browsing, takedown |
 | Studio combination explosion | Accessibility and layout regressions | Typed options, contrast engine, CUS-T matrix in CI |

@@ -1,6 +1,6 @@
 # 0016 — Shared Azure, separate data
 
-- **Status:** Accepted, with one open item
+- **Status:** Accepted (D-16 closed 2026-10-24)
 - **Date:** 2026-10-22
 - **Decided by:** Owner
 - **Decision ID:** PP-D16
@@ -42,3 +42,7 @@ zone. It shares only:
 - **D-16:** who owns the shared resources in IaC. Default assumed: an `infra/platform` module in this
   repository, with CreatorPantry's IaC referencing them as existing resources. Closes at PP19. See the
   [register](pantrypress.md#3-open-decide-items).
+  - **Outcome (2026-10-24, owner):** this repository owns them, in the Terraform `platform` stack at
+    `docs/infrastructure/terraform/platform/` (OPS-001 closed as Terraform). There is one set per environment, so
+    dev and prod each have their own Front Door profile, Container Apps environment, and workspace, and both
+    products share each set. CreatorPantry's IaC looks them up by name, exactly as PantryPress's own stack does.

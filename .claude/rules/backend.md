@@ -37,7 +37,12 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - Money is `decimal` with currency. Recipe quantities are exact rationals (`recipes.md`).
 - Nullable reference types on; warnings as errors.
 - Side effects that must survive a crash (purges, emails, page-data builds) go through the transactional
-  outbox.
+  outbox (PP1.10). The facade stages a message with `IOutbox.Enqueue` *before* its save, so the message commits or
+  rolls back with the change; only the Worker delivers. A message type implements `IOutboxMessage` with a stable
+  `OutboxType` name and carries ids, not data (64 KiB at most). Its one handler (`AddOutboxHandler`, registered in the
+  Worker) is idempotent on the message id: delivery is at least once and in no particular order. A handler throws
+  `OutboxPermanentFailureException` when retrying cannot help, and re-resolves the site from `OutboxDelivery.SiteId`
+  before calling a facade. A Worker claims only the types it has handlers for.
 - Idempotency has two owners (PP1.9). Replaying the stored answer to a retried `Idempotency-Key` is host plumbing in
   ApiService, ahead of MVC, over the store in `Managers/Idempotency` (`api-contract.md`). Making the work itself safe
   to repeat - a write whose retry cannot be replayed, such as one that rotates the caller's session - stays the

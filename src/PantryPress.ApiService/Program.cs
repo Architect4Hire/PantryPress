@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using PantryPress.ApiService.Hosting;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
@@ -17,6 +18,10 @@ builder.AddSqlServerDbContext<PantryPressDbContext>("pantrypress");
 // Link tokens and authenticator keys are protected with this key ring. Locally it is the developer's profile; PP19
 // moves it to storage protected by Key Vault, which must exist before any real account enables two-step sign-in.
 builder.Services.AddDataProtection().SetApplicationName("PantryPress");
+
+// Facades stage side effects in the transactional outbox, which commits with their own save; the Worker delivers them
+// (PP1.10). The API only writes: it never registers the dispatcher.
+builder.Services.AddOutbox();
 
 builder.Services.AddAccounts(builder.Configuration.GetSection("Accounts"));
 builder.AddApiEmail();

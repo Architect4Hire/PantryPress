@@ -14,7 +14,13 @@ internal static class EphemeralAppHost
     // drops them rather than pull and start two more containers for every integration test.
     public static readonly (string Name, string Parent)[] DataExplorers = [("dbgate", "sql"), ("redisinsight", "redis")];
 
-    public static async Task<IDistributedApplicationTestingBuilder> CreateAsync(CancellationToken cancellationToken)
+    /// <param name="runWorker">
+    /// False for a fixture whose tests move a fake clock over the shared database. The Worker sweeps expired rows on the
+    /// real clock (PP1.10), so it would purge idempotency keys a test is still using, its fake hours already behind.
+    /// </param>
+    public static async Task<IDistributedApplicationTestingBuilder> CreateAsync(
+        CancellationToken cancellationToken,
+        bool runWorker = true)
     {
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>(
             cancellationToken);
@@ -22,6 +28,11 @@ internal static class EphemeralAppHost
         foreach (var explorer in appHost.Resources.Where(r => DataExplorers.Any(e => e.Name == r.Name)).ToList())
         {
             appHost.Resources.Remove(explorer);
+        }
+
+        if (!runWorker)
+        {
+            appHost.Resources.Remove(appHost.Resources.Single(r => r.Name == "worker"));
         }
 
         foreach (var resource in appHost.Resources.Where(r => DataContainers.Contains(r.Name)))

@@ -1,0 +1,9 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+backend.hcl
+bootstrap/terraform.tfvars
+*.secret.tfvars
+grant-*.sql

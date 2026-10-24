@@ -1,6 +1,6 @@
 # 0013 — Domains, cookies, and the edge
 
-- **Status:** Accepted, with one open item
+- **Status:** Accepted, with two open items
 - **Date:** 2026-10-22
 - **Decided by:** Owner (Front Door Standard); remainder confirmed at PP0.1
 - **Decision ID:** PP-D13
@@ -51,3 +51,8 @@ Link, but its base fee is significant at launch.
 - **D-13:** the trigger for upgrading to Premium. Default assumed: a sustained attack the custom rules cannot
   handle, or revenue that makes the Premium base fee small. Operational; no build impact. See the
   [register](pantrypress.md#3-open-decide-items).
+- **D-13b** (opened 2026-10-24): custom domains beyond one profile. Front Door Standard allows 100 custom
+  domains and 10 endpoints per profile, and the wildcard, `app.`, CreatorPantry's domains, and every opt-in
+  custom domain count against them. Default assumed: add a second Standard profile, or move to Premium (500 per
+  profile) if D-13 has already triggered, before PantryPress's custom domains on a profile pass 80; PP17.1 checks
+  the platform-wide count. Closes at PP17.1. See the [register](pantrypress.md#3-open-decide-items).

@@ -1,0 +1,5 @@
+# Copy to backend.hcl (git-ignored) with the values the bootstrap stack printed (terraform output backend_hcl).
+# run.ps1 adds key = "<stack>-<env>.tfstate", so one file serves every stack and environment.
+storage_account_name = "stpptfstate1234"
+container_name       = "tfstate"
+use_azuread_auth     = true

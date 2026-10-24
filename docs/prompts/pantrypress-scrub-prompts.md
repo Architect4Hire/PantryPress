@@ -1118,6 +1118,118 @@ CONSTRAINT: backend.md; Template G.
 BEHAVIOR: Plan, wait for approval, implement with crash and replay tests.
 ```
 
+*Split (owner-approved 2026-10-24):* building the outbox and moving email onto it at once would be a schema, a job,
+provider wiring in a new host, and every Accounts facade. So it runs as one seam each: **PP1.10a** the outbox store,
+the Worker's dispatcher, the migration, and the Worker's database wiring, proven with test handlers; **PP1.10b** account
+email onto the outbox (`IEmailQueue` stages an `email.send` message whose id is the email's id, facades stage it before
+their save, the Worker hosts the email gateway and the development mail sink, and the in-process queue goes). PP1.10 is
+marked done after PP1.10b. The owner also approved the Worker purging expired idempotency keys here (PP1.9's hand-off).
+
+*PP1.10a delivery note (done):*
+
+- **Writing.** `IOutbox` (scoped, `Managers/Outbox`) stages a message on the request's own context, so it commits with
+  the facade's save, or its transaction, and is lost with it. A message type implements `IOutboxMessage` with a stable
+  `OutboxType` (lowercase dot-separated, owner first) instead of its CLR name. It carries ids, not data: at most 64 KiB
+  of JSON, and never a site id of its own. A type with a `SiteId` property is refused when it is enqueued or a handler is
+  registered for it. `siteId` is a required argument, so platform work is `null` said out loud. ApiService registers
+  `IOutbox` only; the Worker alone registers the store and the dispatcher.
+- **The table** `OutboxMessages` comes from the additive migration `Outbox` (Template K reviewed: one table, two
+  filtered indexes, no data touched). It is not site-owned data (PP-D06). The dispatcher reads every site's messages,
+  so there is no global filter and no `IgnoreQueryFilters`. No route reads the table. A boundary test keeps every Domain
+  file outside `Managers/Outbox` from naming it.
+- **State machine.**
+  - Pending → claimed: the lease is set, the claim takes an attempt count snapshot, and nothing is charged yet.
+  - Claimed → started: the lease is renewed from now and the attempt is charged before the handler runs. A claim whose
+    lease was taken over while it waited in the batch is not started, costs nothing, and is left to the Worker that
+    took it.
+  - Started → Succeeded: the payload is cleared. Or → retry with exponential backoff jittered over its upper half
+    (5 s doubling, capped at 30 min). Or → Poisoned on `OutboxPermanentFailureException`, an unreadable or missing
+    payload, the last of 12 attempts (roughly one to two hours), or a claim past the last attempt (a message that kills
+    the process runs out instead of looping).
+  - A stopping Worker hands its messages back due now. One that never started costs nothing; a handler it cut short
+    keeps its charge, so a handler that hangs until every stop still runs out.
+  - Every write after the claim is conditional on the lease token, so a late finisher records nothing. The handler is
+    cancelled a tenth of the lease before the lease ends.
+- **Competing Workers, and types a Worker does not know.** The claim is one conditional update over freshly read
+  candidates, so of two Workers reaching for one row exactly one gets it. A Worker claims only the types it has
+  handlers for, so during a rolling deploy an old Worker leaves a new type to the new one instead of poisoning it. A
+  type nobody handles waits, visible in the `pantrypress.outbox.ready.age` gauge (the OPS-004 backlog alert). Once its
+  update is sent, a claim runs to its end, so a stop never strands leased rows.
+- **Telemetry.**
+  - The `PantryPress.Outbox` meter counts delivered, retried, poisoned, and released messages, tagged with the type
+    only, and records handler duration and ready age.
+  - The consumer span joins the writer's trace through the stored `traceparent`. ServiceDefaults registers the
+    `PantryPress.*` meters and sources.
+  - Logs carry ids, types, and a failure's description (its exception type, or a permanent failure's stated reason),
+    never a handler exception's text. A test proves an email address in a handler's exception reaches no log.
+- **The sweep** runs every minute on the Worker. It samples the ready age and purges, in batches, delivered rows after
+  7 days, poisoned rows (payload kept for an operator) after 30, and idempotency keys past their retention.
+- **Test harness.** The Worker now sweeps on the real clock, so the two fixtures that move a fake clock over a shared
+  database (`MigratedDatabase`, `AccountApiFixture`) start their AppHost without it (`EphemeralAppHost(runWorker:
+  false)`). Otherwise it would purge keys their tests still use.
+- **Out-of-scope repair:** `EdgeHardeningEndToEndTests.The_real_gateway_hardens_its_answers` (PP1.8) failed in two of
+  three full runs. Its over-sized body raced the gateway's refusal, and the client saw the reset instead of the 413. It
+  now sends `Expect: 100-continue`, which makes it deterministic and proves the body was refused unread.
+- **Deferred, for named prompts:**
+  - **PP1.10b:** email onto the outbox. Atomicity there needs each facade to stage the message immediately before its
+    one save. Identity's `UserManager` shares the context and saves on its own, so a message staged before a failed step
+    could ride a later save.
+  - **PP2.4/PP2.5:**
+    - The writer's site comes from `ISiteContext`, not an argument. A mismatch throws, and platform work gets an
+      explicit path that refuses while a site context is set. Switch to the typed `SiteId?`; the column is unchanged.
+    - The dispatcher, not each handler, re-resolves the site in each delivery's scope before invoking: it loads the
+      site, finishes or poisons quietly if it is missing or `Deleted`, and sets the context. A platform message gets a
+      context that matches nothing.
+    - The global filter keys on `ISiteOwned`, never on a property named `SiteId`, which would starve the outbox. Record
+      `OutboxMessage` beside `Site` as a written exception.
+    - Two-site tests through the PP2.7 harness: a mismatched-site enqueue, parallel siblings with separate contexts, and
+      a platform message that sees no site rows. Today's two-site test proves only that sites' messages stay separate,
+      carry their own site, and fail alone.
+  - **PP7 and the import prompts:** per-site fairness in the claim (round-robin or a per-site cap). Today the claim is
+    oldest-first across sites, and competing Workers reach for the same candidates. The losers' partial claims cost
+    throughput, not correctness; an `UPDATE TOP … READPAST … OUTPUT` claim is the upgrade.
+  - **Handler idempotency kit.** There is no shared processed-message table yet. The contract on `IOutboxHandler` is
+    that an external effect passes the message id as the provider's idempotency key, and a database effect records it in
+    its own transaction or is safe to repeat. The first database-effect handler that cannot be naturally idempotent adds
+    the kernel table.
+  - **PP19:** an operator view and replay for poisoned messages, an alert on `pantrypress.outbox.poisoned`, and the
+    ready-age alert.
+  - **Site and account erasure (OPS-011):** delete outbox rows by `SiteId`, with an index then. Payloads stay
+    references, not personal values; PSEC-005 covers reader data.
+  - **PP9:** re-root an inbound `traceparent` on the public tier before any reader write enqueues.
+- **Minor, recorded rather than fixed:**
+  - The clustered key is a random GUID on a churning table, which fragments it, as PP1.9's does.
+  - Leases are timed by the Workers' clocks.
+  - A completion re-sent by the retry policy after it landed logs a spurious "lost its lease".
+  - Message ids derived from site-local values must include the site, or two sites collide; this is documented on
+    `IOutbox`.
+- **Local note:** an `aspire run` that restarts its migration service will apply the additive `Outbox` migration to the
+  persistent local database. Nothing to undo.
+
+Verification:
+
+- `dotnet build PantryPress.slnx` gave 0 warnings and 0 errors. It was built to a separate artifacts path, because a
+  running `aspire run` held the default outputs. The tests ran with the same path as `UseArtifactsOutput` and
+  `ArtifactsPath` environment variables, so the projects the test AppHost launches run the fresh build.
+- `dotnet format PantryPress.slnx --verify-no-changes` is clean.
+- `dotnet test PantryPress.slnx` passed 645 of 645, twice in a row. One earlier full run had 26 account-API tests
+  answer 500 under parallel AppHost load; they passed alone and in both final runs.
+- New tests:
+  - 22 outbox integration cases against the migrated schema, with the production retrying execution strategy: commit
+    with the change, a failed save, a rolled-back transaction, delivery and payload clearing, trace continuity, crash
+    and redelivery with the late finisher refused, a claim taken over before it started, the lease renewed after
+    waiting in the batch, a poison pill, a handler outliving its lease, backoff, poisoning at the last attempt with the
+    payload kept and nothing personal logged, permanent failure, unreadable and missing payloads, 200 messages across
+    three competing Workers each delivered once, 60 redeliveries with the same id and no repeated effect, a stop that
+    charges only the cut-short delivery, the hosted dispatcher, an unhandled type left waiting with the backlog gauge,
+    two sites, and the sweep.
+  - Unit tests: the backoff table, attempts, type names, stored descriptions, settings refusals, staging and its
+    refusals, the site-carrying message type, duplicate handlers, the no-handler Worker, and the hosted registrations.
+  - The boundary test above.
+- Reviewers: `architecture-reviewer` and `site-isolation-auditor`. Every blocker and major finding is either fixed above
+  (the lease charged at the claim, exception text in logs, stranded claims, the head-of-queue row, the free `siteId`
+  default, site ids in payloads) or recorded here.
+
 ### PP1.11 Audit log
 
 ```text
@@ -2160,25 +2272,34 @@ BEHAVIOR: Return findings and checkpoint evidence.
 ### PP9.1 Shared platform module
 
 ```text
-SCOPE: Write infra/platform IaC for the resources shared with CreatorPantry (PP-D16): the Front Door Standard
-profile, the Container Apps environment with its VNet, and the Log Analytics and Application Insights
+SCOPE: Write the Terraform platform stack for the resources shared with CreatorPantry (PP-D16): the Front Door
+Standard profile, the Container Apps environment with its VNet, and the Log Analytics and Application Insights
 workspace, for the non-production environment. Document how CreatorPantry references them as existing.
-CONSTRAINT: PP-D13, PP-D16, OPS-001; aspire-deployment skill.
+CONSTRAINT: PP-D13, PP-D16, OPS-001; docs/infrastructure plan and runbook.
 RESTRICTION: Shared resources only: no SQL, Redis, storage, Key Vault, or DNS here. No production apply. No
 credential literals.
-UTILIZATION: aspire-deployment.
-BEHAVIOR: Show the plan and cost, wait for approval, generate, validate with a what-if, and report.
+BEHAVIOR: Show the plan and cost, wait for approval, generate, validate with terraform plan, and report.
 ```
+
+Starting point (2026-10-24): `docs/infrastructure/terraform/platform/` already exists, validated but never applied
+(OPS-001 and D-16 closed). This prompt reviews it against the scope, runs `./run.ps1 platform dev plan`, and
+applies dev after approval. The privatelink DNS zones live here too, because a VNet can link only one zone of each
+name.
 
 ### PP9.1a Azure DNS and wildcard record
 
 ```text
 SCOPE: Write the IaC for PantryPress's own pantrypress.app Azure DNS zone, the wildcard CNAME to the Front Door
 endpoint, and the app host record, for the non-production environment.
-CONSTRAINT: PP-D13, SITE-003; aspire-deployment skill; OPS-001.
+CONSTRAINT: PP-D13, SITE-003; docs/infrastructure plan and runbook; OPS-001.
 RESTRICTION: No production apply. No credential literals.
-BEHAVIOR: Plan, wait for approval, generate, validate with a what-if, and report.
+BEHAVIOR: Plan, wait for approval, generate, validate with terraform plan, and report.
 ```
+
+Starting point (2026-10-24): `docs/infrastructure/terraform/pantrypress/dns.tf`. The zone is per environment.
+Dev defaults to the child zone `dev.pantrypress.app`, delegated by NS records; prod uses `pantrypress.app`. A
+separate registrable domain for dev is the alternative, and keeps dev's blogs cross-site from its admin app as in
+prod. Reserve the `dev` slug.
 
 ### PP9.2 Front Door endpoints, routes, and wildcard TLS
 
@@ -2188,12 +2309,19 @@ custom domain *.pantrypress.app (managed or Key Vault certificate per current su
 the admin gateway, two origin groups for blogs (pantrypress-site for page routes; PantryPress.Site for
 /api/public/*, sitemaps, robots.txt, feeds, ads.txt, and the search index), a PantryPress WAF policy, and
 Container Apps ingress IP restrictions allowing only the AzureFrontDoor.Backend service tag.
-CONSTRAINT: PP-D13, PP-D16, PSEC-001; aspire-deployment.
+CONSTRAINT: PP-D13, PP-D16, PSEC-001; docs/infrastructure plan and runbook.
 RESTRICTION: Standard tier only (PP-D13); no Premium-only features such as Private Link or managed rule sets.
 Never modify CreatorPantry's endpoints or routes. Origins accept traffic only from Front Door (service-tag IP
 restriction plus X-Azure-FDID check). No production apply.
 BEHAVIOR: Verify current Front Door wildcard certificate options, plan, wait for approval, generate and validate.
 ```
+
+Starting point (2026-10-24): `docs/infrastructure/terraform/pantrypress/frontdoor.tf` and `apps.tf`. Verified
+then: managed certificates cover wildcard domains (GA June 2025) but do not rotate on their own, so the stack
+outputs `certificate_expiry`. An external workload-profile environment cannot filter inbound traffic with an NSG,
+so the service-tag restriction is each app's ingress allow-list, built from the `AzureFrontDoor.Backend` tag's
+IPv4 ranges. Caching is off on every route until PP9.4. Standard's limit of 100 custom domains per profile is
+D-13b.
 
 ### PP9.3 Origin trust check
 
@@ -3065,6 +3193,10 @@ RESTRICTION: Opt-in only. A host is unique platform-wide.
 BEHAVIOR: Plan, wait for approval, migrate, test.
 ```
 
+Close D-13b here (opened 2026-10-24). Front Door Standard allows 100 custom domains per profile, so the
+entitlement check also counts custom domains platform-wide and per profile. The default trigger for a second
+profile, or Premium, is 80.
+
 ### PP17.2 Add domain endpoint and DNS instructions
 
 ```text
@@ -3271,10 +3403,15 @@ SCOPE: Generate production IaC: the shared platform module (PP9.1) for productio
 resources: Container Apps apps (including the pantrypress-site SSR app, reachable only through Front Door),
 its own SQL server, Redis, storage account, Key Vault, DNS zone, Communication Services, managed identities,
 and private endpoints where the environment supports them.
-CONSTRAINT: OPS-001, PP-D16; aspire-deployment.
+CONSTRAINT: OPS-001, PP-D16; docs/infrastructure plan and runbook.
 RESTRICTION: No production apply in this prompt.
-BEHAVIOR: Plan, wait for approval, generate, validate with what-if, and report.
+BEHAVIOR: Plan, wait for approval, generate, validate with terraform plan, and report.
 ```
+
+Starting point (2026-10-24): the `platform` and `pantrypress` stacks already carry `env/prod.tfvars`, with private
+endpoints, WAF, delete locks, and 35-day restore. This prompt replaces the placeholder images, maps the HTTP
+probes, persists the data-protection key ring (which lifts the gateway's single-replica limit), and confirms the
+sizes against PP19.1's cost estimate.
 
 ### PP19.3 CI additions
 

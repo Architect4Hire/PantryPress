@@ -9,7 +9,7 @@ namespace PantryPress.Tests.Persistence;
 // One ephemeral AppHost whose migration service has finished, shared by the test classes that read or write the
 // schema or need the running system. It is a collection fixture rather than one per class: each AppHost starts its own
 // SQL Server container and five projects, and starting several at once outruns what a developer machine can do inside
-// the timeout.
+// the timeout. It runs without the Worker (PP1.10): its tests move fake clocks, and the Worker sweeps on the real one.
 public sealed class MigratedDatabase : IAsyncLifetime
 {
     public const string CollectionName = "migrated database";
@@ -27,7 +27,7 @@ public sealed class MigratedDatabase : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _appHost = await EphemeralAppHost.CreateAsync(_timeout.Token);
+        _appHost = await EphemeralAppHost.CreateAsync(_timeout.Token, runWorker: false);
         App = await _appHost.BuildAsync(_timeout.Token);
         await App.StartAsync(_timeout.Token);
 

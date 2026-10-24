@@ -44,6 +44,11 @@ public sealed class EdgeHardeningEndToEndTests(MigratedDatabase system)
             Headers = { Host = host },
         };
         oversized.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+        // The client waits for the gateway before sending the body. Without that it races the refusal: the gateway answers
+        // and closes while the client is still writing, and the client can see the reset instead of the answer. With
+        // it, getting the 413 at all proves the body was refused unread.
+        oversized.Headers.ExpectContinue = true;
         using var refused = await secure.SendAsync(oversized, timeout.Token);
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, refused.StatusCode);
         Assert.Equal(GatewayApi.TooLargeCode, await refused.CodeAsync());

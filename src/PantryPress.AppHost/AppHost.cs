@@ -75,7 +75,10 @@ var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice
 builder.AddProject<Projects.PantryPress_Site>("site")
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
+// The Worker delivers the transactional outbox and sweeps expired rows (PP1.10), so it needs the database; like the
+// API, it starts only once the migrations are in.
 builder.AddProject<Projects.PantryPress_Worker>("worker")
+    .WithReference(db)
     .WithHttpHealthCheck("/health")
     .WaitForCompletion(migrations);
 // The gateway forwards the admin app's /api/v1 calls to ApiService (PP1.5), so it needs the reference for service

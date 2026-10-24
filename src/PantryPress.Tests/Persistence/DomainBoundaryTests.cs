@@ -80,6 +80,27 @@ public sealed class DomainBoundaryTests
         }
     }
 
+    // PP1.10: the outbox table holds every site's messages with no query filter, so only the outbox itself may name it.
+    // Modules write through IOutbox and read nothing; an operator view, when PP19 adds one, is a declared exception.
+    [Fact]
+    public void Only_the_outbox_reaches_its_unfiltered_table()
+    {
+        var domain = ModulesDirectory().Parent!;
+        var outbox = Path.Combine(domain.FullName, "Managers", "Outbox") + Path.DirectorySeparatorChar;
+        var generated = new[] { Path.Combine(domain.FullName, "bin"), Path.Combine(domain.FullName, "obj") };
+
+        foreach (var file in domain.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+        {
+            if (file.FullName.StartsWith(outbox, StringComparison.OrdinalIgnoreCase)
+                || generated.Any(g => file.FullName.StartsWith(g, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            Assert.DoesNotMatch(@"\bOutboxMessage\b|\bOutboxState\b", File.ReadAllText(file.FullName));
+        }
+    }
+
     private static DirectoryInfo ModulesDirectory([CallerFilePath] string testFile = "") =>
         new(Path.GetFullPath(Path.Combine(
             Path.GetDirectoryName(testFile)!,

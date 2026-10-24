@@ -55,7 +55,7 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        _appHost = await EphemeralAppHost.CreateAsync(_timeout.Token);
+        _appHost = await EphemeralAppHost.CreateAsync(_timeout.Token, runWorker: false);
         _app = await _appHost.BuildAsync(_timeout.Token);
         await _app.StartAsync(_timeout.Token);
 

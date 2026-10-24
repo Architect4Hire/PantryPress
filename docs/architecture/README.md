@@ -9,6 +9,7 @@ records decision `PP-DNN`.
 | Document | What it holds |
 | --- | --- |
 | [PantryPress design](architecture.md) | How the system is built: solution layout, the request seam, site isolation, the public tier, and how the parts fit together |
+| [Provisioning a site at sign-up](tenant-provisioning.md) | What sign-up creates automatically, why it is data rather than infrastructure, the provisioning job, custom domains, and the lifecycle in reverse |
 
 ## Architecture decision records
 

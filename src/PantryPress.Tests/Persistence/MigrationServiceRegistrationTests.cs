@@ -21,12 +21,14 @@ public sealed class MigrationServiceRegistrationTests
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
-        // PP1.4 adds the second one, which seeds the PlatformAdmin role row (ACCT-005); PP1.9 the idempotency keys.
+        // PP1.4 adds the second one, which seeds the PlatformAdmin role row (ACCT-005); PP1.9 the idempotency keys; PP1.10
+        // the transactional outbox.
         Assert.Collection(
             db.Database.GetMigrations(),
             first => Assert.EndsWith("_InitialIdentity", first, StringComparison.Ordinal),
             second => Assert.EndsWith("_PlatformAdminRole", second, StringComparison.Ordinal),
-            third => Assert.EndsWith("_IdempotencyRecords", third, StringComparison.Ordinal));
+            third => Assert.EndsWith("_IdempotencyRecords", third, StringComparison.Ordinal),
+            fourth => Assert.EndsWith("_Outbox", fourth, StringComparison.Ordinal));
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

@@ -329,8 +329,9 @@ account, Key Vault, Communication Services, and DNS zone. It shares only:
   paid once;
 - the Container Apps **environment** (separate apps and managed identities);
 - the Log Analytics and Application Insights **workspace** (separate cloud role names).
-**DECIDE:** who owns the shared resources. *Default:* a small `infra/platform` IaC module in the PantryPress
-repository creates them, and CreatorPantry's IaC references them as existing resources.
+**Decided (2026-10-24):** the PantryPress repository owns the shared resources, in the Terraform `platform`
+stack (`docs/infrastructure/terraform/platform/`), one set per environment; CreatorPantry's IaC references them
+as existing resources.
 
 **PP-D17 Studio site customization (owner, 2026-10-22).** Bloggers get far more design control than "canned
 themes with light customization", while the platform stays closed. Every option is a typed, validated setting
@@ -640,7 +641,7 @@ settings (PP-D17), so accessibility and the performance budget hold on every pag
 
 | ID | Requirement |
 | --- | --- |
-| OPS-001 | All infrastructure is code (default: `azd`-generated Bicep from the AppHost plus an `infra/platform` module for shared resources; DECIDE). Environments: dev, staging, production. |
+| OPS-001 | All infrastructure is code: Terraform, runnable from a workstation without a pipeline, in `docs/infrastructure/terraform/` (`bootstrap`, a shared `platform` stack, and a `pantrypress` stack; decided 2026-10-24). Environments: local (Aspire), `dev` in Azure (the staging role), and production. |
 | OPS-002 | CI runs backend, frontend, theme golden-file, accessibility, performance budget, Rich Results, and publishing API contract tests on every PR. Production deploys are one approved, health-gated workflow with rollback. |
 | OPS-003 | Migrations run explicitly before deployment; app startup never migrates. Public pages are unaffected by an app deploy. |
 | OPS-004 | Alerts: edge 5xx, origin latency, page-data build failures and backlog age, webhook failures, email bounces, certificate failures, API error spikes, and Azure spend. Tuned so a normal week has none. |
@@ -752,9 +753,10 @@ These belong in CreatorPantry's own prompt library, not this one, and depend on 
 | PP-D10 | Free-forever Starter or trial | 14-day trial |
 | PP-D11 | Ad networks on the allow-list | AdSense plus one network chosen at PP15 |
 | PP-D13 | Front Door Premium upgrade threshold | Sustained attack or revenue threshold |
-| PP-D16 | Owner of shared Azure resources | `infra/platform` in the PantryPress repo |
+| PP-D16 | Owner of shared Azure resources | **Decided 2026-10-24:** the Terraform `platform` stack in the PantryPress repo |
 | POST-001 | Editor library | TipTap (ProseMirror) through an Angular wrapper |
 | DOM-001 | Custom-domain allowance per plan | Plus: one per account; Pro: one per site |
+| D-13b | Custom domains beyond one Front Door Standard profile (100 per profile) | A second profile, or Premium, before 80 on a profile; PP17.1 checks the platform-wide count |
 | ENG-003 | Spam challenge vendor | Cloudflare Turnstile |
 | MON-004 | Consent platform vendor | Chosen at PP15 |
 | ACCT-003 | Disposable-email blocking at sign-up | Yes, with a maintained list |

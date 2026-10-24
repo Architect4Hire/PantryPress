@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Idempotency;
+using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.MigrationService;
@@ -22,10 +23,12 @@ public sealed class IdentityModelTests
         typeof(IdentityUserToken<Guid>),
     ];
 
-    // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency).
+    // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency) and
+    // PP1.10's transactional outbox (Managers/Outbox).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
+        typeof(OutboxMessage),
     ];
 
     [Fact]
@@ -63,15 +66,20 @@ public sealed class IdentityModelTests
         Assert.Equal("[NormalizedEmail] IS NOT NULL", index.GetFilter());
     }
 
-    // Accounts are platform data (PP-D06): one account belongs to many sites through membership.
+    // Accounts are platform data (PP-D06): one account belongs to many sites through membership. The outbox is the one
+    // table with a SiteId that does not own by it (PP1.10): the dispatcher reads every site's messages and hands each its
+    // site, so the column is optional and nothing filters on it.
     [Fact]
     public void Accounts_are_not_site_owned()
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
         Assert.All(
-            db.Model.GetEntityTypes(),
+            db.Model.GetEntityTypes().Where(e => e.ClrType != typeof(OutboxMessage)),
             e => Assert.DoesNotContain(e.GetProperties(), p => p.Name == "SiteId"));
+        var outbox = db.Model.FindEntityType(typeof(OutboxMessage))!;
+        Assert.True(outbox.FindProperty(nameof(OutboxMessage.SiteId))!.IsNullable);
+        Assert.Empty(outbox.GetDeclaredQueryFilters());
     }
 
     // EF Core caches the model per context type, so this context gets its own internal services; otherwise it could

@@ -24,6 +24,8 @@ public static class Extensions
     private const string LiveTag = "live";
     private const string SelfCheckName = "self";
 
+    private const string PantryPressTelemetryPrefix = "PantryPress.*";
+
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
@@ -61,13 +63,15 @@ public static class Extensions
         builder.Services.AddOpenTelemetry()
             .WithMetrics(metrics =>
             {
-                metrics.AddAspNetCoreInstrumentation()
+                // PantryPress's own meters and sources share one prefix (PantryPress.Outbox from PP1.10).
+                metrics.AddMeter(PantryPressTelemetryPrefix)
+                    .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation();
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName)
+                tracing.AddSource(builder.Environment.ApplicationName, PantryPressTelemetryPrefix)
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>

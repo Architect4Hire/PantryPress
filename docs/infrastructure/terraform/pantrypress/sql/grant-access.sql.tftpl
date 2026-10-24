@@ -1,0 +1,13 @@
+-- Database users for PantryPress's managed identities. Safe to run more than once.
+-- The migration job owns the schema; the apps read and write data and nothing else.
+%{ for name in owners ~}
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'${name}')
+    CREATE USER [${name}] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_owner ADD MEMBER [${name}];
+%{ endfor ~}
+%{ for name in writers ~}
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'${name}')
+    CREATE USER [${name}] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [${name}];
+ALTER ROLE db_datawriter ADD MEMBER [${name}];
+%{ endfor ~}
