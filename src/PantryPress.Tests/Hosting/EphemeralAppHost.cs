@@ -10,10 +10,19 @@ internal static class EphemeralAppHost
 {
     public static readonly string[] DataContainers = ["sql", "redis", "storage"];
 
+    // Each developer explorer and the data resource it browses. No test reads through them, so the ephemeral AppHost
+    // drops them rather than pull and start two more containers for every integration test.
+    public static readonly (string Name, string Parent)[] DataExplorers = [("dbgate", "sql"), ("redisinsight", "redis")];
+
     public static async Task<IDistributedApplicationTestingBuilder> CreateAsync(CancellationToken cancellationToken)
     {
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>(
             cancellationToken);
+
+        foreach (var explorer in appHost.Resources.Where(r => DataExplorers.Any(e => e.Name == r.Name)).ToList())
+        {
+            appHost.Resources.Remove(explorer);
+        }
 
         foreach (var resource in appHost.Resources.Where(r => DataContainers.Contains(r.Name)))
         {

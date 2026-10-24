@@ -1020,7 +1020,7 @@ problem shape, the headers on a real TLS answer, the neutral 404 for a foreign h
 probe that is not. Reviewers: `architecture-reviewer`, `api-contract-checker`, and `public-site-reviewer`; every
 blocker and major finding is either fixed above or recorded here.
 
-### PP1.9 Idempotency foundation
+### PP1.9 Idempotency foundation - done
 
 ```text
 SCOPE: Add an idempotency-key store and middleware for unsafe requests that opt in, returning the stored
@@ -1029,6 +1029,85 @@ CONSTRAINT: POST-005, API-005; backend.md.
 RESTRICTION: Keys are scoped to the caller and expire (DECIDE 24 hours).
 BEHAVIOR: Plan, wait for approval, implement with replay and concurrency tests.
 ```
+
+- **DECIDE closed at its default:** a key is remembered for **24 hours** (`Idempotency:Retention`). An unfinished claim
+  holds the key for a **5-minute lease** (`Idempotency:Lease`) before a retry may take it over; a retry meanwhile gets
+  409 with `Retry-After: 1`, because the request holding the key usually finishes in well under a second.
+- **Opt-in per write, and only where it is safe.** `[Idempotent]` (optionally `Required = true`) on an action. The host
+  refuses to start when it sits on a read, on a route without a signed-in caller (keys are scoped to the caller -
+  `account:{id}` today), beside `[AnswersWithSecret]` (new; on two-factor `setup`, `enable`, and `recovery-codes`),
+  beside `[RefreshesSession]`, or on the gateway's internal surface. Controllers only: a minimal endpoint would not be
+  checked, and ApiService maps none under `/api`.
+- **The store** is one SQL table in the shared kernel (`Managers/Idempotency`; migration `IdempotencyRecords`, purely
+  additive), primary key (`CallerScope`, `Key`) in a binary collation so keys are case-sensitive. Not site-owned data
+  (PP-D06): the caller isolates it, and the fingerprint - SHA-256 over caller, key, method, path and query, and body -
+  carries the site through the path. A claim is an insert, so concurrent first requests cannot both win; takeover,
+  completion, and release are conditional on the lease token, so a request whose claim was taken over can change
+  nothing. The store uses its own context, never the request's, and recognises its own row when the connection's
+  retry policy re-sends an insert that did land; an insert that failed for any reason but a race is thrown, not
+  retried.
+- **The middleware** runs after authentication, authorization, and the rate limiter. A replay is the stored status,
+  body, and allow-listed headers (`Content-Type`, `Location`, `ETag`, `Content-Language`) plus `Idempotent-Replayed:
+  true` - never a cookie or the gateway's session headers. Stored: every answer below 500 but 401, 408, and 429, so a
+  refusal is replayed and the client sends a new key after fixing the cause. An opted-in write **runs to its end even
+  when the caller goes away**: the request's abort token is withheld from the route and a gone caller's stream stops
+  being written to while the copy carries on, so the retry of a lost answer gets the whole answer. That was a review
+  finding against the first cut, which would have released the key or stored a cut-short body; a test simulating the
+  disconnect proves it, and fails when the fix is taken out. Answers over 1 MiB, or with headers over 4,000
+  characters, are not stored, and the key is released.
+- **Problems:** 400 `idempotency-key-invalid` and `idempotency-key-required`, 409 `idempotency-key-in-use`, 422
+  `idempotency-key-reused`, following the IETF Idempotency-Key draft. OpenAPI documents the header (with its pattern
+  and the configured retention), `Idempotent-Replayed` on success, `Retry-After` on the 409, and the 400/409/422
+  answers where a route or its controller has not declared its own. The gateway passes the key and the marker through.
+- **Seam reconciled:** `backend.md` and `architecture.md` gave idempotency to the facade. Key replay is now stated as
+  host plumbing ahead of MVC, and the facade keeps making its own work safe to repeat. `api-contract.md` holds the
+  header's rules; the decisions record closes the DECIDE item.
+- **Not delivered from the PP1.3 backlog (above):** `password/change`, `password/reset`, and `two-factor/enable` were
+  recorded as opt-in targets. None of them can be one. `reset` is anonymous, so it has no caller to scope a key to;
+  `change` and `enable` rotate the security stamp, so the retry of a lost answer carries the old stamp and is refused
+  as signed out before the key is read, and a replay could not carry the new stamp anyway; `enable` also answers with
+  recovery codes. The obligation moves to the facades: make each safe to repeat (a `change` whose new password is
+  already the current one succeeds; a `reset` link already used by the same request reports success). **Open.**
+- **Recorded for later prompts:**
+  - **PP1.10 or the next jobs prompt:** schedule `PurgeExpiredAsync` from the Worker. Until then expired records are
+    ignored and overwritten but never deleted. **This must ship before or with the first route that opts in**, because
+    stored answers will then hold site data.
+  - **PP2:** site membership must be decided by an authorization policy ahead of the idempotency step - a replay never
+    reaches MVC filters or the facade, so a membership check there would let a replay outlive a revoked membership for
+    24 hours. Put the resolved `SiteId` into the scope or the fingerprint (tenancy.md rule 8: the path's slug can be
+    renamed), which needs `CallerScope` widened past 80 characters; consider not storing 403 and 404 once refusals
+    depend on membership; give site deletion a way to remove these records; and add the two-site cases - one account in
+    two sites with one key (422, nothing created in B), membership revoked inside the retention (404, not a replay), a
+    renamed slug, a suspended site.
+  - **PP18:** a publishing key is a caller of its own (`publishing-key:{siteId}:{keyId}`), never the Owner's account,
+    and the convention should check that every opted-in route's scheme yields a scope. Decide `Required` for the
+    publishing surface before its first release (changing it later is breaking) and enforce it at startup for every
+    write there. Key creation is `[AnswersWithSecret]`. Two keys of one site never replay each other.
+  - **Before opting in any route with reader data:** stored answers are not encrypted at rest (PSEC-005); such a route
+    stays out until they are.
+  - **Atomic completion:** a crash after a facade commits but before the answer is stored re-runs the write once the
+    lease ends. Closing it means the facade completes the key in its own transaction.
+- **Minor, recorded rather than fixed:** EF logs an error for each insert that loses a race (one line per losing
+  concurrent first request); the clustered key on random strings fragments, which a short-lived table tolerates;
+  rolling the migration back drops in-flight keys, so retries in that window run again.
+- **Local note:** an `aspire run` started during this prompt applied the `IdempotencyRecords` migration to the
+  persistent local database. It is additive; nothing to undo.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings; built to a separate artifacts path, because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` (587 of 588; the one red, `AdminAppTests.Gateway_serves_the_admin_app_and_keeps_its_own_health_endpoint`,
+timed out waiting for the admin dev server while another AppHost was running, and passes on its own). The PP1.5
+`MigrationWorkerTests` pair passed in this run. New: 18 API cases against the migrated schema - replay, a different
+body or path, ten retries held off while the first runs and twenty racing first requests that run once, two callers
+with one key, the 24-hour boundary, a lease taken over with the late finisher changing nothing, a disconnect mid-request
+whose retry gets the whole answer, a replay that still needs a signed-in caller, failures released, refusals replayed,
+the required and malformed key, quoted and case-sensitive keys, no cookie or session header replayed, and an over-sized
+answer not stored; 6 store cases racing claims and takeovers for real against SQL Server, stale leases, release, and the
+purge; the rules, key parsing, the salted fingerprint, and which statuses are kept; the startup refusals (a read, an
+anonymous or unguarded route, a secret, a session rotation, the internal surface); the OpenAPI header, pattern, response
+headers, and a controller's own 400 kept; and the gateway passing the key and the marker through. Reviewers:
+`architecture-reviewer`, `api-contract-checker`, and `site-isolation-auditor`; every blocker and major finding is either
+fixed above or recorded here.
 
 ### PP1.10 Transactional outbox
 

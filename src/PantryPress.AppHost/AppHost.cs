@@ -24,7 +24,7 @@ var sql = builder.AddSqlServer("sql", sqlPasswordParameter)
 
 var db = sql.AddDatabase("pantrypress");
 
-builder.AddRedis("redis", password: redisPasswordParameter)
+var redis = builder.AddRedis("redis", password: redisPasswordParameter)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithDataVolume("pantrypress-redis-data")
     .WithPersistence();
@@ -135,11 +135,15 @@ if (isLocalDevelopment)
 
     gateway.WithReference(admin);
 
-    // The API's own documentation, from the Aspire dashboard (PP1.5). Development only, like the documents it reads.
-    apiService.WithUrlForEndpoint("http", endpoint => new ResourceUrlAnnotation
+    // The API's own documentation, from the Aspire dashboard (PP1.5): every API address opens the Scalar reference, since
+    // the API's root answers nothing a browser can use. The path comes from ApiService's launchUrl ("scalar/v1", the admin
+    // surface's document), which Aspire already appends to each address, so this only names the links.
+    apiService.WithUrls(context =>
     {
-        Url = $"{endpoint.Url}/scalar/v1", // the admin surface's document (ApiSurfaces.AdminV1Document)
-        DisplayText = "API reference",
+        foreach (var url in context.Urls.Where(u => u.Endpoint is not null))
+        {
+            url.DisplayText = $"API reference ({url.Endpoint!.EndpointName})";
+        }
     });
 
     // Locally, email links open the admin app through the gateway at app.localhost.
@@ -162,6 +166,13 @@ if (isLocalDevelopment)
     apiService
         .WithEnvironment("DevelopmentMail__Host", smtp.Property(EndpointProperty.Host))
         .WithEnvironment("DevelopmentMail__Port", smtp.Property(EndpointProperty.Port));
+
+    // Data explorers for the developer: DbGate for SQL and Redis Insight for Redis, each already connected with the
+    // generated password, reached from the dashboard as children of what they browse. Local Development only, like
+    // the mail catcher: a deployed PantryPress never ships a tool that reads every site's data. Session lifetime and no
+    // volumes, so they keep nothing between runs; the data they show lives in the persistent containers.
+    sql.WithDbGate(dbgate => dbgate.WithParentRelationship(sql));
+    redis.WithRedisInsight(insight => insight.WithParentRelationship(redis));
 }
 
 builder.Build().Run();

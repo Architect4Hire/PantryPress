@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.MigrationService;
@@ -21,13 +22,19 @@ public sealed class IdentityModelTests
         typeof(IdentityUserToken<Guid>),
     ];
 
+    // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency).
+    private static readonly Type[] OtherEntityTypes =
+    [
+        typeof(IdempotencyRecord),
+    ];
+
     [Fact]
-    public void Model_holds_the_identity_stores_and_nothing_else()
+    public void Model_holds_the_identity_stores_and_nothing_undeclared()
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
         Assert.Equal(
-            IdentityEntityTypes.Select(t => t.FullName).Order(),
+            IdentityEntityTypes.Concat(OtherEntityTypes).Select(t => t.FullName).Order(),
             db.Model.GetEntityTypes().Select(e => e.ClrType.FullName).Order());
     }
 

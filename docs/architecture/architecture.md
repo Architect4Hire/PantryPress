@@ -222,7 +222,8 @@ flowchart LR
 ```
 
 Facades return `Result<T>`, validate with FluentValidation, and own the transaction. Gateways never leak
-provider DTOs. Modules talk to each other only through public contracts, enforced by boundary tests.
+provider DTOs. Replaying a retried `Idempotency-Key` happens before the controller, in host middleware over the
+`Managers` idempotency store (PP1.9); the facade's share of idempotency is making its own work safe to repeat. Modules talk to each other only through public contracts, enforced by boundary tests.
 
 ### 4.3 Domain modules
 

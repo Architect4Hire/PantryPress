@@ -27,6 +27,7 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
 
     /// <summary>A new shared key for the authenticator app. Refused while two-step sign-in is on.</summary>
     [HttpPost("setup")]
+    [AnswersWithSecret]
     [RefreshesSession]
     [ProducesResponseType<AuthenticatorSetup>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
@@ -35,6 +36,7 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
 
     /// <summary>Turns two-step sign-in on with a code from the app, and returns recovery codes to save.</summary>
     [HttpPost("enable")]
+    [AnswersWithSecret]
     [RefreshesSession]
     [ProducesResponseType<RecoveryCodeList>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiProblems.ContentType)]
@@ -53,6 +55,7 @@ public sealed class TwoFactorController(ITwoFactorFacade twoFactor) : ApiControl
 
     /// <summary>Replaces every recovery code after the password is confirmed; the old codes stop working.</summary>
     [HttpPost("recovery-codes")]
+    [AnswersWithSecret]
     [ProducesResponseType<RecoveryCodeList>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ApiProblems.ContentType)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]

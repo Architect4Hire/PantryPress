@@ -24,6 +24,9 @@ internal static class ApiHttp
                 // describes it (api-contract.md).
                 options.Conventions.Add(new ApiSurfaceConvention());
 
+                // Idempotency-Key only on writes with a signed-in caller (PP1.9).
+                options.Conventions.Add(new IdempotencyConvention());
+
                 // Any route can be rate-limited, carry too much body, or fail unexpectedly. Declared globally: a
                 // controller's own response-type attributes hide ones inherited from a base class.
                 options.Filters.Add(

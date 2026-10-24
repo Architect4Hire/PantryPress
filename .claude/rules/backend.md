@@ -38,6 +38,10 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - Nullable reference types on; warnings as errors.
 - Side effects that must survive a crash (purges, emails, page-data builds) go through the transactional
   outbox.
+- Idempotency has two owners (PP1.9). Replaying the stored answer to a retried `Idempotency-Key` is host plumbing in
+  ApiService, ahead of MVC, over the store in `Managers/Idempotency` (`api-contract.md`). Making the work itself safe
+  to repeat - a write whose retry cannot be replayed, such as one that rotates the caller's session - stays the
+  facade's, as does completing a key in the same transaction as the write, if that is ever needed.
 - Logging is structured; never log secrets, publishing keys, reader emails, or full request bodies.
 
 ## Persistence

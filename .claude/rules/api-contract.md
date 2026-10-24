@@ -15,7 +15,16 @@ Applies to admin API, public site API, and publishing API.
 - Request and response types are records in `Contracts/` per module, never EF entities.
 - Errors are RFC 9457 problem details with a stable `code` and a plain-language `title`.
 - Pagination is cursor-based with `limit` (max 100).
-- Every write that can be retried accepts `Idempotency-Key`; a replay returns the stored result (PP1.9).
+- Every write that can be retried accepts `Idempotency-Key`; a replay returns the stored result (PP1.9). A route opts in
+  with `[Idempotent]` (optionally `Required = true`), and the host refuses to start if that is on a read or on a route
+  without a signed-in caller: keys are scoped to the caller, and remembered for 24 hours. A key is 1 to 128 visible ASCII
+  characters, bare or quoted. The answers it adds: 400 `idempotency-key-invalid` or `idempotency-key-required`, 409
+  `idempotency-key-in-use` with `Retry-After` while the first request runs, and 422 `idempotency-key-reused` for the same
+  key on a different request. A replay carries `Idempotent-Replayed: true` and only allow-listed headers, and an
+  opted-in write runs to its end even when the caller goes away, so the retry of a lost answer gets it. A route whose
+  answer carries a secret (an authenticator key, recovery codes, a publishing key shown once) is marked
+  `[AnswersWithSecret]`, and the host refuses it `[Idempotent]`; so does a route that rotates the session
+  (`[RefreshesSession]`) or sits on the internal surface.
 - Dates are UTC ISO 8601; the site time zone is applied only for display and scheduling.
 - Enums serialize as kebab-case strings.
 - Breaking changes need a new version. Additive changes are fine.

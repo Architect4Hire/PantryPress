@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.ApiService.Http;
 using PantryPress.Domain.Managers.Email;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.Tests.Api;
 
@@ -26,6 +27,19 @@ public sealed class ApiReferenceTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+
+        // The page starts itself with an inline script, so its policy admits one; nothing else in the API does.
+        Assert.Equal(
+            ContentSecurityPolicies.DevelopmentApiReference,
+            Assert.Single(response.Headers.GetValues(SecurityHeaders.ContentSecurityPolicy)));
+        using var document = await api.CreateClient().GetAsync($"/openapi/{ApiSurfaces.AdminV1Document}.json");
+        Assert.DoesNotContain(
+            "'unsafe-inline'",
+            Assert.Single(document.Headers.GetValues(SecurityHeaders.ContentSecurityPolicy))
+                .Split(';')
+                .Single(directive => directive.Trim().StartsWith("script-src", StringComparison.Ordinal)),
+            StringComparison.Ordinal);
+
         var page = await response.Content.ReadAsStringAsync();
 
         // The UI reads this app's document and loads its script from this app, so nothing is fetched from a CDN.

@@ -24,6 +24,7 @@ builder.Services.AddApiControllers();
 builder.Services.AddGatewayTrust(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddApiAuthentication();
 builder.Services.AddApiRateLimits(builder.Configuration.GetSection("RateLimits"));
+builder.Services.AddApiIdempotency(builder.Configuration.GetSection("Idempotency"));
 builder.Services.AddApiOpenApi();
 
 // The edge, for a service a browser never reaches directly (PSEC-002; PP1.8): the same response headers, a body
@@ -51,6 +52,10 @@ app.MapDefaultEndpoints();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
+
+// A retried write gets its first answer back (PP1.9). After the rate limiter, so a replay still counts against it, and
+// after authorization, because a key belongs to the caller that was let in.
+app.UseIdempotency();
 
 // The OpenAPI documents and the reference UI for reading them, in Development only (PP1.5).
 if (app.Environment.IsDevelopment())

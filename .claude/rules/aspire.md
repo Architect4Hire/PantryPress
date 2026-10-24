@@ -3,6 +3,9 @@
 - `PantryPress.AppHost` is the only place resources are declared: SQL Server, Redis, Azure Storage (blob
   emulator locally), the migration service, ApiService, Site, Gateway, Worker, the admin Angular app, and the
   `pantrypress-site` Node SSR server.
+- Developer tools exist only in local Development and are never published: the mail catcher, DbGate (child of
+  `sql`), and Redis Insight (child of `redis`). Session lifetime, no volumes; `EphemeralAppHost` drops the explorers
+  from integration tests. The API's dashboard links open its Scalar reference.
 - Use `add-aspire-resource` for any new resource. Dependents `WaitFor` what they need; everything waits for
   the migration service.
 - Connection strings and secrets flow through Aspire references and parameters. No hard-coded endpoints.

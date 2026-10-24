@@ -125,6 +125,17 @@ public static class ContentSecurityPolicies
         + "worker-src 'self' blob:; manifest-src 'self'";
 
     /// <summary>
+    /// ApiService's Scalar reference page, which starts itself with an inline module script whose text carries the
+    /// page's own configuration. The document policy with that one script admitted; still nothing from another origin.
+    /// The page exists in Development only (PP1.5), so this policy is never served anywhere else.
+    /// </summary>
+    public const string DevelopmentApiReference =
+        "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; "
+        + "img-src 'self' data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline'; "
+        + "script-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; "
+        + "manifest-src 'self'";
+
+    /// <summary>
     /// A placeholder for the public site until the per-site policy is generated from the blogger's settings, which is
     /// where ad and analytics origins earn their place (MON-005, PP9). Strict on purpose: a site that has not opted
     /// into anything should load nothing third-party.
