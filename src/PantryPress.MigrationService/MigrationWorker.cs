@@ -21,6 +21,18 @@ internal sealed partial class MigrationWorker(
 
     private static readonly ActivitySource ActivitySource = new(ActivitySourceName);
 
+    /// <summary>
+    /// Azure SQL Database reads committed snapshots by default and SQL Server in a container does not, and the two differ
+    /// exactly where concurrency is decided: under snapshots a plain read never waits for another transaction's write.
+    /// Local and test databases are made to read the way production does (PP2.3), before anything else starts - the
+    /// dependents wait for this job, so rolling back other sessions touches only a developer's data explorer. Where it is
+    /// already on, as in Azure, this does nothing. It is database configuration, not schema, and ALTER DATABASE cannot
+    /// run inside a migration's transaction.
+    /// </summary>
+    internal const string ReadCommittedSnapshots =
+        "IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0 "
+        + "ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;";
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var activity = ActivitySource.StartActivity("Migrating database");
@@ -38,6 +50,7 @@ internal sealed partial class MigrationWorker(
                 async cancellationToken =>
                 {
                     appliedBefore ??= (await db.Database.GetAppliedMigrationsAsync(cancellationToken)).Count();
+                    await db.Database.ExecuteSqlRawAsync(ReadCommittedSnapshots, cancellationToken);
 #pragma warning disable RS0030 // The one place PantryPress applies migrations (OPS-003).
                     await db.Database.MigrateAsync(cancellationToken);
 #pragma warning restore RS0030

@@ -44,7 +44,14 @@
 
 - Policies are named (`SiteOwner`, `SiteEditor`, `SiteAuthor`, `PlatformAdmin`) and checked in controllers;
   facades re-check resource ownership (an Author editing someone else's post).
-- Membership lookups are cached per request, never across requests without the site id in the key.
+- Site roles come from `SiteMembers` (PP2.3), never from Identity roles. Each role covers the ones below it. A membership
+  is Active or Suspended; a suspended member keeps the role and reaches nothing. Every site keeps an active Owner: the last
+  one cannot be demoted, suspended, or removed, and the database refuses it too (`tenancy.md`, "Tenant root").
+- A site policy decides by the route's `{siteSlug}` and the signed-in account, in the authorization middleware ahead of
+  the idempotency step; the decision is the Sites facade's, never the host's. No such site, a deleted site, no membership,
+  and a suspended one are one answer, 404 `site-not-found`; a member whose role is too low gets 403 `site-role-required`.
+  The host refuses to start when a `{siteSlug}` route lacks a site policy, or a site policy sits anywhere else.
+- Membership lookups are cached for one request only, keyed by account and slug, and never across requests.
 
 ## Publishing keys (PP-D15, PSEC-008)
 

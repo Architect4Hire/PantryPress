@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using PantryPress.ApiService.Http;
 using PantryPress.Domain.Managers.Idempotency;
+using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.ServiceDefaults.EdgeHardening;
 using Scalar.AspNetCore;
 
@@ -77,6 +78,17 @@ internal static class ApiOpenApi
                             context.Description.HttpMethod,
                             signedIn: metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Any()
                                 && !metadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any());
+
+                        // A site route's policy answers before the route does (PP2.3).
+                        if (metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                            .Any(a => a.Policy is { } policy && SitePolicies.LeastRole.ContainsKey(policy)))
+                        {
+                            GatewayAnswers.AddOrExtend(operation, "404", "No such site, or the caller is not an active member of "
+                                + "it - one answer, so a slug reveals nothing (site-not-found).");
+                            GatewayAnswers.AddOrExtend(operation, "403", "The caller's role on this site is too low "
+                                + "(site-role-required).");
+                        }
+
                         return Task.CompletedTask;
                     });
                 }

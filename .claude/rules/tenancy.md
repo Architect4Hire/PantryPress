@@ -34,23 +34,34 @@ site" path for account and platform work.
 
 ## Tenant root (written exception)
 
-`Site` (PP2.2) is the tenant itself: its id is the `SiteId` every site-owned row carries. It has no `SiteId` of its own,
-does not implement `ISiteOwned`, and has no query filter. It cannot have one, because resolving a request's site (rule 4
-from the route and membership, rule 5 from the Host through `SiteHost`) reads it before any site context exists. Rule 1
-holds for everything else, including every table that refers to a site. Because no filter stands behind it:
+`Site` (PP2.2) is the tenant itself: its id is the `SiteId` every site-owned row carries. `SiteMember` (PP2.3) is what
+grants a site. Both are read before any site context exists - resolving an admin route (rule 4) starts from the caller's
+membership, the public tier (rule 5) from the Host through `SiteHost`, and "my sites" lists across sites by account - and a
+site and its first Owner are written together before there is a context to stamp from. So neither implements
+`ISiteOwned` and neither has a query filter or a stamp. `Site` has no `SiteId` of its own; `SiteMember` carries a required
+one, with a foreign key to `Sites`. Rule 1 holds for everything else, including every other table that refers to a site.
+Because no filter stands behind them:
 
-- Only the Sites module reaches the table; a boundary test refuses the set, the table, or its configuration anywhere
-  else outside the migrations. Other modules ask a Sites contract, behind a declared module edge.
-- A row is returned only for the slug or host resolution has authorized, or listed through the caller's own memberships.
-  An operator-wide listing is a Sites contract that only `Modules/Platform/` may call, declared when it is added.
+- Only the Sites module reaches either table; a boundary test refuses their sets, tables, or configurations anywhere else
+  outside the migrations. Other modules ask a Sites contract, behind a declared module edge.
+- Every membership query is keyed by the caller's account, by a site already resolved, or by both; `SiteMembers` has an
+  account-leading index for that, the written exception to `SiteId`-leading indexes.
+- A site row is returned only for the slug or host resolution has authorized, or listed through the caller's own
+  memberships. An operator-wide listing is a Sites contract that only `Modules/Platform/` may call, declared when it is
+  added.
 - A read by a slug or host the caller holds no claim to (availability, creation, the slug policy) answers existence only -
-  a yes or no, or the unique index's refusal - never the row, its id, or its status (SITE-002).
-- The query filter and the `SiteId` stamp key on `ISiteOwned` only, never on a property of type `SiteId`, so they never
-  touch `Site.Id`. A site's id is minted on the server when the site is created (PP2.10), the one place a `SiteId` value
-  is made, and never accepted from a client.
+  a yes or no, or the unique index's refusal - never the row, its id, or its status (SITE-002). Membership resolution
+  answers no such site, a deleted site, no membership, and a suspended one alike.
+- The query filter and the `SiteId` stamp key on `ISiteOwned` only, never on a property of type `SiteId` or named
+  `SiteId`, so they never touch `Site.Id` or `SiteMember.SiteId`. A site's id is minted on the server when the site is
+  created (PP2.10), the one place a `SiteId` value is made, and never accepted from a client.
 - The resolution caches are the exception to rule 8: they are keyed by the normalized slug or host, because no site id is
   known yet, and are invalidated when a slug or host changes hands (SITE-004, DOM-001), since a stale entry would send
-  one site's traffic to another.
+  one site's traffic to another. Membership itself is cached per request only (`auth.md`).
+- `SiteMembers`' trigger guards losing a site's last active Owner, not having one. The facade that creates a site writes
+  its first Owner in the same transaction (PP2.10); any path that takes a site out of `Deleted` must first find an active
+  Owner with a locking read; account erasure (PP19.11a) marks a site its account solely owns `Deleted`, or hands it on,
+  before removing that account's memberships. `TRUNCATE` and a disabled trigger skip it, which only an operator can do.
 - Slugs and hosts are checked for ASCII in .NET before any lookup: the column is `varchar`, and the client's code page
   conversion could turn a look-alike letter into a valid one.
 

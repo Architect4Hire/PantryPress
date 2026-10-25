@@ -98,11 +98,19 @@ public sealed class DomainBoundaryTests
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
 
-    // PP2.2: the site is the tenant root, so its table has no query filter behind it (tenancy.md, "Tenant root"). Only the
-    // Sites module reaches it - inside the domain the module rules keep its root types to itself, and this keeps every
-    // host from querying the set or the table directly. The migrations that create it are the one exception.
+    // PP2.2, PP2.3: the site and its memberships are the tenant root, so their tables have no query filter behind them
+    // (tenancy.md, "Tenant root"). Only the Sites module reaches them - inside the domain the module rules keep its root
+    // types to itself, and this keeps every host from querying the sets or the tables directly. The migrations that create
+    // them are the one exception.
+    // The sets in either spelling, the entity types handed to EF Core by type, the configurations, and the tables by name:
+    // SiteMembers anywhere (no other name shares it), Sites bracketed, quoted, schema-qualified, or after a SQL keyword.
+    private const string TenantRootReference =
+        @"\b(?:Db)?Set<\s*(?:[\w.]+\.)?Site(?:Member)?\s*>|\btypeof\(\s*(?:[\w.]+\.)?Site(?:Member)?\s*\)"
+        + @"|\bSite(?:Member)?Configuration\b|\bSiteMembers?\b"
+        + @"|\[Sites\]|""Sites""|\bdbo\.Sites\b|(?i:\b(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+(?:\[?dbo\]?\.)?\[?Sites\b)";
+
     [Fact]
-    public void Only_the_sites_module_reaches_the_tenant_root_table()
+    public void Only_the_sites_module_reaches_the_tenant_root_tables()
     {
         var source = DomainSource.Project.Parent!;
         var allowed = new[]
@@ -124,8 +132,8 @@ public sealed class DomainBoundaryTests
 
                 scanned++;
                 Assert.False(
-                    Regex.IsMatch(File.ReadAllText(file.FullName), @"\bSet<\s*(?:[\w.]+\.)?Site\s*>|\bSiteConfiguration\b|\[Sites\]|""Sites""|\bdbo\.Sites\b"),
-                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches the sites table outside Modules/Sites.");
+                    Regex.IsMatch(File.ReadAllText(file.FullName), TenantRootReference),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches a tenant root table outside Modules/Sites.");
             }
         }
 

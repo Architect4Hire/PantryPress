@@ -1568,7 +1568,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate a
 `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
 PantryPress.slnx` 858 of 858 (836 before this prompt), with the model matching the migrations.
 
-### PP2.3 Site membership and roles
+### PP2.3 Site membership and roles - done
 
 ```text
 SCOPE: Add SiteMember (SiteId, UserId, role Owner | Editor | Author, status) and membership policies.
@@ -1576,6 +1576,67 @@ CONSTRAINT: SITE-010, PP-D03; tenancy.md and auth.md.
 RESTRICTION: Every site has at least one Owner; the last Owner cannot leave or be demoted.
 BEHAVIOR: Plan, wait for approval, migrate, test.
 ```
+
+*PP2.3 delivery note (done):*
+
+- **What shipped.** `Modules/Sites/SiteMember`: SiteId, AccountId (the prompt's UserId, named as Accounts names it), role
+  Owner | Editor | Author, status Active | Suspended, creation time, and a `rowversion`. The primary key is (SiteId,
+  AccountId), with a `Restrict` foreign key to `Sites`, an account index, and role and status checks built from the enums.
+  Migration `SiteMembers` adds the table and the trigger `TR_SiteMembers_KeepAnOwner`; its rollback refuses while any
+  member exists. A read path `ISiteMembershipFacade` -> `SiteMembershipDataLayer` -> `SiteRepository` and
+  `SiteMemberRepository`, `SiteRoles` (what each role covers, and the last-owner rule), and `SiteSlugs` (a slug's shape and
+  ASCII, checked before any lookup). In ApiService, the `SiteOwner`, `SiteEditor`, and `SiteAuthor` policies, a result
+  handler for their 404 and 403, `SitePolicyConvention`, and the admin document's declaration of both answers.
+- **Owner-approved choices.** Membership is part of the tenant root: a required `SiteId`, but not `ISiteOwned` and no
+  filter, because it is read before any site is known (`tenancy.md`, "Tenant root"). The owner rule is a business rule plus
+  a database trigger. The policies answer 404 `site-not-found` and 403 `site-role-required` now, rather than at PP2.4. Two
+  statuses, and removal deletes the row.
+- **What differs from the prompt.** "The last Owner cannot leave or be demoted" holds in the database from today, and
+  `SiteRoles.CanChangeRole`, `CanSuspend`, and `CanRemove` hold it as a plain refusal (`last-owner`). No route changes a
+  membership yet, so those rules' first caller is PP2.11, and the first Owner is written by PP2.10's create-site facade.
+- **Also changed: committed-snapshot reads.** Azure SQL reads committed snapshots by default; containers don't. The
+  migration service now turns them on where they are off, before migrating, so local, test, and Azure databases read alike.
+  Your local database switches the next time the migration service runs; that run rolls back any open session, such as
+  the data explorer's.
+- **Reviewers.** `site-isolation-auditor` and `architecture-reviewer` found no blocker. Their two majors were fixed:
+  - the API host decided the role rule itself; the decision is now `ISiteMembershipFacade.AuthorizeAsync`, and a new test
+    keeps every host to a module's contracts and registration;
+  - nothing tied `{siteSlug}` routes to site policies; `SitePolicyConvention` now refuses to start otherwise.
+
+  Minors fixed:
+  - the membership cache is keyed by account and normalized slug, inside the request-scoped facade;
+  - the trigger checks only rows that were active owners, and its comment states the whole-transaction rollback and the
+    deadlock case;
+  - the committed-snapshot switch moved from the test fixture to the migration service;
+  - the tenant-root boundary scan now covers `DbSet<>`, `typeof`, bare `SiteMembers`, and SQL after a keyword;
+  - auth.md now records the site policies, the 404 and 403, Suspended, and the per-request cache;
+  - `tenancy.md` lists the trigger's limits.
+
+  Recorded, not changed: authorization runs before the rate limiter, so a signed-in caller's site lookups are not limited
+  yet. The answers reveal nothing, and the order is revisited with PP2.10's first real route.
+- **Tests.**
+  - Model: key, index, foreign key, trigger, checks, and the enum numbers the trigger's SQL relies on.
+  - Business: the role-coverage table and the last-owner rule; the slug shape, including look-alike letters.
+  - Integration (SQL Server):
+    - the last owner kept against update, suspension, delete, and a bulk delete;
+    - a bulk update across two sites refused whole;
+    - an owner moved to another site refused;
+    - a staggered race and ten simultaneous ones, each leaving exactly one owner;
+    - a deleted site exempt, duplicates and orphans refused, committed snapshots on;
+    - one lookup per account and slug per request.
+  - Two-site lookups through the facade, and over HTTP against the real lookup: one account with its own role on each
+    look-alike site; a stranger's answer for a real site byte-for-byte that of no site, headers included; suspended
+    members and deleted sites reach nothing; a slug in any case.
+  - Policies: the full role matrix, a 401 without a lookup, every startup refusal, and the document's 404 and 403.
+  - Checks proven by planting: the race test fails without the lock hint; the boundary scans catch six planted
+    references.
+- **Left for later.** PP2.10: write a site and its first Owner in one transaction, and test it. PP2.11: answer 51003 and
+  1205 on member changes. PP2.4: build the site context on this lookup, not a second one. Seeing the new answers in the
+  admin client waits for PP3.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` 937 of 937 (858 before this prompt), with the model matching the migrations.
 
 ### PP2.4 Site-owned contract and request context
 

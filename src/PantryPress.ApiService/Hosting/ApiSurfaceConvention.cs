@@ -59,22 +59,23 @@ internal sealed class ApiSurfaceConvention : IApplicationModelConvention
     /// What each action is actually routed at: the controller's prefix combined with the action's template, so an
     /// action that replaces the prefix with an absolute route is checked too.
     /// </summary>
-    private static IEnumerable<string> RouteTemplates(ControllerModel controller)
+    private static IEnumerable<string> RouteTemplates(ControllerModel controller) =>
+        controller.Actions.SelectMany(action => RouteTemplates(controller, action));
+
+    /// <summary>What one action is routed at, the same way (also read by <see cref="SitePolicyConvention"/>).</summary>
+    internal static IEnumerable<string> RouteTemplates(ControllerModel controller, ActionModel action)
     {
         var prefixes = controller.Selectors.Count > 0 ? controller.Selectors : [new SelectorModel()];
-        foreach (var action in controller.Actions)
+        foreach (var selector in action.Selectors)
         {
-            foreach (var selector in action.Selectors)
+            foreach (var prefix in prefixes)
             {
-                foreach (var prefix in prefixes)
+                var combined = AttributeRouteModel.CombineAttributeRouteModel(
+                    prefix.AttributeRouteModel,
+                    selector.AttributeRouteModel);
+                if (combined?.Template is { Length: > 0 } template)
                 {
-                    var combined = AttributeRouteModel.CombineAttributeRouteModel(
-                        prefix.AttributeRouteModel,
-                        selector.AttributeRouteModel);
-                    if (combined?.Template is { Length: > 0 } template)
-                    {
-                        yield return template.TrimStart('~').TrimStart('/');
-                    }
+                    yield return template.TrimStart('~').TrimStart('/');
                 }
             }
         }

@@ -29,7 +29,7 @@ public sealed class IdentityModelTests
 
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
     // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), PP1.12's signed-out
-    // sessions (Modules/Accounts), and PP2.2's site, the tenant root (Modules/Sites).
+    // sessions (Modules/Accounts), and PP2.2's site and PP2.3's memberships, the tenant root (Modules/Sites).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
@@ -37,6 +37,7 @@ public sealed class IdentityModelTests
         typeof(AuditEntry),
         typeof(RevokedSession),
         typeof(Site),
+        typeof(SiteMember),
     ];
 
     [Fact]
@@ -77,20 +78,28 @@ public sealed class IdentityModelTests
     // Accounts are platform data (PP-D06): one account belongs to many sites through membership. Two tables carry a
     // SiteId that they do not own by, so the column is optional and nothing filters on it: the outbox (PP1.10), whose
     // dispatcher reads every site's messages and hands each its site, and the audit log (PP1.11), which the operator reads
-    // across sites (OPS-006).
+    // across sites (OPS-006). Membership (PP2.3) carries a required one and no filter either: it is what grants a site,
+    // so it is read before any site is known (tenancy.md, "Tenant root").
     [Fact]
     public void Accounts_are_not_site_owned()
     {
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
         Type[] siteCarrying = [typeof(OutboxMessage), typeof(AuditEntry)];
+        Type[] membership = [typeof(SiteMember)];
 
         Assert.All(
-            db.Model.GetEntityTypes().Where(e => !siteCarrying.Contains(e.ClrType)),
+            db.Model.GetEntityTypes().Where(e => !siteCarrying.Contains(e.ClrType) && !membership.Contains(e.ClrType)),
             e => Assert.DoesNotContain(e.GetProperties(), p => p.Name == "SiteId"));
         Assert.All(siteCarrying, type =>
         {
             var entity = db.Model.FindEntityType(type)!;
             Assert.True(entity.FindProperty("SiteId")!.IsNullable);
+            Assert.Empty(entity.GetDeclaredQueryFilters());
+        });
+        Assert.All(membership, type =>
+        {
+            var entity = db.Model.FindEntityType(type)!;
+            Assert.False(entity.FindProperty("SiteId")!.IsNullable);
             Assert.Empty(entity.GetDeclaredQueryFilters());
         });
     }

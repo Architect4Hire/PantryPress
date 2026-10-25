@@ -22,7 +22,8 @@ public sealed class MigrationServiceRegistrationTests
         using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
 
         // PP1.4 adds the second one, which seeds the PlatformAdmin role row (ACCT-005); PP1.9 the idempotency keys; PP1.10
-        // the transactional outbox; PP1.11 the append-only audit log; PP1.12 the signed-out sessions; PP2.2 the sites.
+        // the transactional outbox; PP1.11 the append-only audit log; PP1.12 the signed-out sessions; PP2.2 the sites;
+        // PP2.3 their members.
         Assert.Collection(
             db.Database.GetMigrations(),
             first => Assert.EndsWith("_InitialIdentity", first, StringComparison.Ordinal),
@@ -31,7 +32,8 @@ public sealed class MigrationServiceRegistrationTests
             fourth => Assert.EndsWith("_Outbox", fourth, StringComparison.Ordinal),
             fifth => Assert.EndsWith("_AuditLog", fifth, StringComparison.Ordinal),
             sixth => Assert.EndsWith("_SessionRevocations", sixth, StringComparison.Ordinal),
-            seventh => Assert.EndsWith("_Sites", seventh, StringComparison.Ordinal));
+            seventh => Assert.EndsWith("_Sites", seventh, StringComparison.Ordinal),
+            eighth => Assert.EndsWith("_SiteMembers", eighth, StringComparison.Ordinal));
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

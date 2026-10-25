@@ -508,6 +508,46 @@ namespace PantryPress.MigrationService.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteMember", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("SiteId", "AccountId");
+
+                    b.HasIndex("AccountId")
+                        .HasDatabaseName("IX_SiteMembers_AccountId");
+
+                    b.ToTable("SiteMembers", null, t =>
+                        {
+                            t.HasTrigger("TR_SiteMembers_KeepAnOwner");
+
+                            t.HasCheckConstraint("CK_SiteMembers_Role", "[Role] IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_SiteMembers_Status", "[Status] IN (0, 1)");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -556,6 +596,15 @@ namespace PantryPress.MigrationService.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteMember", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

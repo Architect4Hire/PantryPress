@@ -67,11 +67,13 @@ public sealed class ModuleBoundaryTests
 
     /// <summary>
     /// The module dependencies this domain declares (ARCH-001). Platform asks Accounts for the Identity role it
-    /// administers; nothing goes the other way, so the graph stays acyclic. Add an edge here only with a reason.
+    /// administers. Sites names the account a membership belongs to by its <c>AccountId</c> (PP2.3). Nothing goes the
+    /// other way, so the graph stays acyclic. Add an edge here only with a reason.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedModuleEdges = new(StringComparer.Ordinal)
     {
         ["Platform"] = ["Accounts"],
+        ["Sites"] = ["Accounts"],
     };
 
     /// <summary>
@@ -425,6 +427,34 @@ public sealed class ModuleBoundaryTests
 
         var match = Regex.Match(code, pattern);
         Assert.False(match.Success, $"{file} names {match.Value}: {rule}.");
+    }
+
+    // PP2.3 (review finding): a host reaches a module through its contracts and its registration only. The rules a
+    // module keeps are its own - a host that decided one itself (whether a role covers another) would be a second copy
+    // nothing here checks. The migrations are generated and name no layer.
+    [Fact]
+    public void Hosts_reach_a_module_only_through_its_contracts_and_registration()
+    {
+        var source = DomainSource.Project.Parent!;
+        var layers = string.Join("|", Layers.Where(l => l != "Contracts"));
+        var scanned = 0;
+        foreach (var host in source.GetDirectories("PantryPress.*")
+            .Where(d => d.Name is not ("PantryPress.Domain" or "PantryPress.Tests")))
+        {
+            var skipped = new[] { "bin", "obj", "Migrations" }.Select(d => Path.Combine(host.FullName, d) + Path.DirectorySeparatorChar);
+            foreach (var file in host.EnumerateFiles("*.cs", SearchOption.AllDirectories)
+                .Where(f => !skipped.Any(s => f.FullName.StartsWith(s, StringComparison.OrdinalIgnoreCase))))
+            {
+                scanned++;
+                AssertDoesNotName(
+                    Code(File.ReadAllText(file.FullName)),
+                    $@"\bPantryPress\.Domain\.Modules\.\w+\.(?:{layers})\b",
+                    Path.GetRelativePath(source.FullName, file.FullName),
+                    "a host names a module's contracts and its registration, never a layer behind them");
+            }
+        }
+
+        Assert.True(scanned > 50, "The scan found too few host files to be looking in the right place.");
     }
 
     private static string Registration(string module) => $"{module}ServiceCollectionExtensions.cs";

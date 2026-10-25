@@ -27,6 +27,9 @@ internal static class ApiHttp
                 // Idempotency-Key only on writes with a signed-in caller (PP1.9).
                 options.Conventions.Add(new IdempotencyConvention());
 
+                // A site route carries a site policy, and a site policy sits only on a site route (PP2.3).
+                options.Conventions.Add(new SitePolicyConvention());
+
                 // Any route can be rate-limited, carry too much body, or fail unexpectedly. Declared globally: a
                 // controller's own response-type attributes hide ones inherited from a base class.
                 options.Filters.Add(

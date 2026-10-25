@@ -17,12 +17,14 @@ internal static partial class ApiAuthentication
 
         // The named policies (auth.md). PlatformAdmin is the platform-wide one (PP-D03): the role plus a session that
         // passed the second sign-in step, because an operator's password alone must not be enough (ACCT-005). No route
-        // carries it yet; the operator console (PP18, PP19) is what will.
+        // carries it yet; the operator console (PP18, PP19) is what will. The site policies come from membership, never
+        // from Identity roles (PP2.3).
         services.AddAuthorizationBuilder()
             .AddPolicy(PlatformPolicies.PlatformAdmin, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole(PlatformRoles.PlatformAdmin)
-                .RequireClaim(AccountClaims.TwoFactorVerified, AccountClaims.Yes));
+                .RequireClaim(AccountClaims.TwoFactorVerified, AccountClaims.Yes))
+            .AddSitePolicies();
         return services;
     }
 
