@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Repositories;
@@ -45,11 +46,12 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
     public async Task An_entry_commits_with_the_save_it_was_staged_for()
     {
         var target = NewTarget();
-        var site = Guid.NewGuid();
+        var site = new SiteId(Guid.NewGuid());
 
         await using (var scope = _services.CreateAsyncScope())
         {
-            Audit(scope).Record(new AuditEvent("site.test-action", AuditActor.System, target, "a stated reason"), site);
+            scope.ServiceProvider.GetRequiredService<ISiteContextWriter>().Enter(site);
+            Audit(scope).Record(new AuditEvent("site.test-action", AuditActor.System, target, "a stated reason"), SiteScope.Current);
             await Db(scope).SaveChangesAsync(Timeout);
         }
 
@@ -57,7 +59,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
         Assert.True(entry.Id > 0);
         Assert.Equal("site.test-action", entry.Action);
         Assert.Equal("system", entry.ActorKind);
-        Assert.Equal(site, entry.SiteId);
+        Assert.Equal(site.Value, entry.SiteId);
         Assert.Equal("a stated reason", entry.Reason);
         Assert.Equal(TimeSpan.Zero, entry.OccurredAt.Offset);
     }
@@ -76,7 +78,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
         await using (var scope = _services.CreateAsyncScope())
         {
             // The same save as an account that loses the unique user-name index, so the whole save is refused.
-            Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), siteId: null);
+            Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), SiteScope.None);
             Db(scope).Users.Add(NewUser(taken));
             await Assert.ThrowsAsync<DbUpdateException>(() => Db(scope).SaveChangesAsync(Timeout));
         }
@@ -93,7 +95,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
         {
             var db = Db(scope);
             await using var transaction = await db.Database.BeginTransactionAsync(Timeout);
-            Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), siteId: null);
+            Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), SiteScope.None);
             await db.SaveChangesAsync(Timeout);
             await transaction.RollbackAsync(Timeout);
         }
@@ -126,7 +128,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
 
         stale.SecurityStamp = Guid.NewGuid().ToString("N");
         stale.ConcurrencyStamp = Guid.NewGuid().ToString();
-        Audit(loser).Record(new AuditEvent("account.test-action", AuditActor.System, target), siteId: null);
+        Audit(loser).Record(new AuditEvent("account.test-action", AuditActor.System, target), SiteScope.None);
         var outcome = await new AccountsUnitOfWork(Db(loser), new UpperInvariantLookupNormalizer()).SaveAsync(Timeout);
 
         Assert.Equal(SaveOutcome.Conflict, outcome);
@@ -141,7 +143,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
         for (var i = 0; i < 3; i++)
         {
             await using var scope = _services.CreateAsyncScope();
-            Audit(scope).Record(new AuditEvent($"account.step-{i}", AuditActor.System, target), siteId: null);
+            Audit(scope).Record(new AuditEvent($"account.step-{i}", AuditActor.System, target), SiteScope.None);
             await Db(scope).SaveChangesAsync(Timeout);
         }
 
@@ -246,7 +248,7 @@ public sealed class AuditLogTests(MigratedDatabase database) : IAsyncLifetime
     {
         var target = NewTarget();
         await using var scope = _services.CreateAsyncScope();
-        Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), siteId: null);
+        Audit(scope).Record(new AuditEvent("account.test-action", AuditActor.System, target), SiteScope.None);
         await Db(scope).SaveChangesAsync(Timeout);
         return target;
     }

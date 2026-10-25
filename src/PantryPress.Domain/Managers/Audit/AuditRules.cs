@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using PantryPress.Domain.Managers.Tenancy;
 
 namespace PantryPress.Domain.Managers.Audit;
 
@@ -7,6 +8,9 @@ namespace PantryPress.Domain.Managers.Audit;
 public static partial class AuditRules
 {
     public const int MaxActionLength = 64;
+
+    /// <summary>The prefix of an action on a site, which is always recorded with one (PP2.4).</summary>
+    public const string SiteActionPrefix = "site.";
 
     public const int MaxActorKindLength = 32;
 
@@ -52,7 +56,7 @@ public static partial class AuditRules
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not an audit actor kind."),
     };
 
-    internal static void EnsureValid(AuditEvent auditEvent, Guid? siteId)
+    internal static void EnsureValid(AuditEvent auditEvent, SiteScope site)
     {
         ArgumentNullException.ThrowIfNull(auditEvent);
         if (!IsValidAction(auditEvent.Action))
@@ -81,9 +85,9 @@ public static partial class AuditRules
                 nameof(auditEvent));
         }
 
-        if (siteId == Guid.Empty)
+        if (site == SiteScope.None && auditEvent.Action.StartsWith(SiteActionPrefix, StringComparison.Ordinal))
         {
-            throw new ArgumentException("A site id is a site's id or null for an account or platform action.", nameof(siteId));
+            throw new ArgumentException("A site action is recorded on the request's site, never without one.", nameof(site));
         }
     }
 

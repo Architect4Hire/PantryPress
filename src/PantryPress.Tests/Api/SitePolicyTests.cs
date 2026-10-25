@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PantryPress.ApiService.Http;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
@@ -89,6 +90,20 @@ public sealed class SitePolicyTests : IAsyncLifetime
         return problem.ToJsonString();
     }
 
+    // PP2.4: the controller's SiteAuthor and the action's SiteOwner are asked about together, once, so admitting the
+    // caller - which enters the request's site - is never decided by the half of them that passed.
+    [Fact]
+    public async Task A_routes_stacked_site_policies_are_one_decision()
+    {
+        var account = _memberships.Add(Slug, SiteRole.Editor);
+        using var client = _api.CreateClientFor(account.Value);
+
+        using var response = await client.GetAsync(SitePolicyProbeController.PathFor(Slug, "owner"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(1, _memberships.Decisions);
+    }
+
     [Fact]
     public async Task An_anonymous_caller_is_asked_to_sign_in_and_nothing_is_looked_up()
     {
@@ -108,8 +123,11 @@ public sealed class SitePolicyTests : IAsyncLifetime
     {
         private readonly ConcurrentDictionary<(AccountId, string), SiteMembership> _held = new();
         private int _lookups;
+        private int _decisions;
 
         public int Lookups => _lookups;
+
+        public int Decisions => _decisions;
 
         public AccountId Add(string slug, SiteRole role)
         {
@@ -127,15 +145,16 @@ public sealed class SitePolicyTests : IAsyncLifetime
         public async Task<Result<SiteMembership>> AuthorizeAsync(
             AccountId account,
             string siteSlug,
-            SiteRole leastRole,
+            IReadOnlyCollection<SiteRole> leastRoles,
             CancellationToken cancellationToken)
         {
+            Interlocked.Increment(ref _decisions);
             if (await FindAsync(account, siteSlug, cancellationToken) is not { } membership)
             {
                 return SiteErrors.SiteNotFound;
             }
 
-            return SiteRoles.Covers(membership.Role, leastRole) ? membership : SiteErrors.SiteRoleRequired;
+            return leastRoles.All(r => SiteRoles.Covers(membership.Role, r)) ? membership : SiteErrors.SiteRoleRequired;
         }
     }
 }

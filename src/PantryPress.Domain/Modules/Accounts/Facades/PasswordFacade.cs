@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Business;
@@ -56,7 +57,7 @@ internal sealed partial class PasswordFacade(
                 AccountEmailKind.PasswordReset,
                 clock.UtcNow,
                 LinkRules.StampFingerprint(await data.GetSecurityStampAsync(user))),
-            siteId: null);
+            SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             LogNotSent(logger, user.Id);
@@ -96,11 +97,11 @@ internal sealed partial class PasswordFacade(
             // A second factor set up before anyone proved they read this inbox was not necessarily the owner's.
             await data.SetTwoFactorEnabledAsync(user, enabled: false);
             await data.ForgetSecondFactorsAsync(user);
-            audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), siteId: null);
+            audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), SiteScope.None);
         }
 
-        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordReset, account), siteId: null);
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), siteId: null);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordReset, account), SiteScope.None);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -138,8 +139,8 @@ internal sealed partial class PasswordFacade(
         }
 
         await data.ClearFailedAttemptsAsync(user);
-        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordChanged, account), siteId: null);
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), siteId: null);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.PasswordChanged, account), SiteScope.None);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.PasswordChanged, clock.UtcNow), SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;

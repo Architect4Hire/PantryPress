@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Contracts;

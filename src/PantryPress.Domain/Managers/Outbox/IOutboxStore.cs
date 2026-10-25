@@ -1,3 +1,5 @@
+using PantryPress.Domain.Managers.Tenancy;
+
 namespace PantryPress.Domain.Managers.Outbox;
 
 /// <summary>
@@ -60,7 +62,7 @@ public sealed record OutboxEnvelope(
     OutboxLease Lease,
     string Type,
     string? Payload,
-    Guid? SiteId,
+    SiteId? SiteId,
     int Attempts,
     string? TraceParent);
 

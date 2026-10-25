@@ -1,5 +1,6 @@
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
@@ -64,7 +65,7 @@ internal sealed class AccountRolesFacade(AccountRolesDataLayer data, IAuditLog a
             actor,
             AccountAudit.Target(account),
             reason);
-        AuditRules.EnsureValid(auditEvent, siteId: null);
+        AuditRules.EnsureValid(auditEvent, SiteScope.None);
 
         if (PlatformRoleRules.IsNoChange(await data.IsInRoleAsync(user, AccountRoles.PlatformAdmin), grant))
         {
@@ -85,7 +86,7 @@ internal sealed class AccountRolesFacade(AccountRolesDataLayer data, IAuditLog a
         // next sign-in rather than half-applied.
         await data.RotateSecurityStampAsync(user);
 
-        audit.Record(auditEvent, siteId: null);
+        audit.Record(auditEvent, SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;

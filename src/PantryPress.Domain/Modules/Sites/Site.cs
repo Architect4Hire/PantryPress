@@ -1,3 +1,4 @@
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Sites.Contracts;
 
 namespace PantryPress.Domain.Modules.Sites;

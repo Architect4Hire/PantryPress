@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Worker.Outbox;
@@ -100,17 +101,18 @@ public sealed class OutboxRulesTests
         using var services = Services();
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
-        var site = Guid.NewGuid();
+        var site = new SiteId(Guid.NewGuid());
+        scope.ServiceProvider.GetRequiredService<ISiteContextWriter>().Enter(site);
         using var activity = new Activity("writer").SetIdFormat(ActivityIdFormat.W3C).Start();
 
-        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("staged"), site);
+        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("staged"), SiteScope.Current);
 
         var staged = Assert.Single(db.ChangeTracker.Entries<OutboxMessage>());
         Assert.Equal(EntityState.Added, staged.State);
         Assert.Equal(id, staged.Entity.Id);
         Assert.Equal(RecordedWork.OutboxType, staged.Entity.Type);
         Assert.Equal("""{"name":"staged"}""", staged.Entity.Payload);
-        Assert.Equal(site, staged.Entity.SiteId);
+        Assert.Equal(site.Value, staged.Entity.SiteId);
         Assert.Equal(OutboxState.Pending, staged.Entity.State);
         Assert.Equal(0, staged.Entity.Attempts);
         Assert.Equal(staged.Entity.CreatedAt, staged.Entity.AvailableAt);
@@ -125,11 +127,13 @@ public sealed class OutboxRulesTests
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
         var outbox = scope.ServiceProvider.GetRequiredService<IOutbox>();
 
-        Assert.Throws<ArgumentException>(() => outbox.Enqueue(Guid.Empty, new RecordedWork("no id"), null));
-        Assert.Throws<ArgumentException>(() => outbox.Enqueue(new RecordedWork("empty site"), Guid.Empty));
-        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new BadlyNamedWork("bad name"), null));
-        Assert.Throws<ArgumentException>(() => outbox.Enqueue(new OversizedWork(new string('x', OutboxRules.MaxPayloadLength)), null));
-        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new SiteCarryingWork(Guid.NewGuid()), null));
+        Assert.Throws<ArgumentException>(() => outbox.Enqueue(Guid.Empty, new RecordedWork("no id"), SiteScope.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => outbox.Enqueue(new RecordedWork("no scope"), (SiteScope)0));
+        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new RecordedWork("no site resolved"), SiteScope.Current));
+        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new BadlyNamedWork("bad name"), SiteScope.None));
+        Assert.Throws<ArgumentException>(() => outbox.Enqueue(new OversizedWork(new string('x', OutboxRules.MaxPayloadLength)), SiteScope.None));
+        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new SiteCarryingWork(Guid.NewGuid()), SiteScope.None));
+        Assert.Throws<InvalidOperationException>(() => outbox.Enqueue(new SiteTypedWork(new SiteId(Guid.NewGuid())), SiteScope.None));
 
         Assert.Empty(db.ChangeTracker.Entries<OutboxMessage>());
     }

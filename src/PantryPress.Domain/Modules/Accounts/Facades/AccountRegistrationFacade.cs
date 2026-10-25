@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.Logging;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Business;
@@ -132,7 +133,7 @@ internal sealed partial class AccountRegistrationFacade(
                     $"An account change was refused: {string.Join(", ", set.Errors.Select(e => e.Code))}.");
         }
 
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.Verification, clock.UtcNow), siteId: null);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.Verification, clock.UtcNow), SiteScope.None);
         return Staged.Yes;
     }
 

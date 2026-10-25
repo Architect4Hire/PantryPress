@@ -23,7 +23,8 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - `PantryPress.Domain/Modules/<Context>/` holds entities, value objects, business, data layer, repositories,
   and contracts for one bounded context: Accounts, Sites, Recipes, Posts, Media, Rendering, Audience,
   Monetization, Analytics, Billing, Domains, Publishing, Import, and Platform (audited operator code).
-- `Managers/` is the shared kernel: clock, ids, result types, outbox, audit, idempotency.
+- `Managers/` is the shared kernel: clock, ids, result types, outbox, audit, idempotency, and tenancy (`SiteId`,
+  `ISiteOwned`, the site context; PP2.4).
 - A module's folders are the seam's layers - `Contracts/`, `Facades/`, `Business/`, `DataLayer/`, `Repositories/`,
   `Gateways/`, and `Validation/` - and its entities, their configuration, options, outbox messages, and its
   `<Module>ServiceCollectionExtensions` sit at its root. `Managers/` exists only at the domain root (PP2.1).
@@ -46,7 +47,8 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - Nullable reference types on; warnings as errors.
 - Side effects that must survive a crash (purges, emails, page-data builds) go through the transactional
   outbox (PP1.10). The facade stages a message with `IOutbox.Enqueue` *before* its save, so the message commits or
-  rolls back with the change; only the Worker delivers. A message type implements `IOutboxMessage` with a stable
+  rolls back with the change; only the Worker delivers. The site is `SiteScope.Current` (the request's) or
+  `SiteScope.None`, never a value (PP2.4). A message type implements `IOutboxMessage` with a stable
   `OutboxType` name and carries ids, not data (64 KiB at most). Account email is the first real one (PP1.10b): the
   message names the account and the kind of email, and the Worker reads the address and makes any link when it sends,
   so no address or live token ever sits in the outbox. Its one handler (`AddOutboxHandler`, registered in the
@@ -65,7 +67,8 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   change; a repeat that changes nothing records nothing. An entry is ids and codes only - actor, target, action,
   optional site, a short reason - never an email, name, IP address, or content, and nothing may change or remove one
   (the context's save guard and the table's trigger both refuse it). Each module owns its action codes in its
-  `Contracts/` (`AccountAudit`); the site is passed out loud, `null` for account and platform actions, until PP2.4.
+  `Contracts/` (`AccountAudit`); the site is said out loud as `SiteScope.Current` or `SiteScope.None` for account and
+  platform actions, and a `site.*` action needs the request's site (PP2.4).
 - Logging is structured; never log secrets, publishing keys, reader emails, or full request bodies.
 
 ## Persistence

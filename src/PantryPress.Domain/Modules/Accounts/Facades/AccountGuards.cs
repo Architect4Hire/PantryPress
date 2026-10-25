@@ -1,5 +1,6 @@
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -63,7 +64,7 @@ internal static class AccountGuards
         if (LockoutRules.LockedByThisAttempt(wasLockedOut, await data.IsLockedOutAsync(user)))
         {
             var account = new AccountId(user.Id);
-            audit.Record(new AuditEvent(AccountAudit.LockedOut, AuditActor.System, AccountAudit.Target(account)), siteId: null);
+            audit.Record(new AuditEvent(AccountAudit.LockedOut, AuditActor.System, AccountAudit.Target(account)), SiteScope.None);
         }
 
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 
 namespace PantryPress.Domain.Managers.Audit;
@@ -10,11 +11,12 @@ namespace PantryPress.Domain.Managers.Audit;
 /// The scoped <see cref="IAuditLog"/>: adds each entry to the request's own context and does no I/O, so the entry
 /// shares the facade's save and its fate. The entry stays tracked until a save carries it or the scope ends.
 /// </summary>
-internal sealed class AuditLog(PantryPressDbContext db, IClock clock) : IAuditLog
+internal sealed class AuditLog(PantryPressDbContext db, IClock clock, ISiteContext siteContext) : IAuditLog
 {
-    public void Record(AuditEvent auditEvent, Guid? siteId)
+    public void Record(AuditEvent auditEvent, SiteScope site)
     {
-        AuditRules.EnsureValid(auditEvent, siteId);
+        AuditRules.EnsureValid(auditEvent, site);
+        var siteId = siteContext.Resolve(site);
 
         db.Set<AuditEntry>().Add(new AuditEntry
         {
@@ -22,7 +24,7 @@ internal sealed class AuditLog(PantryPressDbContext db, IClock clock) : IAuditLo
             Action = auditEvent.Action,
             ActorKind = AuditRules.ActorKindCode(auditEvent.Actor.Kind),
             ActorId = auditEvent.Actor.Id,
-            SiteId = siteId,
+            SiteId = siteId?.Value,
             TargetKind = auditEvent.Target.Kind,
             TargetId = auditEvent.Target.Id,
             Reason = auditEvent.Reason,

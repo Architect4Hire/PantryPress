@@ -1,3 +1,5 @@
+using PantryPress.Domain.Managers.Tenancy;
+
 namespace PantryPress.Domain.Managers.Outbox;
 
 /// <summary>
@@ -27,11 +29,14 @@ public interface IOutboxHandler<in TMessage>
 }
 
 /// <summary>
-/// Which delivery this is. <see cref="SiteId"/> is the one the writer stamped, and the handler re-resolves the site from
-/// it before calling a facade (tenancy.md rule 10; from PP2 the dispatcher sets the site context from it).
+/// Which delivery this is. <see cref="SiteId"/> is the site the writer's request had resolved (<c>SiteScope.Current</c>), or
+/// null for account and platform work, and the handler re-resolves the site from it before calling a facade (tenancy.md
+/// rule 10). Nothing enters a Worker scope's site context yet: every message so far is account work. The first site
+/// message type adds the dispatcher's resolver, which enters the context from this, and declares it among the
+/// <c>DomainBoundaryTests</c> resolvers (PP2.4).
 /// </summary>
 /// <param name="Attempt">1 for the first delivery, counting every delivery that started, including any lost to a crash.</param>
-public sealed record OutboxDelivery(Guid MessageId, Guid? SiteId, int Attempt);
+public sealed record OutboxDelivery(Guid MessageId, SiteId? SiteId, int Attempt);
 
 /// <summary>
 /// Thrown by a handler when retrying cannot help - the payload no longer makes sense, the target is gone for good. The

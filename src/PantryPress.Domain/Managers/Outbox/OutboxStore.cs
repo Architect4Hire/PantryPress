@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 
 namespace PantryPress.Domain.Managers.Outbox;
@@ -67,7 +68,13 @@ internal sealed class OutboxStore(
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(CancellationToken.None);
         return claimed
-            .Select(m => new OutboxEnvelope(new OutboxLease(m.Id, token), m.Type, m.Payload, m.SiteId, m.Attempts, m.TraceParent))
+            .Select(m => new OutboxEnvelope(
+                new OutboxLease(m.Id, token),
+                m.Type,
+                m.Payload,
+                m.SiteId is { } site ? new SiteId(site) : null,
+                m.Attempts,
+                m.TraceParent))
             .ToList();
     }
 

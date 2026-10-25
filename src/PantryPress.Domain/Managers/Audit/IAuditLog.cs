@@ -1,3 +1,5 @@
+using PantryPress.Domain.Managers.Tenancy;
+
 namespace PantryPress.Domain.Managers.Audit;
 
 /// <summary>
@@ -17,10 +19,12 @@ namespace PantryPress.Domain.Managers.Audit;
 public interface IAuditLog
 {
     /// <summary>Stages <paramref name="auditEvent"/>, timed by the application clock.</summary>
-    /// <param name="siteId">
-    /// The site the action belongs to, or <c>null</c> for an account or platform action, always said out loud.
+    /// <param name="site">
+    /// <see cref="SiteScope.Current"/> for an action on the request's own site, from <see cref="ISiteContext"/>, or
+    /// <see cref="SiteScope.None"/> for an account or platform action, always said out loud (PP2.4). A <c>site.</c>
+    /// action is refused without a site.
     /// </param>
-    void Record(AuditEvent auditEvent, Guid? siteId);
+    void Record(AuditEvent auditEvent, SiteScope site);
 }
 
 /// <summary>

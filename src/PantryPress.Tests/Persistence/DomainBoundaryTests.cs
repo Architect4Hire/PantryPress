@@ -139,4 +139,55 @@ public sealed class DomainBoundaryTests
 
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
+
+    // PP2.4: a request's site is set by the code that resolved it and by nothing else (tenancy.md rules 2, 4, and 7). Today
+    // that is the Sites module's facades, from the route's slug and the caller's membership; the public tier's host
+    // resolution (PP2.12) and the Worker's site jobs join this list when they arrive, each with its reason. The writer
+    // interface and the class behind it are both named here, so neither a cast nor a direct resolve gets past.
+    private const string SiteContextWriterReference = @"\bISiteContextWriter\b|(?<!\w)SiteContext\b";
+
+    private static readonly string[] SiteContextResolvers =
+    [
+        Path.Combine("PantryPress.Domain", "Managers", "Tenancy"),
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades"),
+    ];
+
+    [Fact]
+    public void Only_the_resolvers_set_the_site_context()
+    {
+        var source = DomainSource.Project.Parent!;
+        var allowed = SiteContextResolvers.Select(r => Path.Combine(source.FullName, r)).ToList();
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), SiteContextWriterReference),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} sets the site context, which only a resolver may do.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
+
+    [Theory]
+    [InlineData("public sealed class Facade(ISiteContextWriter site)", true)]
+    [InlineData("services.GetRequiredService<PantryPress.Domain.Managers.Tenancy.ISiteContextWriter>()", true)]
+    [InlineData("var context = (SiteContext)services.GetRequiredService<ISiteContext>();", true)]
+    [InlineData("services.GetRequiredService<SiteContext>().Enter(site);", true)]
+    [InlineData("sp.GetRequiredService<PantryPress.Domain.Managers.Tenancy.SiteContext>().Enter(site);", true)]
+    [InlineData("public sealed class Facade(ISiteContext site)", false)]
+    [InlineData("services.AddSiteContext();", false)]
+    [InlineData("var current = siteContext.Current;", false)]
+    public void The_site_context_scan_sees_the_writer_and_not_the_reader(string code, bool sets) =>
+        Assert.Equal(sets, Regex.IsMatch(code, SiteContextWriterReference));
 }

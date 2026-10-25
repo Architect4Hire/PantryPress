@@ -5,17 +5,27 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 ## Rules
 
 1. Every site-owned entity implements `ISiteOwned` with a non-nullable `SiteId` (PP-D06 zones: site-owned,
-   published public, reader-submitted).
+   published public, reader-submitted). Both, and the `SiteId` type, are the shared kernel's (`Managers/Tenancy`,
+   PP2.4).
 2. A global query filter on `SiteId` applies to every `ISiteOwned` entity. It reads the current site from
-   `ISiteContext`, which is set once per request.
+   `ISiteContext`, which is set once per request: one scoped context, entered through `ISiteContextWriter`, where
+   entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
+   the Sites module's facades - and a boundary test keeps every other file from naming it.
 3. `SiteId` is stamped by the `SaveChanges` interceptor from `ISiteContext`. Code never assigns it by hand,
    and an entity whose `SiteId` differs from the context fails the save.
 4. **Admin requests** resolve the site from the route (`/api/v1/sites/{siteSlug}/…`) plus the caller's
-   membership. No membership, no site context, 404.
+   membership. No membership, no site context, 404. The site policy's decision (`ISiteMembershipFacade.AuthorizeAsync`)
+   is the resolution: admitting the caller enters the site, and a refused decision - 404 or 403 - enters none. The site
+   policies stacked on one route are one decision, so a role that passes one and fails another enters nothing; a refusal
+   by any other policy on the route ends the request before its endpoint runs (PP2.4). Only that decision enters a
+   site: a question about another site the caller holds (copying to a second site) asks `FindAsync`, which enters
+   nothing, because a second site in one request throws.
 5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
    Unknown hosts get the neutral platform 404.
 6. **Publishing API** requests resolve the site from the publishing key.
-7. A site id is never read from a body, query string, cookie, or client header.
+7. A site id is never read from a body, query string, cookie, or client header. ApiService refuses to start when any
+   route could bind one: a `SiteId` anywhere in a request type, or a route value, parameter, header, or property whose
+   name is a site id (`SiteIdBindingConvention`, PP2.4).
 8. Cache keys, blob prefixes, purge tags, search indexes, and rate-limit partitions all include the site id.
    Use `SiteCacheKey` helpers; never hand-build a key.
 9. `IgnoreQueryFilters()` is allowed only in `Modules/Platform/` operator code, with a comment explaining why,
@@ -28,9 +38,9 @@ Two shared-kernel tables carry a nullable `SiteId` without being site-owned: `Ou
 dispatcher reads across sites, and `AuditEntries` (PP1.11), which only the operator reads across sites (OPS-006). Neither
 implements `ISiteOwned` or has a query filter, so the global filter must key on `ISiteOwned`, never on a property named
 `SiteId`. No route reads either table, and a boundary test keeps every file outside its own `Managers/` folder from
-naming it. Until PP2.4 their writers take the site as an argument said out loud; PP2.4 takes it from `ISiteContext`
-(refusing a site that differs from the context, and `null` for a `site.*` audit action) while keeping an explicit "no
-site" path for account and platform work.
+naming it. Their writers never take a site (PP2.4): every call says `SiteScope.Current`, the site `ISiteContext`
+resolved (and a bug without one), or `SiteScope.None` for account and platform work, so no record can be filed under a
+site the request does not work on. A `site.*` audit action is refused with `None`.
 
 ## Tenant root (written exception)
 

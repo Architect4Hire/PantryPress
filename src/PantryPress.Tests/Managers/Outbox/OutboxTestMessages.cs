@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using PantryPress.Domain.Managers.Outbox;
+using PantryPress.Domain.Managers.Tenancy;
 
 namespace PantryPress.Tests.Managers.Outbox;
 
@@ -30,6 +31,12 @@ internal sealed record BadlyNamedWork(string Name) : IOutboxMessage
 internal sealed record SiteCarryingWork(Guid SiteId) : IOutboxMessage
 {
     public static string OutboxType => "test.site-carrying-work";
+}
+
+// A site under another name is still a site (PP2.4).
+internal sealed record SiteTypedWork(SiteId Target) : IOutboxMessage
+{
+    public static string OutboxType => "test.site-typed-work";
 }
 
 internal sealed record OversizedWork(string Body) : IOutboxMessage

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using PantryPress.Domain.Managers.Tenancy;
 
 namespace PantryPress.Domain.Managers.Outbox;
 
@@ -35,10 +36,11 @@ public static partial class OutboxRules
                 $"{MaxTypeLength} characters.");
         }
 
-        if (typeof(TMessage).GetProperties().Any(p => p.Name.Equals("SiteId", StringComparison.OrdinalIgnoreCase)))
+        if (typeof(TMessage).GetProperties().Any(p => p.Name.Equals("SiteId", StringComparison.OrdinalIgnoreCase)
+            || (Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType) == typeof(SiteId)))
         {
             throw new InvalidOperationException(
-                $"{typeof(TMessage).Name} carries a site id. The site goes beside the message, as Enqueue's siteId.");
+                $"{typeof(TMessage).Name} carries a site id. The site goes beside the message, as Enqueue's SiteScope.Current.");
         }
     }
 

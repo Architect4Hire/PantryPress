@@ -1,17 +1,19 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using PantryPress.Domain.Managers.Tenancy;
 
 namespace PantryPress.Domain.Managers.Outbox;
 
 public static class OutboxServiceCollectionExtensions
 {
     /// <summary>
-    /// <see cref="IOutbox"/> for writing messages (PP1.10), scoped to share the request's context. Needs
-    /// <c>PantryPressDbContext</c> and <c>IClock</c> registered by the host.
+    /// <see cref="IOutbox"/> for writing messages (PP1.10), scoped to share the request's context and its site
+    /// context (PP2.4). Needs <c>PantryPressDbContext</c> and <c>IClock</c> registered by the host.
     /// </summary>
     public static IServiceCollection AddOutbox(this IServiceCollection services)
     {
+        services.AddSiteContext();
         services.TryAddScoped<IOutbox, Outbox>();
         return services;
     }

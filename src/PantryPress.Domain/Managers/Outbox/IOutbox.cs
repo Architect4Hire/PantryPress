@@ -1,3 +1,5 @@
+using PantryPress.Domain.Managers.Tenancy;
+
 namespace PantryPress.Domain.Managers.Outbox;
 
 /// <summary>
@@ -11,11 +13,12 @@ namespace PantryPress.Domain.Managers.Outbox;
 public interface IOutbox
 {
     /// <summary>Stages <paramref name="message"/> under a new id, and returns the id.</summary>
-    /// <param name="siteId">
-    /// The site the work belongs to, or <c>null</c> for platform work (account email), always said out loud. The handler
-    /// re-resolves the site from it before touching site data, and a message type never carries a site of its own.
+    /// <param name="site">
+    /// <see cref="SiteScope.Current"/> for the request's own site, from <see cref="ISiteContext"/>, or
+    /// <see cref="SiteScope.None"/> for account and platform work (account email), always said out loud (PP2.4). The
+    /// handler re-resolves the site before touching site data, and a message type never carries a site of its own.
     /// </param>
-    Guid Enqueue<TMessage>(TMessage message, Guid? siteId)
+    Guid Enqueue<TMessage>(TMessage message, SiteScope site)
         where TMessage : IOutboxMessage;
 
     /// <summary>
@@ -23,6 +26,6 @@ public interface IOutbox
     /// email's id, so the handler and the provider can both recognize a redelivery. An id derived from site-local values
     /// (a slug, a route) includes the site, or two sites' messages collide.
     /// </summary>
-    void Enqueue<TMessage>(Guid messageId, TMessage message, Guid? siteId)
+    void Enqueue<TMessage>(Guid messageId, TMessage message, SiteScope site)
         where TMessage : IOutboxMessage;
 }

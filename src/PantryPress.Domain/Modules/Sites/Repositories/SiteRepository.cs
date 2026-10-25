@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Sites.Contracts;
 
 namespace PantryPress.Domain.Modules.Sites.Repositories;

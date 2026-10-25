@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Business;
@@ -115,8 +116,8 @@ internal sealed partial class TwoFactorFacade(
         await data.SetTwoFactorEnabledAsync(user, enabled: true);
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
-        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorEnabled, account), siteId: null);
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOn, clock.UtcNow), siteId: null);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorEnabled, account), SiteScope.None);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOn, clock.UtcNow), SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -156,8 +157,8 @@ internal sealed partial class TwoFactorFacade(
         await data.SetTwoFactorEnabledAsync(user, enabled: false);
         await data.ForgetSecondFactorsAsync(user);
         await data.ClearFailedAttemptsAsync(user);
-        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), siteId: null);
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOff, clock.UtcNow), siteId: null);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.TwoFactorDisabled, account), SiteScope.None);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.TwoFactorTurnedOff, clock.UtcNow), SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -195,8 +196,8 @@ internal sealed partial class TwoFactorFacade(
 
         var codes = await data.NewRecoveryCodesAsync(user);
         await data.ClearFailedAttemptsAsync(user);
-        audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodesReplaced, account), siteId: null);
-        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodesReplaced, clock.UtcNow), siteId: null);
+        audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodesReplaced, account), SiteScope.None);
+        outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodesReplaced, clock.UtcNow), SiteScope.None);
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)
         {
             return AccountErrors.ChangedElsewhere;
@@ -247,8 +248,8 @@ internal sealed partial class TwoFactorFacade(
         if (usedRecoveryCode)
         {
             // The email says how many codes are left, counted when the Worker sends it.
-            audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodeUsed, account), siteId: null);
-            outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodeUsed, clock.UtcNow), siteId: null);
+            audit.Record(AccountAudit.OwnChange(AccountAudit.RecoveryCodeUsed, account), SiteScope.None);
+            outbox.Enqueue(new AccountEmailMessage(user.Id, AccountEmailKind.RecoveryCodeUsed, clock.UtcNow), SiteScope.None);
         }
 
         if (await data.SaveChangesAsync(cancellationToken) != SaveOutcome.Saved)

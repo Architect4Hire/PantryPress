@@ -1638,7 +1638,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate a
 `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
 PantryPress.slnx` 937 of 937 (858 before this prompt), with the model matching the migrations.
 
-### PP2.4 Site-owned contract and request context
+### PP2.4 Site-owned contract and request context - done
 
 ```text
 SCOPE: Add the ISiteOwned contract, a site request context, and route-based site resolution for admin routes
@@ -1648,6 +1648,51 @@ RESTRICTION: Never accept SiteId from a body, query string, or client header. Un
 are indistinguishable (404).
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP2.4 delivery note (done):*
+
+- **What shipped.** `Managers/Tenancy`: `ISiteOwned`, `ISiteContext`, the internal `ISiteContextWriter`, the scoped
+  `SiteContext` (set once), `SiteScope`, and `AddSiteContext`. `SiteId` moved here from `Modules/Sites/Contracts` (no schema
+  change). `ISiteMembershipFacade.AuthorizeAsync` enters the site when it admits the caller, with an overload taking every
+  least role a route stacks, and the API's site handler asks once for all of them. `SiteIdBindingConvention` refuses to
+  start a host whose routes could bind a site id. Nothing implements `ISiteOwned` yet; the filter and stamp are PP2.5's.
+- **Owner-approved choices.** `SiteId` in the kernel; the outbox and audit writers take `SiteScope.Current` or
+  `SiteScope.None` instead of `Guid? siteId`, as `tenancy.md` assigned to this prompt.
+- **What differs from the prompt.** The prompt's restriction names a body, query string, and header; the convention also
+  covers route values, form fields, binder-renamed properties, plurals, and polymorphic subtypes. "Unknown and inaccessible
+  are indistinguishable" already held from PP2.3; this prompt adds that a refusal enters no site and that a stranger is
+  refused before the body is read.
+- **Reviewers.** `site-isolation-auditor` and `architecture-reviewer` found no blocker. Both raised one major, now fixed:
+  the convention skipped interface-typed parameters (`IReadOnlyList<T>`, `IEnumerable<Guid> siteId`), missed plurals, and
+  missed binder-renamed nested properties. Minors fixed:
+  - stacked site policies decided per requirement, so a 403 could still leave the site entered; now one decision;
+  - the boundary scan missed a fully qualified `SiteContext`, and the writer is now internal as well;
+  - an outbox message with a `SiteId`-typed property under another name was allowed; the refusal's wording was stale;
+  - `OutboxDelivery.SiteId` and `OutboxEnvelope.SiteId` were raw `Guid?`;
+  - the docs overstated "a refusal leaves none" for non-site policies, and did not say that the Worker has no resolver yet.
+
+  Recorded, not changed:
+  - an untyped body (`JsonElement`, `object`) and direct reads of `Request.Query`, `Headers`, `Cookies`, or `Form` are
+    not checked; no controller does either today;
+  - the Worker enters no site context until the first site message type adds the dispatcher's resolver.
+- **Tests.**
+  - Unit: the context's set-once rules, scopes, and repeated registration; `SiteScope` for the outbox and audit (no site,
+    site action without a site, account work inside a site request, an unknown scope).
+  - Convention: fifteen planted routes, each refused at startup, and one that only reads the context, which starts.
+  - Integration (SQL Server), two look-alike sites:
+    - one account reaches each site as that site;
+    - a site id in the query, headers, or body changes nothing;
+    - a stranger's malformed body gets the same 404 as no site, while the owner gets 400;
+    - an owner-only route stacked on an author policy admits A's owner and refuses B's author;
+    - through the facade: a decision enters the site, a refusal or a partly met role enters none, `FindAsync` enters
+      nothing, and a second site throws.
+  - Boundary: only the resolvers name the writer, with planted references the scan must catch.
+- **Left for later.** PP2.5: the filter and stamp read `ISiteContext`. PP2.12: host resolution joins the resolvers. The
+  first site outbox message: the dispatcher enters the context from `OutboxDelivery.SiteId`.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` 980 of 980 (937 before this prompt).
 
 ### PP2.5 Global site query filter and SiteId stamping
 

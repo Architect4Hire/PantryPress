@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -93,7 +94,7 @@ public sealed class AuditRulesTests
 
         scope.ServiceProvider.GetRequiredService<IAuditLog>().Record(
             new AuditEvent(AccountAudit.PlatformAdminGranted, AuditActor.OperatorConfiguration, AccountAudit.Target(Account), "listed"),
-            siteId: null);
+            SiteScope.None);
 
         var entry = Assert.Single(db.ChangeTracker.Entries<AuditEntry>());
         Assert.Equal(EntityState.Added, entry.State);
@@ -117,7 +118,7 @@ public sealed class AuditRulesTests
 
         scope.ServiceProvider.GetRequiredService<IAuditLog>().Record(
             AccountAudit.OwnChange(AccountAudit.PasswordChanged, Account),
-            siteId: null);
+            SiteScope.None);
 
         var entry = Assert.Single(db.ChangeTracker.Entries<AuditEntry>()).Entity;
         Assert.Equal("account", entry.ActorKind);
@@ -133,31 +134,66 @@ public sealed class AuditRulesTests
         var audit = scope.ServiceProvider.GetRequiredService<IAuditLog>();
         var valid = AccountAudit.OwnChange(AccountAudit.PasswordChanged, Account);
 
-        Assert.Throws<ArgumentNullException>(() => audit.Record(null!, siteId: null));
-        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Action = "Password changed" }, siteId: null));
-        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Actor = default }, siteId: null));
-        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Target = new AuditTarget("account", "cook@example.test") }, siteId: null));
-        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Reason = "for cook@example.test" }, siteId: null));
-        Assert.Throws<ArgumentException>(() => audit.Record(valid, siteId: Guid.Empty));
+        Assert.Throws<ArgumentNullException>(() => audit.Record(null!, SiteScope.None));
+        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Action = "Password changed" }, SiteScope.None));
+        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Actor = default }, SiteScope.None));
+        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Target = new AuditTarget("account", "cook@example.test") }, SiteScope.None));
+        Assert.Throws<ArgumentException>(() => audit.Record(valid with { Reason = "for cook@example.test" }, SiteScope.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => audit.Record(valid, (SiteScope)0));
         Assert.Empty(db.ChangeTracker.Entries<AuditEntry>());
     }
 
+    // PP2.4: the site an entry is filed under is the one the request resolved, never one a writer names.
     [Fact]
     public void Entries_for_two_sites_keep_their_own_site()
+    {
+        using var services = Services();
+        var siteA = new SiteId(Guid.NewGuid());
+        var siteB = new SiteId(Guid.NewGuid());
+
+        Assert.Equal(siteA.Value, RecordOnSite(services, siteA));
+        Assert.Equal(siteB.Value, RecordOnSite(services, siteB));
+
+        static Guid? RecordOnSite(ServiceProvider services, SiteId site)
+        {
+            using var scope = services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ISiteContextWriter>().Enter(site);
+            scope.ServiceProvider.GetRequiredService<IAuditLog>().Record(
+                new AuditEvent("site.test-action", AuditActor.System, new AuditTarget("post", "same-slug")),
+                SiteScope.Current);
+            return Assert.Single(scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().ChangeTracker.Entries<AuditEntry>())
+                .Entity.SiteId;
+        }
+    }
+
+    [Fact]
+    public void A_site_entry_needs_the_requests_site_and_a_site_action_needs_a_site()
     {
         using var services = Services();
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
         var audit = scope.ServiceProvider.GetRequiredService<IAuditLog>();
-        var siteA = Guid.NewGuid();
-        var siteB = Guid.NewGuid();
+        var siteAction = new AuditEvent("site.test-action", AuditActor.System, new AuditTarget("post", "same-slug"));
 
-        audit.Record(new AuditEvent("site.test-action", AuditActor.System, new AuditTarget("post", "same-slug")), siteA);
-        audit.Record(new AuditEvent("site.test-action", AuditActor.System, new AuditTarget("post", "same-slug")), siteB);
+        Assert.Throws<InvalidOperationException>(() => audit.Record(siteAction, SiteScope.Current));
+        Assert.Throws<ArgumentException>(() => audit.Record(siteAction, SiteScope.None));
+        Assert.Empty(db.ChangeTracker.Entries<AuditEntry>());
+    }
 
-        var sites = db.ChangeTracker.Entries<AuditEntry>().Select(e => e.Entity.SiteId).ToList();
-        Assert.Equal(2, sites.Count);
-        Assert.Equal(new HashSet<Guid?> { siteA, siteB }, sites.ToHashSet());
+    // Account work inside a site request stays account work: None means no site, whatever the request resolved.
+    [Fact]
+    public void An_account_entry_inside_a_site_request_is_filed_under_no_site()
+    {
+        using var services = Services();
+        using var scope = services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ISiteContextWriter>().Enter(new SiteId(Guid.NewGuid()));
+
+        scope.ServiceProvider.GetRequiredService<IAuditLog>().Record(
+            AccountAudit.OwnChange(AccountAudit.PasswordChanged, Account),
+            SiteScope.None);
+
+        var entry = Assert.Single(scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().ChangeTracker.Entries<AuditEntry>());
+        Assert.Null(entry.Entity.SiteId);
     }
 
     [Fact]

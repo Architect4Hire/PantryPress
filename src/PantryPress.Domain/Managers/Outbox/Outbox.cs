@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 
 namespace PantryPress.Domain.Managers.Outbox;
@@ -9,17 +10,17 @@ namespace PantryPress.Domain.Managers.Outbox;
 /// The scoped <see cref="IOutbox"/>: adds each message to the request's own context and does no I/O, so the message
 /// shares the facade's save and its fate. The message stays tracked until a save carries it or the scope ends.
 /// </summary>
-internal sealed class Outbox(PantryPressDbContext db, IClock clock) : IOutbox
+internal sealed class Outbox(PantryPressDbContext db, IClock clock, ISiteContext siteContext) : IOutbox
 {
-    public Guid Enqueue<TMessage>(TMessage message, Guid? siteId)
+    public Guid Enqueue<TMessage>(TMessage message, SiteScope site)
         where TMessage : IOutboxMessage
     {
         var id = Guid.NewGuid();
-        Enqueue(id, message, siteId);
+        Enqueue(id, message, site);
         return id;
     }
 
-    public void Enqueue<TMessage>(Guid messageId, TMessage message, Guid? siteId)
+    public void Enqueue<TMessage>(Guid messageId, TMessage message, SiteScope site)
         where TMessage : IOutboxMessage
     {
         // Every refusal here is a bug in the writer, never something a person did.
@@ -29,10 +30,7 @@ internal sealed class Outbox(PantryPressDbContext db, IClock clock) : IOutbox
             throw new ArgumentException("An outbox message needs an id.", nameof(messageId));
         }
 
-        if (siteId == Guid.Empty)
-        {
-            throw new ArgumentException("A site id is a site's id or null for platform work.", nameof(siteId));
-        }
+        var siteId = siteContext.Resolve(site);
 
         OutboxRules.EnsureValidMessageType<TMessage>();
 
@@ -50,7 +48,7 @@ internal sealed class Outbox(PantryPressDbContext db, IClock clock) : IOutbox
             Id = messageId,
             Type = TMessage.OutboxType,
             Payload = payload,
-            SiteId = siteId,
+            SiteId = siteId?.Value,
             State = OutboxState.Pending,
             CreatedAt = now,
             AvailableAt = now,

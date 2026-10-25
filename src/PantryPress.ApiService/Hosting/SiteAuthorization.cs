@@ -41,31 +41,43 @@ internal static class SiteAuthorization
     }
 
     /// <summary>
-    /// Asks the Sites module whether the caller's membership covers the requirement and turns its answer into a success or
-    /// a refusal; the rule itself is the module's. The facade is scoped to the request, so the several policies on one
-    /// route share one lookup.
+    /// Asks the Sites module whether the caller's membership covers the route's site requirements and turns its answer
+    /// into a success or a refusal; the rule itself is the module's. The site policies stacked on one route (a
+    /// controller's and an action's) are combined into one policy, and this asks once for all of them: admitting the
+    /// caller is what enters the request's site (PP2.4), so a decision per requirement would enter it for the one that
+    /// passed even when another refused.
     /// </summary>
-    private sealed class SiteRoleHandler(ISiteMembershipFacade memberships) : AuthorizationHandler<SiteRoleRequirement>
+    private sealed class SiteRoleHandler(ISiteMembershipFacade memberships) : IAuthorizationHandler
     {
-        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, SiteRoleRequirement requirement)
+        public async Task HandleAsync(AuthorizationHandlerContext context)
         {
+            var requirements = context.PendingRequirements.OfType<SiteRoleRequirement>().ToList();
+
             // An anonymous caller is the authenticated-user requirement's to refuse, with a 401. The middleware hands the
             // request in as the resource; anything else asking these policies gets no success from them.
-            if (!context.User.TryGetAccountId(out var account) || context.Resource is not HttpContext http)
+            if (requirements.Count == 0
+                || !context.User.TryGetAccountId(out var account)
+                || context.Resource is not HttpContext http)
             {
                 return;
             }
 
             // SitePolicyConvention keeps these policies to routes that carry the slug; a route without one finds nothing.
             var slug = http.GetRouteValue(SlugRouteValue) as string ?? string.Empty;
-            var decision = await memberships.AuthorizeAsync(account, slug, requirement.LeastRole, http.RequestAborted);
-            if (decision.IsSuccess)
-            {
-                context.Succeed(requirement);
-            }
-            else
+            var decision = await memberships.AuthorizeAsync(
+                account,
+                slug,
+                [.. requirements.Select(r => r.LeastRole)],
+                http.RequestAborted);
+            if (!decision.IsSuccess)
             {
                 context.Fail(new SiteRefusal(this, decision.Error));
+                return;
+            }
+
+            foreach (var requirement in requirements)
+            {
+                context.Succeed(requirement);
             }
         }
     }

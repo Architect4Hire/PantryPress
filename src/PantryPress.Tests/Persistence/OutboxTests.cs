@@ -13,6 +13,7 @@ using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
@@ -76,7 +77,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
         var user = NewUser();
         db.Users.Add(user);
-        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("with a user"), null);
+        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("with a user"), SiteScope.None);
 
         await db.SaveChangesAsync();
 
@@ -100,7 +101,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         var duplicate = NewUser();
         duplicate.NormalizedEmail = taken.NormalizedEmail;
         context.Users.Add(duplicate);
-        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("lost with the save"), null);
+        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("lost with the save"), SiteScope.None);
 
         await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
 
@@ -120,7 +121,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         {
             await using var transaction = await db.Database.BeginTransactionAsync();
             db.Users.Add(NewUser());
-            id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("rolled back"), null);
+            id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(new RecordedWork("rolled back"), SiteScope.None);
             await db.SaveChangesAsync();
             await transaction.RollbackAsync();
         });
@@ -508,7 +509,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
     {
         var siteA = Guid.NewGuid();
         var siteB = Guid.NewGuid();
-        _ledger.Behavior = (_, delivery, _) => delivery.SiteId == siteA
+        _ledger.Behavior = (_, delivery, _) => delivery.SiteId?.Value == siteA
             ? throw new OutboxPermanentFailureException("site A's target is gone")
             : Task.CompletedTask;
 
@@ -519,8 +520,8 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
 
         await Processor.RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal(siteA, Assert.Single(_ledger.Deliveries(forA)).SiteId);
-        Assert.Equal(siteB, Assert.Single(_ledger.Deliveries(forB)).SiteId);
+        Assert.Equal(new SiteId(siteA), Assert.Single(_ledger.Deliveries(forA)).SiteId);
+        Assert.Equal(new SiteId(siteB), Assert.Single(_ledger.Deliveries(forB)).SiteId);
         Assert.Null(Assert.Single(_ledger.Deliveries(forPlatform)).SiteId);
         Assert.Equal(OutboxState.Poisoned, (await RowAsync(forA)).State);
         Assert.Equal(OutboxState.Succeeded, (await RowAsync(forB)).State);
@@ -661,7 +662,12 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         where TMessage : IOutboxMessage
     {
         await using var scope = Worker.CreateAsyncScope();
-        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(message, siteId);
+        if (siteId is { } site)
+        {
+            scope.ServiceProvider.GetRequiredService<ISiteContextWriter>().Enter(new SiteId(site));
+        }
+
+        var id = scope.ServiceProvider.GetRequiredService<IOutbox>().Enqueue(message, siteId is null ? SiteScope.None : SiteScope.Current);
         await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().SaveChangesAsync();
         return id;
     }
@@ -670,7 +676,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
     {
         await using var scope = Worker.CreateAsyncScope();
         var outbox = scope.ServiceProvider.GetRequiredService<IOutbox>();
-        var ids = Enumerable.Range(0, count).Select(i => outbox.Enqueue(new RecordedWork($"work {i}"), null)).ToList();
+        var ids = Enumerable.Range(0, count).Select(i => outbox.Enqueue(new RecordedWork($"work {i}"), SiteScope.None)).ToList();
         await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().SaveChangesAsync();
         return ids;
     }

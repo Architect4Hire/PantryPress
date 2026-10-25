@@ -30,6 +30,9 @@ internal static class ApiHttp
                 // A site route carries a site policy, and a site policy sits only on a site route (PP2.3).
                 options.Conventions.Add(new SitePolicyConvention());
 
+                // Nothing a client sends can name a site; the slug and the membership do (PP2.4).
+                options.Conventions.Add(new SiteIdBindingConvention());
+
                 // Any route can be rate-limited, carry too much body, or fail unexpectedly. Declared globally: a
                 // controller's own response-type attributes hide ones inherited from a base class.
                 options.Filters.Add(
