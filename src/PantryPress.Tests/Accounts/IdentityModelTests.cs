@@ -10,6 +10,9 @@ using PantryPress.MigrationService;
 
 namespace PantryPress.Tests.Accounts;
 
+// Inside the namespace, so the type wins over the PantryPress.Tests.Site namespace (the public site host's tests).
+using PantryPress.Domain.Modules.Sites;
+
 // PP1.1: the Identity stores in PantryPressDbContext (ACCT-001, auth.md). No database is needed.
 public sealed class IdentityModelTests
 {
@@ -25,14 +28,15 @@ public sealed class IdentityModelTests
     ];
 
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
-    // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), and PP1.12's signed-out
-    // sessions (Modules/Accounts).
+    // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), PP1.12's signed-out
+    // sessions (Modules/Accounts), and PP2.2's site, the tenant root (Modules/Sites).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
         typeof(OutboxMessage),
         typeof(AuditEntry),
         typeof(RevokedSession),
+        typeof(Site),
     ];
 
     [Fact]

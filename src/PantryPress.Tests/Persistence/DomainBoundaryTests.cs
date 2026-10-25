@@ -97,4 +97,38 @@ public sealed class DomainBoundaryTests
 
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
+
+    // PP2.2: the site is the tenant root, so its table has no query filter behind it (tenancy.md, "Tenant root"). Only the
+    // Sites module reaches it - inside the domain the module rules keep its root types to itself, and this keeps every
+    // host from querying the set or the table directly. The migrations that create it are the one exception.
+    [Fact]
+    public void Only_the_sites_module_reaches_the_tenant_root_table()
+    {
+        var source = DomainSource.Project.Parent!;
+        var allowed = new[]
+        {
+            Path.Combine(source.FullName, "PantryPress.Domain", "Modules", "Sites"),
+            Path.Combine(source.FullName, "PantryPress.MigrationService", "Migrations"),
+        };
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), @"\bSet<\s*(?:[\w.]+\.)?Site\s*>|\bSiteConfiguration\b|\[Sites\]|""Sites""|\bdbo\.Sites\b"),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches the sites table outside Modules/Sites.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
 }

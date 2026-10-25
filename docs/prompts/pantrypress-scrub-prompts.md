@@ -1521,7 +1521,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate a
 `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
 PantryPress.slnx` 836 of 836 (809 before this prompt).
 
-### PP2.2 Site entity
+### PP2.2 Site entity - done
 
 ```text
 SCOPE: Add Site per SITE-001 with a platform-wide unique slug index and a concurrency token.
@@ -1529,6 +1529,44 @@ CONSTRAINT: SITE-001; Template C.
 RESTRICTION: Site is the tenant root, so it carries no SiteId of its own; document that exception.
 BEHAVIOR: Plan, wait for approval, migrate, test.
 ```
+
+*PP2.2 delivery note (done):*
+
+- **What shipped.** `Modules/Sites/Site` with `SiteId`, `SiteStatus`, and `SiteLimits` in `Contracts/`: name (60), tagline
+  (120, empty hides it), slug, status, IANA time zone, BCP 47 locale, creation time, and a `rowversion` concurrency token.
+  The slug is unique platform-wide (`UX_Sites_Slug`) under a binary collation, and `CK_Sites_Slug_Shape` admits only 3 to 40
+  of `a-z`, `0-9`, and `-`, so the byte-for-byte index is as strict as a case-insensitive one. That check is a backstop;
+  the slug policy is still PP2.8's. Status is stored as fixed numbers, and `CK_Sites_Status` is built from the enum.
+  Migration `Sites`: one new table and index, additive; its rollback refuses while any site exists.
+- **What differs from the prompt.** SITE-001 also lists design settings, the current theme snapshot, and settings. With
+  the owner's approval they land with PP11.1, PP11.4, and PP8 and PP10, which already own them. No repository yet: its
+  first caller is PP2.10 (owner-approved; Template C's skill lists one).
+- **The exception, documented.** `Site` is the tenant root: no `SiteId`, not `ISiteOwned`, no filter. This is recorded in
+  `tenancy.md` ("Tenant root"), on the entity, and in the decision log. Because nothing filters it, `tenancy.md` now also
+  says that only the Sites module reaches the table (`DomainBoundaryTests` scans every host; checked by planting three
+  violations), that a read by a slug the caller holds no claim to answers existence only, that PP2.5's filter and stamp key
+  on `ISiteOwned` and never on the `SiteId` type, that the resolution caches are keyed by slug or host and invalidated when
+  one changes hands, and that slugs and hosts are checked for ASCII in .NET before a lookup.
+- **Tests.** Model tests pin the missing `SiteId` and filter, the unique binary slug index, the row version, the limits,
+  and the status numbers. Integration tests against SQL Server cover two look-alike sites kept apart on update, a held
+  slug refused to a second site, a stale save refused, every off-shape slug refused (upper-case, short, space, underscore,
+  dot, accented, Cyrillic look-alike, trailing space, empty), an over-long slug refused rather than cut short, an
+  out-of-range status refused, and the shortest and longest slugs accepted.
+- **Reviewers.** `site-isolation-auditor` and `architecture-reviewer` found no blocker. The architecture reviewer's major
+  finding (the trailing-space slug might pass the check) was closed by the existing test, which ran green against SQL
+  Server. Changed after review: the tenant-root rules and boundary scan above, the status check built from the enum, the
+  rollback guard, and two tests that claimed more than they proved. Left for later: the two-site checks a route owes
+  (another site's member cannot read A by slug; listing returns only the caller's sites; availability hides the holder)
+  belong to PP2.7 and PP2.10; `SiteHost`'s host column should take the same binary collation (PP2.9). Test files that
+  name `Site` put the module's `using` inside their namespace, because `PantryPress.Tests.Site` would otherwise win.
+- **Not verified:** the local database. The migration was generated while `aspire run` was up, which applied it
+  as soon as it existed in earlier prompts. After that, its status check was edited in place from `BETWEEN 0 AND 5` to
+  `IN (0, 1, 2, 3, 4, 5)`, the same meaning, and its rollback gained the guard. A local database that already took the
+  first version keeps the old text, which allows the same values.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` 858 of 858 (836 before this prompt), with the model matching the migrations.
 
 ### PP2.3 Site membership and roles
 
