@@ -11,7 +11,8 @@ Read first: `.claude/rules/tenancy.md`, `backend.md`.
 
 1. Decide the data zone (site-owned, published public, reader-submitted). Reader data needs minimization and
    encryption of personal fields.
-2. Create the entity in `Modules/<Context>/Domain/` implementing `ISiteOwned`; strongly typed id.
+2. Create the entity at the module root (`Modules/<Context>/`, `backend.md`) implementing `ISiteOwned`; strongly
+   typed id.
 3. Configure it in its `IEntityTypeConfiguration`: required `SiteId`, indexes leading with `SiteId`,
    concurrency token if edited concurrently.
 4. Confirm the global query filter and stamping interceptor pick it up (they apply to all `ISiteOwned`).

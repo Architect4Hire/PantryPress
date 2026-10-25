@@ -24,8 +24,16 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   and contracts for one bounded context: Accounts, Sites, Recipes, Posts, Media, Rendering, Audience,
   Monetization, Analytics, Billing, Domains, Publishing, Import, and Platform (audited operator code).
 - `Managers/` is the shared kernel: clock, ids, result types, outbox, audit, idempotency.
-- A module talks to another module only through its public contracts (facade interfaces or events). Boundary
-  tests enforce this.
+- A module's folders are the seam's layers - `Contracts/`, `Facades/`, `Business/`, `DataLayer/`, `Repositories/`,
+  `Gateways/`, and `Validation/` - and its entities, their configuration, options, outbox messages, and its
+  `<Module>ServiceCollectionExtensions` sit at its root. `Managers/` exists only at the domain root (PP2.1).
+- A module talks to another module only through its public contracts (facade interfaces or events), and never names
+  a type at another module's root. Inside a module: Contracts name nothing behind them and expose no entity or
+  Identity type; Business is pure - no I/O, nothing asynchronous - and any layer may use it; nothing below a facade
+  names a facade or a facade's interface; EF Core stays in repositories and entity configuration, and no query leaves
+  the data layer. A facade holds its module's unit of work as the transaction it owns. `ModuleBoundaryTests` enforces
+  all of this, and refuses what would hide a reference from it: global usings, namespace aliases into a module, and a
+  file whose one namespace is not its folder's.
 
 ## Conventions
 

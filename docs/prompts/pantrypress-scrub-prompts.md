@@ -1482,7 +1482,7 @@ PantryPress.slnx` 809 of 809, twice in a row (704 before this prompt).
 
 ## PP2 — Sites, membership, and tenancy
 
-### PP2.1 Sites module skeleton
+### PP2.1 Sites module skeleton - done
 
 ```text
 SCOPE: Create Modules/Sites/ in PantryPress.Domain with Facade, Business, Data, and Managers folders and the
@@ -1491,6 +1491,35 @@ CONSTRAINT: PP-D01; backend.md.
 RESTRICTION: No entities yet.
 BEHAVIOR: Plan, wait for approval, implement, run the boundary tests.
 ```
+
+*PP2.1 delivery note (done):*
+
+- **What differs from the prompt.** The prompt named the folders Facade, Business, Data, and Managers. With the owner's
+  approval the module uses the names Accounts and Platform already use, which are the seam's own (`Contracts/`,
+  `Facades/`, `Business/`, `DataLayer/`, `Repositories/`, `Gateways/`, `Validation/`), and has no `Managers/`: that
+  name is the shared kernel at the domain root. Git keeps no empty folder, so the skeleton is the declared folder list
+  in `ModuleBoundaryTests`; each folder appears with its first file (PP2.2 on). Recorded in the decision log;
+  `backend.md` and the `add-site-entity` skill (which said `Modules/<Context>/Domain/`) updated to match.
+- **Registration.** `Modules/Sites/SitesServiceCollectionExtensions.AddSites()` registers nothing yet; ApiService calls
+  it, because admin site routes live there. Other hosts call it when they need something from it.
+- **Boundary tests.** The module tests moved from `DomainBoundaryTests` (which keeps the assembly-reference and
+  unfiltered-table tests) to `Modules/ModuleBoundaryTests`, beside a shared `DomainSource` locator, and gained the
+  rules inside a module: declared contexts only, a registration at each root, only the seam's folders, one namespace
+  per file and it is the folder's, layers naming only what the seam allows, nothing below a facade naming a facade
+  interface, EF Core only in repositories and entity configuration, no query leaving the data layer, Business without
+  I/O, Contracts without root or Identity types, and no module naming another's root types. Scans ignore comments and
+  join qualified names broken across lines; global usings and aliases into a module are refused. Each rule was checked
+  by planting a violation and seeing it fail, then removing it.
+- **Reviewer:** `architecture-reviewer` found no blocker. Its findings changed the tests and docs as above: the stale
+  skill, facade interfaces reachable through Contracts, EF Core outside repositories, the ways to hide a reference, root
+  types in contracts and composition roots, the Business I/O list, unchecked root files, and the wording of
+  `backend.md`. Recorded, not changed: Accounts' facades hold the unit of work, and its email handler calls
+  `IEmailGateway` itself; both are existing PP1 code the test allows.
+- **Not verified:** nothing; there is no runtime behaviour beyond the empty registration.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx` 836 of 836 (809 before this prompt).
 
 ### PP2.2 Site entity
 

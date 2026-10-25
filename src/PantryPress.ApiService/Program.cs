@@ -5,6 +5,7 @@ using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.Domain.Modules.Sites;
 using PantryPress.ServiceDefaults.EdgeHardening;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,7 @@ builder.Services.AddDataProtection().SetApplicationName("PantryPress");
 builder.Services.AddOutbox();
 
 builder.Services.AddAccounts();
+builder.Services.AddSites();
 builder.Services.AddApiControllers();
 builder.Services.AddGatewayTrust(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddApiAuthentication();
