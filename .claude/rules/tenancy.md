@@ -42,7 +42,18 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    route could bind one: a `SiteId` anywhere in a request type, or a route value, parameter, header, or property whose
    name is a site id (`SiteIdBindingConvention`, PP2.4).
 8. Cache keys, blob prefixes, purge tags, search indexes, and rate-limit partitions all include the site id.
-   Use `SiteCacheKey` helpers; never hand-build a key.
+   Use `SiteCacheKey` helpers; never hand-build a key. A cache key (PP2.6) is `SiteCacheKey.For(ISiteContext, area,
+   parts…)`: `{siteId}:{area}:{part}:…`, beginning with the site's lowercase id, taken from the context a resolver
+   entered (a stand-in is refused) and never passed in, so an entry is filed only under the site the work is on. The
+   area is lowercase letters, digits, and hyphens; each part is non-empty, well-formed text with `%` and `:` escaped, so
+   no two inputs share a key - in .NET or in the UTF-8 Redis stores - and no part reaches another site's keys. No `{…}`
+   hash-tag braces (one site would pin a Redis shard); at most 1,024 UTF-8 bytes, so a long reader value is hashed
+   first, and a personal one (an email, an address) is hashed at any length. `SiteCacheKey.Prefix` covers one site's
+   entries, or one area of them. What belongs to no site - the resolution caches, per-address and global rate-limit
+   counters - is a `PlatformCacheKey`, `platform:{area}:{part}:…`, so even a slug spelled like a site id stays a part.
+   Nothing names a raw cache API - by type, namespace, registration, package, or project alias - except a declared
+   adapter, listed by its exact file, that takes only those two key types; a boundary test enforces it. Blob prefixes,
+   purge tags, search indexes, and site rate-limit partitions build on the same rule when they arrive.
 9. `IgnoreQueryFilters()` is allowed only in `Modules/Platform/` operator code, with a comment explaining why,
    and is flagged by the invariant hook elsewhere. Cross-site erasure is operator code too (ADR 0003). The comment
    starts `// Cross-site:` within the three lines above the call, and a boundary test scans every project, tests

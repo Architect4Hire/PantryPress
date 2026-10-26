@@ -268,4 +268,84 @@ public sealed class DomainBoundaryTests
 
         return found;
     }
+
+    // PP2.6: a cache key is a SiteCacheKey or a PlatformCacheKey, never a string someone built (tenancy.md rule 8). Nothing
+    // caches yet, so no source file or project names a cache: not by type, namespace, registration, or package, and not
+    // through a project-level alias. The first cache adapter (PP7.12) joins CacheAdapters by its exact file, takes only
+    // those key types, and says why. The AppHost declares the Redis resource and caches nothing, so it is exempt.
+    private const string RawCacheReference =
+        @"\b(?:StackExchange\.Redis|Microsoft\.Extensions\.Caching|Microsoft\.AspNetCore\.OutputCaching|System\.Runtime\.Caching)\b"
+        + @"|\b(?:I?DistributedCache|I?MemoryCache|MemoryCacheOptions|HybridCache|I?ConnectionMultiplexer|IDatabase(?:Async)?|IServer|ISubscriber|IBatch|RedisKey|RedisValue|RedisCache|IOutputCacheStore|OutputCache(?:Attribute)?)\b"
+        + @"|\b(?:Add|Use)\w*(?:Redis|HybridCache|MemoryCache|DistributedCache|OutputCache)\w*";
+
+    private const string RawCacheProjectReference =
+        @"Include=""(?:StackExchange\.Redis|Microsoft\.Extensions\.Caching|Aspire\.StackExchange\.Redis|Aspire\.Microsoft\.Extensions\.Caching|Microsoft\.AspNetCore\.OutputCaching|System\.Runtime\.Caching)[^""]*""";
+
+    private static readonly string[] CacheAdapters = [];
+
+    [Fact]
+    public void Nothing_reaches_a_cache_except_through_a_site_or_platform_key()
+    {
+        var source = DomainSource.Project.Parent!;
+        var adapters = CacheAdapters.Select(a => Path.Combine(source.FullName, a)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name is not ("PantryPress.Tests" or "PantryPress.AppHost")))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            var files = project.EnumerateFiles("*", SearchOption.AllDirectories)
+                .Where(f => f.Extension is ".cs" or ".csproj" or ".props" or ".targets")
+                .Where(f => !generated.Any(g => f.FullName.StartsWith(g + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                .Where(f => !adapters.Contains(f.FullName));
+            foreach (var file in files)
+            {
+                scanned++;
+                var pattern = file.Extension == ".cs" ? RawCacheReference : RawCacheProjectReference;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), pattern),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches a cache directly; cache through a key-typed adapter.");
+            }
+        }
+
+        foreach (var shared in source.EnumerateFiles("*.props").Concat(source.Parent!.EnumerateFiles("*.props")))
+        {
+            Assert.DoesNotMatch(RawCacheProjectReference, File.ReadAllText(shared.FullName));
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
+
+    [Theory]
+    [InlineData("public sealed class PageData(IDistributedCache cache)", true)]
+    [InlineData("await cache.GetOrCreateAsync(key, factory); // HybridCache", true)]
+    [InlineData("services.GetRequiredService<IConnectionMultiplexer>().GetDatabase()", true)]
+    [InlineData("var redis = ConnectionMultiplexer.Connect(endpoint);", true)]
+    [InlineData("IDatabase redis = multiplexer.GetDatabase();", true)]
+    [InlineData("foreach (var key in server.Keys(pattern: prefix)) { } // IServer", true)]
+    [InlineData("var local = new MemoryCache(new MemoryCacheOptions());", true)]
+    [InlineData("using StackExchange.Redis;", true)]
+    [InlineData("using System.Runtime.Caching;", true)]
+    [InlineData("using Microsoft.AspNetCore.OutputCaching;", true)]
+    [InlineData("[OutputCache(Duration = 60)]", true)]
+    [InlineData("app.UseOutputCache();", true)]
+    [InlineData("builder.AddRedisClient(\"redis\");", true)]
+    [InlineData("builder.AddKeyedRedisClient(\"redis\");", true)]
+    [InlineData("builder.AddKeyedRedisDistributedCache(\"redis\");", true)]
+    [InlineData("services.AddStackExchangeRedisCache(o => o.Configuration = endpoint);", true)]
+    [InlineData("services.AddHybridCache();", true)]
+    [InlineData("services.AddMemoryCache();", true)]
+    [InlineData("var key = SiteCacheKey.For(siteContext, \"page-data\", version);", false)]
+    [InlineData("var key = PlatformCacheKey.For(\"site-host\", host);", false)]
+    [InlineData("var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Database;", false)]
+    public void The_cache_scan_sees_a_raw_cache_and_not_a_keyed_one(string code, bool raw) =>
+        Assert.Equal(raw, Regex.IsMatch(code, RawCacheReference));
+
+    [Theory]
+    [InlineData("<PackageReference Include=\"Aspire.StackExchange.Redis.DistributedCaching\" Version=\"13.0.0\" />", true)]
+    [InlineData("<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.0.0\" />", true)]
+    [InlineData("<Using Include=\"Microsoft.Extensions.Caching.Distributed.IDistributedCache\" Alias=\"PageStore\" />", true)]
+    [InlineData("<PackageReference Include=\"StackExchange.Redis\" Version=\"2.9.0\" />", true)]
+    [InlineData("<PackageReference Include=\"Aspire.Hosting.Redis\" Version=\"13.6.3\" />", false)]
+    public void The_cache_scan_sees_a_cache_package_or_alias(string project, bool raw) =>
+        Assert.Equal(raw, Regex.IsMatch(project, RawCacheProjectReference));
 }

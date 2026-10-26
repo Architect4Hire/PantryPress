@@ -1776,13 +1776,76 @@ PantryPress.slnx`: 1015 of 1016 (980 before this prompt). The one failure,
 server under full-suite load; it passed in an earlier full run and on its own (4 of 4), and this prompt does not touch
 it.
 
-### PP2.6 Site cache-key helper
+### PP2.6 Site cache-key helper - done
 
 ```text
 SCOPE: Add a cache-key helper so every site-scoped cache key begins with the site identifier.
 CONSTRAINT: ARCH-015, PSEC-007; tenancy.md.
 BEHAVIOR: Plan, wait for approval, implement with collision tests.
 ```
+
+*PP2.6 delivery note (done):*
+
+- **What shipped.** `SiteCacheKey` in `Managers/Tenancy`: `{siteId}:{area}:{part}:…`, beginning with the site's lowercase
+  id.
+  - It is built only from the `ISiteContext` a resolver entered.
+  - The area has a closed shape.
+  - Each part is non-empty, well-formed text, with `%` and `:` escaped.
+  - A key is at most 1,024 UTF-8 bytes.
+  - `Prefix` covers a site, or one area of it.
+
+  `PlatformCacheKey` (`platform:{area}:…`) covers what belongs to no site. A boundary test refuses any raw cache API
+  outside a declared adapter (none yet).
+- **Owner-approved choices.** The site comes from the context, never a passed `SiteId`. No Redis hash-tag braces. A
+  length cap, with long values hashed by the caller.
+- **What differs from the plan.**
+  - `PlatformCacheKey` was added, from the audit. A slug may legally be spelled like a site id, so "platform keys start
+    with a word" needed a type behind it.
+  - The cap counts UTF-8 bytes, not characters.
+  - `Prefix` also takes an area.
+- **Reviewer.** `site-isolation-auditor`.
+  - **Blocker, fixed:** `For` and `Prefix` accepted any `ISiteContext`, so a stand-in could name another site. Both now
+    go through `ResolvedSiteContext`.
+  - **Majors, fixed:**
+    - the platform-key promise had nothing behind it (`PlatformCacheKey`);
+    - the raw-cache scan missed concrete types, namespaces, other Redis surfaces, output caching, keyed and `Add…`
+      registrations, packages, and project aliases.
+  - **Minors, fixed:**
+    - lone surrogates could share a key once encoded as UTF-8;
+    - the cap counted characters;
+    - an area prefix was missing;
+    - personal values are now hashed at any length (rule text);
+    - `tenant-provisioning.md` said every Redis key is a `SiteCacheKey`;
+    - the look-alike test ids now differ only in their last character;
+    - the allow-list now matches exact files.
+  - **Recorded, not changed:**
+    - a hand-rolled in-process cache (a `ConcurrentDictionary`) and the Node SSR server are not scanned;
+    - `Prefix` returns a string, and Redis glob characters in parts are not escaped. Both are for the PP7.12 adapter to
+      settle, with routine purges by generation or tag rather than a scan;
+    - whether PP2.8's reserved list should refuse id-shaped slugs, which `PlatformCacheKey` makes harmless here.
+- **Tests.**
+  - Unit:
+    - the key's shape;
+    - look-alike sites never sharing a key or a prefix;
+    - fifteen crafted near-collisions;
+    - a part spelling another site's prefix;
+    - 10,000 seeded random inputs from a hostile alphabet, all distinct and each decoding back to its input through an
+      independent decoder;
+    - no site, a stand-in site, and the empty id refused;
+    - area prefixes;
+    - platform keys never inside a site's key space, even keyed by an id-shaped slug;
+    - area, part, byte-length, and malformed-text refusals;
+    - ordinal comparison.
+  - Boundary: the raw-cache scan over source, projects, and shared props, with twenty-one source and five project
+    planted cases.
+- **Left for later.** The cache adapter (PP7.12), resolution-cache keys (PP2.12), blob prefixes (PP7.11), purge tags
+  (PP9.5).
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1065 of 1065
+(1016 before this prompt). One earlier full run failed two `IdentityModelTests` in the context's constructor. That run's
+output was filtered too tightly to keep the message, and five later runs (two full, three unit-only) all passed. The
+cause is unknown and recorded here so a recurrence is recognized.
 
 ### PP2.7 Two-site test harness
 
