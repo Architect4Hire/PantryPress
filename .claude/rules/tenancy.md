@@ -6,13 +6,28 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 
 1. Every site-owned entity implements `ISiteOwned` with a non-nullable `SiteId` (PP-D06 zones: site-owned,
    published public, reader-submitted). Both, and the `SiteId` type, are the shared kernel's (`Managers/Tenancy`,
-   PP2.4).
+   PP2.4). Since PP2.5 the model refuses what would escape the filter: a reference from one site-owned type to another
+   is keyed by `(SiteId, id)` on both sides (a principal alternate key and a composite foreign key), so the database
+   refuses a link to another site's row; a type that depends on a site-owned one must be site-owned itself, an implicit
+   many-to-many join table included; and a site-owned hierarchy is one table (TPH), never split.
 2. A global query filter on `SiteId` applies to every `ISiteOwned` entity. It reads the current site from
    `ISiteContext`, which is set once per request: one scoped context, entered through `ISiteContextWriter`, where
    entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
-   the Sites module's facades - and a boundary test keeps every other file from naming it.
+   the Sites module's facades - and a boundary test keeps every other file from naming it. The filter (PP2.5) is a model
+   convention named `site`, so it reaches every `ISiteOwned` root however the type joined the model; an owned type or one
+   under a base that is not site-owned is refused when the model is built. It reads the site per query, so the context may
+   be made before the site is entered. **With no site, a site-owned query throws**: site work without a site is a bug,
+   and an empty answer would hide it. `PantryPressDbContext` is one per scope and never pooled - a pooled context would
+   share one site across requests, so it refuses pooled options - and every host registers it with
+   `AddPantryPressDbContext`.
 3. `SiteId` is stamped by the `SaveChanges` interceptor from `ISiteContext`. Code never assigns it by hand,
-   and an entity whose `SiteId` differs from the context fails the save.
+   and an entity whose `SiteId` differs from the context fails the save. Precisely (PP2.5): a new row with no site takes
+   the context's, and one already naming it is let through; a changed or removed row must be the context's site before
+   and after, so a site changed in place, another site's row attached and updated, and a stub removed by key all fail;
+   any site-owned write with no site fails. `SiteId` is also a concurrency token, so every update and delete matches the
+   row's original site in SQL as well. Bulk updates and deletes skip the save: the filter keeps them to the site's own
+   rows, and `SiteIdUpdateGuard` refuses one that sets `SiteId`. Raw SQL that is not `FromSql` over an entity set
+   (`SqlQuery`, `ExecuteSql`) is not filtered, which is one more reason it stays in repositories.
 4. **Admin requests** resolve the site from the route (`/api/v1/sites/{siteSlug}/…`) plus the caller's
    membership. No membership, no site context, 404. The site policy's decision (`ISiteMembershipFacade.AuthorizeAsync`)
    is the resolution: admitting the caller enters the site, and a refused decision - 404 or 403 - enters none. The site
@@ -29,7 +44,9 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 8. Cache keys, blob prefixes, purge tags, search indexes, and rate-limit partitions all include the site id.
    Use `SiteCacheKey` helpers; never hand-build a key.
 9. `IgnoreQueryFilters()` is allowed only in `Modules/Platform/` operator code, with a comment explaining why,
-   and is flagged by the invariant hook elsewhere.
+   and is flagged by the invariant hook elsewhere. Cross-site erasure is operator code too (ADR 0003). The comment
+   starts `// Cross-site:` within the three lines above the call, and a boundary test scans every project, tests
+   included, for any mention of the method outside `Modules/Platform/` or without that reason (PP2.5).
 10. Background jobs carry `SiteId` in their payload and set `ISiteContext` before touching data.
 
 ## Operator tables (written exceptions)

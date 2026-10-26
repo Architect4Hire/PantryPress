@@ -246,7 +246,7 @@ public sealed class AuditRulesTests
     {
         var services = new ServiceCollection();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(o => o.UseSqlServer("Server=unused;Database=unused"));
+        services.AddPantryPressDbContext((_, o) => o.UseSqlServer("Server=unused;Database=unused"));
         services.TryAddSingleton<TimeProvider>(Clock);
         services.AddApplicationClock();
         services.AddAuditLog();

@@ -623,7 +623,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         services.AddFakeLogging();
         services.AddMetrics();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(_connectionString, sql =>
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(_connectionString, sql =>
         {
             MigrationServiceExtensions.UseMigrationsAssembly(sql);
             sql.EnableRetryOnFailure();

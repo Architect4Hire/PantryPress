@@ -52,7 +52,7 @@ public sealed class SiteContextDatabaseTests(MigratedDatabase database) : IAsync
 
         var services = new ServiceCollection();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         services.AddSites();

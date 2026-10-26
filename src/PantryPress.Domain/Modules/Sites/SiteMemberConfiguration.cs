@@ -49,7 +49,6 @@ internal sealed class SiteMemberConfiguration : IEntityTypeConfiguration<SiteMem
 
         // One membership per account per site, and the site leads (tenancy.md rule 8's index rule).
         builder.HasKey(m => new { m.SiteId, m.AccountId });
-        builder.Property(m => m.SiteId).HasConversion(id => id.Value, value => new SiteId(value));
         builder.Property(m => m.AccountId).HasConversion(id => id.Value, value => new AccountId(value));
 
         // The written exception to SiteId-leading indexes: resolving an admin route and listing the caller's sites both

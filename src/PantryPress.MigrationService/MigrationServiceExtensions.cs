@@ -10,17 +10,19 @@ internal static class MigrationServiceExtensions
     public const string ConnectionName = "pantrypress";
 
     /// <summary>
-    /// Registers <see cref="PantryPressDbContext"/> through the Aspire client: connection string from the
-    /// <c>pantrypress</c> reference, retrying execution strategy, and tracing. No health check, because this
-    /// one-shot process serves no endpoints. The Identity schema is pinned so the model matches the migrations.
+    /// Registers <see cref="PantryPressDbContext"/> as every host does, one per scope (PP2.5): connection string from
+    /// the <c>pantrypress</c> reference, and the Aspire client's retrying execution strategy and tracing. No health
+    /// check, because this one-shot process serves no endpoints. The Identity schema is pinned so the model matches the
+    /// migrations. It works on no site, so a site-owned read or write here throws.
     /// </summary>
-    public static IHostApplicationBuilder AddPantryPressDbContext(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddMigrationDbContext(this IHostApplicationBuilder builder)
     {
         builder.Services.AddAccountsIdentitySchema();
-        builder.AddSqlServerDbContext<PantryPressDbContext>(
-            ConnectionName,
-            settings => settings.DisableHealthChecks = true,
-            options => options.UseSqlServer(UseMigrationsAssembly));
+        builder.Services.AddPantryPressDbContext((services, options) => options.UseSqlServer(
+            services.GetRequiredService<IConfiguration>().GetConnectionString(ConnectionName)
+                ?? throw new InvalidOperationException($"The migration service has no {ConnectionName} connection string."),
+            UseMigrationsAssembly));
+        builder.EnrichSqlServerDbContext<PantryPressDbContext>(settings => settings.DisableHealthChecks = true);
         return builder;
     }
 

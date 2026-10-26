@@ -38,7 +38,7 @@ internal sealed class SiteConfiguration : IEntityTypeConfiguration<Site>
         });
 
         builder.HasKey(s => s.Id);
-        builder.Property(s => s.Id).HasConversion(id => id.Value, value => new SiteId(value)).ValueGeneratedNever();
+        builder.Property(s => s.Id).ValueGeneratedNever();
 
         builder.Property(s => s.Slug)
             .HasMaxLength(SiteLimits.MaxSlugLength)

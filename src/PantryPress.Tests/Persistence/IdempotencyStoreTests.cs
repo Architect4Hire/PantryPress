@@ -31,7 +31,7 @@ public sealed class IdempotencyStoreTests(MigratedDatabase database) : IAsyncLif
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         services.AddSingleton<TimeProvider>(Time);

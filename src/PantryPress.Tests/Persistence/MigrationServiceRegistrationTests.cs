@@ -6,6 +6,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.MigrationService;
 
 namespace PantryPress.Tests.Persistence;
@@ -60,6 +61,20 @@ public sealed class MigrationServiceRegistrationTests
         Assert.True(db.Database.CreateExecutionStrategy().RetriesOnFailure);
     }
 
+    // PP2.5: one context per scope, bound to that scope's site context - here always none.
+    [Fact]
+    public async Task Context_is_made_per_scope_with_that_scopes_site_context()
+    {
+        using var host = BuildHost();
+        await using var first = host.Services.CreateAsyncScope();
+        await using var second = host.Services.CreateAsyncScope();
+        var db = first.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+
+        Assert.Same(first.ServiceProvider.GetRequiredService<ISiteContext>(), ((ISiteScopedDbContext)db).Site);
+        Assert.NotSame(db, second.ServiceProvider.GetRequiredService<PantryPressDbContext>());
+        Assert.Null(((ISiteScopedDbContext)db).Site.Current);
+    }
+
     [Fact]
     public void Design_time_factory_uses_the_migration_service_assembly()
     {
@@ -82,7 +97,7 @@ public sealed class MigrationServiceRegistrationTests
     {
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
         builder.Configuration[$"ConnectionStrings:{MigrationServiceExtensions.ConnectionName}"] = UnusedConnectionString;
-        builder.AddPantryPressDbContext();
+        builder.AddMigrationDbContext();
         return builder.Build();
     }
 }

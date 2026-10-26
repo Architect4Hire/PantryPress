@@ -1694,7 +1694,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate a
 `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
 PantryPress.slnx` 980 of 980 (937 before this prompt).
 
-### PP2.5 Global site query filter and SiteId stamping
+### PP2.5 Global site query filter and SiteId stamping - done
 
 ```text
 SCOPE: Add the global query filter for ISiteOwned entities and a SaveChanges interceptor that stamps SiteId
@@ -1704,6 +1704,77 @@ RESTRICTION: IgnoreQueryFilters is prohibited outside documented operator and er
 UTILIZATION: site-isolation-auditor.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP2.5 delivery note (done):*
+
+- **What shipped.** In `Managers/Tenancy`:
+  - `SiteQueryFilterConvention`, a model-finalizing convention. It puts the EF Core 10 named filter `site` on every
+    `ISiteOwned` root, makes `SiteId` required and a concurrency token, and refuses a model that would escape it.
+  - `SiteStampInterceptor` stamps a new row and refuses any other site-owned write that is not wholly the context's site.
+  - `SiteIdUpdateGuard` refuses a bulk update that sets `SiteId`.
+  - `SiteIdConverter`, `ISiteScopedDbContext`, and `ResolvedSiteContext`.
+
+  `PantryPressDbContext` takes `ISiteContext` and refuses pooled options or any site context but the kernel's own.
+  `AddPantryPressDbContext` registers it per scope. A site-owned query with no site throws.
+- **Owner-approved choices.** One context per scope, never pooled: ApiService, Worker, and MigrationService moved from
+  Aspire's `AddSqlServerDbContext` to `AddPantryPressDbContext` plus `EnrichSqlServerDbContext`. Throw, not empty, with
+  no site.
+- **What differs from the prompt.**
+  - Erasure is not a separate exception. The PP0.2 reconciliation stands, and erasure is `Modules/Platform/` code.
+  - The plan said EF Core refuses to pool this context. It does not: it pooled it with a root-provider site context
+    that every request would share. The context now refuses pooled options itself.
+  - From the review, the model also refuses:
+    - a reference between site-owned types not keyed by `(SiteId, id)`;
+    - a non-site-owned dependent of a site-owned type, implicit join tables included;
+    - TPT, TPC, and entity splitting;
+    - turning the `SiteId` token off.
+  - The migration service's wrapper is now `AddMigrationDbContext`, and the two per-property `SiteId` conversions in
+    Sites gave way to the global converter, with no model change.
+- **Reviewers.** `site-isolation-auditor` and `architecture-reviewer` found no blocker. Majors, fixed:
+  - one site could attach a row under another site's row by id, and a delete would then cascade across;
+  - a non-site-owned dependent or join table went unfiltered;
+  - the context accepted any `ISiteContext`.
+
+  Minors fixed:
+  - a projected bulk update slipped the guard;
+  - the `IgnoreQueryFilters` scan missed type arguments, a next-line parenthesis, and method groups, and counted any
+    comment as a reason (it now wants `// Cross-site:`);
+  - convention results were unchecked;
+  - `AddDbContextFactory` was not scanned;
+  - there was no health-check test;
+  - the skill's token wording, the duplicate converters, the shared method name, and comment nits.
+
+  Recorded, not changed:
+  - `Database.SqlQuery` and `ExecuteSql` are not filtered and no test confines them to repositories (backend.md's rule,
+    not this prompt's);
+  - the `AutoDetectChangesEnabled = false` path is untested;
+  - no boundary test refuses an `ISiteContext` implementation outside the kernel; the context's own check makes one
+    harmless to it.
+- **Tests.**
+  - Integration (SQL Server), two look-alike sites over probe types planted through a replacement model customizer, in
+    a `probe` schema created and dropped by the test (only the migration service builds the product schema):
+    - reads, counts, `Find`, `Include`, and `FromSql` stay inside the site;
+    - bulk updates and deletes reach only the site's own rows;
+    - two scopes share one cached model and each reads its own site;
+    - a site entered after the context was made is the one it filters by;
+    - no site throws;
+    - stamping;
+    - a changed site, an attached foreign row, a stub delete, and a lie caught by the concurrency token;
+    - references across sites by add, stub, re-parenting (synchronous save), and raw insert;
+    - a cascade stays inside its site.
+  - Model: every guard on the probe and product models; each refusal; a one-table hierarchy accepted; pooling and a
+    stand-in site context refused; ApiService and MigrationService per scope with the resolver's context, retries, and
+    ApiService's health check; no host pools or uses a factory.
+  - Boundary: the `IgnoreQueryFilters` scan with nine planted cases.
+- **Left for later.** The first real site-owned entity (`add-site-entity`, now with the reference rule). PP2.6 cache keys.
+  PP2.7 the two-site harness. The Worker's site resolver.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, built to a separate artifacts path because a running
+`aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test
+PantryPress.slnx`: 1015 of 1016 (980 before this prompt). The one failure,
+`AdminAppTests.Gateway_serves_the_admin_app_and_keeps_its_own_health_endpoint`, timed out waiting for the Angular dev
+server under full-suite load; it passed in an earlier full run and on its own (4 of 4), and this prompt does not touch
+it.
 
 ### PP2.6 Site cache-key helper
 

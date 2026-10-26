@@ -197,7 +197,7 @@ public sealed class OutboxRulesTests
         services.AddLogging();
         services.AddMetrics();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(o => o.UseSqlServer("Server=unused;Database=unused"));
+        services.AddPantryPressDbContext((_, o) => o.UseSqlServer("Server=unused;Database=unused"));
         services.AddApplicationClock();
         services.AddSingleton(new OutboxLedger());
         services.AddIdempotency(new ConfigurationBuilder().Build());

@@ -190,4 +190,82 @@ public sealed class DomainBoundaryTests
     [InlineData("var current = siteContext.Current;", false)]
     public void The_site_context_scan_sees_the_writer_and_not_the_reader(string code, bool sets) =>
         Assert.Equal(sets, Regex.IsMatch(code, SiteContextWriterReference));
+
+    // PP2.5, ADR 0003: turning the site filter off is operator work, allowed only in Modules/Platform/ and only under a
+    // "// Cross-site:" comment that says why (tenancy.md rule 9). Cross-site erasure lives there too (PP0.2
+    // reconciliation). Every project is scanned, tests included; the editor hook says the same, but only for edits made
+    // through it. Any mention of the method counts - with type arguments, its parenthesis on the next line, or as a method
+    // group - and a mention in a string or comment is no less suspect.
+    private static readonly string IgnoredFilters = @"\bIgnoreQuery" + @"Filters\b";
+
+    private const string CrossSiteReason = "// Cross-site:";
+
+    private static readonly string OperatorCode = Path.Combine("PantryPress.Domain", "Modules", "Platform") + Path.DirectorySeparatorChar;
+
+    [Fact]
+    public void Only_operator_code_turns_the_site_filter_off_and_says_why()
+    {
+        var source = DomainSource.Project.Parent!;
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (generated.Any(g => file.FullName.StartsWith(g + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                var relative = Path.GetRelativePath(source.FullName, file.FullName);
+                Assert.Empty(UnexplainedFilterBypasses(relative, File.ReadAllText(file.FullName)));
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
+
+    public static TheoryData<string, string, int> PlantedBypasses => new()
+    {
+        { Path.Combine("PantryPress.Domain", "Modules", "Sites", "Repositories", "Planted.cs"), "db.Recipes.IgnoreQuery" + "Filters().ToList();", 1 },
+        { Path.Combine("PantryPress.Tests", "Planted.cs"), "var all = db.Recipes\n    .IgnoreQuery" + "Filters\n    ([\"site\"]);", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Sites", "Planted.cs"), "var all = db.Recipes.IgnoreQuery" + "Filters<Recipe>();", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Sites", "Planted.cs"), "Func<IQueryable<Recipe>, IQueryable<Recipe>> all = EntityFrameworkQueryableExtensions.IgnoreQuery" + "Filters;", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Platform", "Planted.cs"), "var all = db.Recipes.IgnoreQuery" + "Filters();", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Platform", "Planted.cs"), "// TODO: tidy this up.\nvar all = db.Recipes.IgnoreQuery" + "Filters();", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Platform", "Planted.cs"), "// Cross-site: the operator lists every site's recipes (OPS-006).\nvar all = db.Recipes.IgnoreQuery" + "Filters();", 0 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Sites", "Planted.cs"), "// Cross-site: says why, in the wrong place.\nvar all = db.Recipes.IgnoreQuery" + "Filters();", 1 },
+        { Path.Combine("PantryPress.Domain", "Modules", "Sites", "Planted.cs"), "var none = db.Recipes.IgnoreQueryFiltersSoon();", 0 },
+    };
+
+    [Theory]
+    [MemberData(nameof(PlantedBypasses))]
+    public void The_filter_scan_sees_an_unexplained_or_misplaced_bypass(string path, string code, int found) =>
+        Assert.Equal(found, UnexplainedFilterBypasses(path, code).Count);
+
+    // The lines that name the bypass where they may not: anywhere outside operator code, or in it without a cross-site
+    // reason on one of the three lines above.
+    private static List<int> UnexplainedFilterBypasses(string relativePath, string text)
+    {
+        var lines = text.Split('\n');
+        var operatorCode = relativePath.StartsWith(OperatorCode, StringComparison.OrdinalIgnoreCase);
+        var found = new List<int>();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (!Regex.IsMatch(lines[i], IgnoredFilters))
+            {
+                continue;
+            }
+
+            var explained = lines[Math.Max(0, i - 3)..i].Any(l => l.TrimStart().StartsWith(CrossSiteReason, StringComparison.Ordinal));
+            if (!operatorCode || !explained)
+            {
+                found.Add(i + 1);
+            }
+        }
+
+        return found;
+    }
 }

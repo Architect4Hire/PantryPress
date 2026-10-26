@@ -46,7 +46,7 @@ public sealed class SitePolicyDatabaseTests(MigratedDatabase database) : IAsyncL
 
         var services = new ServiceCollection();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         _services = services.BuildServiceProvider();

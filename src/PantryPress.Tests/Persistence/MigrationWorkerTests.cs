@@ -100,7 +100,7 @@ public sealed class MigrationWorkerTests
         var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
         builder.Services.AddFakeLogging();
         builder.Services.AddAccountsIdentitySchema();
-        builder.Services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        builder.Services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             sql => sql.EnableRetryOnFailure(maxRetryCount, maxRetryDelay, null)));
         builder.Services.AddMigrationWorker();

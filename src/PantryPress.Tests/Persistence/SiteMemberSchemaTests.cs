@@ -44,7 +44,7 @@ public sealed class SiteMemberSchemaTests(MigratedDatabase database) : IAsyncLif
 
         var services = new ServiceCollection();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             _connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         services.AddSites();
@@ -413,7 +413,7 @@ public sealed class SiteMemberSchemaTests(MigratedDatabase database) : IAsyncLif
     {
         var services = new ServiceCollection();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options
+        services.AddPantryPressDbContext((_, options) => options
             .UseSqlServer(_connectionString, MigrationServiceExtensions.UseMigrationsAssembly)
             .AddInterceptors(commands));
         services.AddSites();

@@ -26,7 +26,7 @@ internal static class TestDatabase
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddAccountsIdentitySchema();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         services.AddIdentityCore<ApplicationUser>()
@@ -50,7 +50,7 @@ internal static class TestDatabase
         var services = new ServiceCollection();
         services.AddFakeLogging();
         services.AddApplicationClock();
-        services.AddDbContext<PantryPressDbContext>(options => options.UseSqlServer(
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
             connectionString,
             MigrationServiceExtensions.UseMigrationsAssembly));
         services.AddPlatformAdministration(new ConfigurationBuilder()

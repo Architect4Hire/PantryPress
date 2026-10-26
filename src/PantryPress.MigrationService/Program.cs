@@ -7,7 +7,7 @@ using PantryPress.MigrationService;
 var builder = Host.CreateApplicationBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddApplicationClock();
-builder.AddPantryPressDbContext();
+builder.AddMigrationDbContext();
 
 // The operator's PlatformAdmin list (ACCT-005). This one-shot job, started by the operator, is the only process that
 // can assign the platform role: no API and no browser can reach it. With no list configured it changes nothing.

@@ -5,6 +5,7 @@ using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.MigrationService;
 
@@ -112,7 +113,8 @@ public sealed class IdentityModelTests
         using var db = new PantryPressDbContext(new DbContextOptionsBuilder<PantryPressDbContext>()
             .UseSqlServer(MigrationServiceExtensions.UseMigrationsAssembly)
             .EnableServiceProviderCaching(false)
-            .Options);
+            .Options,
+            new SiteContext());
 
         var error = Assert.Throws<InvalidOperationException>(() => db.Model);
         Assert.Contains(nameof(AccountsServiceCollectionExtensions.AddAccountsIdentitySchema), error.Message, StringComparison.Ordinal);
@@ -130,7 +132,7 @@ public sealed class IdentityModelTests
             options.Stores.MaxLengthForKeys = 450;
             options.Stores.ProtectPersonalData = true;
         });
-        services.AddDbContext<PantryPressDbContext>(options => options
+        services.AddPantryPressDbContext((_, options) => options
             .UseSqlServer(MigrationServiceExtensions.UseMigrationsAssembly)
             .EnableServiceProviderCaching(false));
         await using var provider = services.BuildServiceProvider();

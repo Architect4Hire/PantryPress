@@ -74,6 +74,9 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 ## Persistence
 
 - EF Core 10, one `PantryPressDbContext`, migrations applied only by `PantryPress.MigrationService`.
+- The context is one per scope and never pooled, because its site filter and stamp read the scope's site (PP2.5).
+  Every host registers it with `AddPantryPressDbContext` and adds the Aspire client's retries, tracing, and health check
+  with `EnrichSqlServerDbContext`; Aspire's `AddSqlServerDbContext` pools, so no host uses it, and a test says so.
 - Every migration is reviewed (Template K). No data-destroying migration without an explicit plan.
 - Indexes on site-owned tables lead with `SiteId`.
 - No raw SQL with string interpolation. `FromSql` with parameters only, and only in repositories.

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using PantryPress.ApiService.Hosting;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
@@ -12,9 +13,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddApplicationClock();
 
-// The database through the Aspire client: connection string from the pantrypress reference, retries, tracing, and a
-// readiness check. Accounts pins the Identity schema the migrations were built with (PP1.1).
-builder.AddSqlServerDbContext<PantryPressDbContext>("pantrypress");
+// The database: connection string from the pantrypress reference, and the Aspire client's retries, tracing, and a
+// readiness check. One context per request, never pooled, because its site filter and save read the request's site
+// (PP2.5). Accounts pins the Identity schema the migrations were built with (PP1.1).
+builder.Services.AddPantryPressDbContext((services, options) => options.UseSqlServer(
+    services.GetRequiredService<IConfiguration>().GetConnectionString("pantrypress")
+        ?? throw new InvalidOperationException("ApiService has no pantrypress connection string.")));
+builder.EnrichSqlServerDbContext<PantryPressDbContext>();
 
 // Link tokens and authenticator keys are protected with this key ring. Locally it is the developer's profile; PP19
 // moves it to storage protected by Key Vault, which must exist before any real account enables two-step sign-in.

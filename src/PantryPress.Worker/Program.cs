@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using PantryPress.Domain.Integrations.DevelopmentMail;
 using PantryPress.Domain.Managers.Idempotency;
@@ -15,8 +16,12 @@ builder.Services.AddApplicationClock();
 
 // The database through the Aspire client, as ApiService has it. The context refuses to build without the pinned
 // Identity schema, even in a host that never touches an account (PP1.1).
+// One context per scope, never pooled: a site job's scope has its own site (PP2.5).
 builder.Services.AddAccountsIdentitySchema();
-builder.AddSqlServerDbContext<PantryPressDbContext>("pantrypress");
+builder.Services.AddPantryPressDbContext((services, options) => options.UseSqlServer(
+    services.GetRequiredService<IConfiguration>().GetConnectionString("pantrypress")
+        ?? throw new InvalidOperationException("The Worker has no pantrypress connection string.")));
+builder.EnrichSqlServerDbContext<PantryPressDbContext>();
 
 // Account email needs a provider. Locally that is the development sink (PP1.2a); elsewhere there is none until Azure
 // Communication Services arrives at PP13.1. Without one the Worker claims no account email: it waits in the outbox,
