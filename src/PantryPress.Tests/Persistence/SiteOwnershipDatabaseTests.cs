@@ -6,6 +6,7 @@ using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.MigrationService;
+using PantryPress.Tests.TwoSite;
 
 namespace PantryPress.Tests.Persistence;
 
@@ -402,6 +403,84 @@ public sealed class SiteOwnershipDatabaseTests(MigratedDatabase database) : IAsy
             Assert.Equal(0, await Db(scope).Set<ProbeStep>().CountAsync(Timeout));
         }
     }
+
+    // PP2.7: the harness's checks, run through the harness itself over both probe types - a root and a dependent keyed
+    // by site - so they are proven before the first real entity leans on them.
+    [Fact]
+    public async Task The_two_site_check_holds_for_both_probe_types()
+    {
+        await using var harness = await ProbeHarnessAsync();
+
+        await TwoSiteChecks.AssertSiteOwnedIsolatedAsync<ProbeRecipe>(
+            harness.Services,
+            NewSite(),
+            NewSite(),
+            MakeRecipe,
+            set => set.SetProperty(r => r.Name, "Taken"),
+            r => r.Name = "Taken");
+
+        await TwoSiteChecks.AssertSiteOwnedIsolatedAsync<ProbeStep>(
+            harness.Services,
+            NewSite(),
+            NewSite(),
+            db =>
+            {
+                var recipe = db.Add(new ProbeRecipe { Name = "Supper" }).Entity;
+                var step = new ProbeStep { Text = "Supper step" };
+                recipe.Steps.Add(step);
+                return Task.FromResult(step);
+            },
+            set => set.SetProperty(s => s.Text, "Taken"),
+            s => s.Text = "Taken");
+    }
+
+    // A check must be able to fail: handed one site twice, A sees "B's" row, and the check says so.
+    [Fact]
+    public async Task The_two_site_check_catches_a_site_that_can_see_the_other()
+    {
+        await using var harness = await ProbeHarnessAsync();
+        var same = NewSite();
+
+        await Assert.ThrowsAnyAsync<Xunit.Sdk.XunitException>(() => TwoSiteChecks.AssertSiteOwnedIsolatedAsync<ProbeRecipe>(
+            harness.Services,
+            same,
+            same,
+            MakeRecipe,
+            set => set.SetProperty(r => r.Name, "Taken"),
+            r => r.Name = "Taken"));
+    }
+
+    // A raw read composed over the set is filtered; one past it is not, and the read-path check catches it.
+    [Fact]
+    public async Task The_read_path_check_passes_a_filtered_read_and_catches_a_raw_one()
+    {
+        await using var harness = await ProbeHarnessAsync();
+
+        await TwoSiteChecks.AssertReadPathIsolatedAsync<ProbeRecipe>(
+            harness.Services,
+            NewSite(),
+            NewSite(),
+            MakeRecipe,
+            async services => [.. (await services.GetRequiredService<PantryPressDbContext>().Set<ProbeRecipe>()
+                .FromSql($"SELECT * FROM probe.ProbeRecipes WHERE Name = {"Supper"}")
+                .Select(r => r.Id)
+                .ToListAsync(Timeout)).Select(id => new object?[] { id })]);
+
+        await Assert.ThrowsAnyAsync<Xunit.Sdk.XunitException>(() => TwoSiteChecks.AssertReadPathIsolatedAsync<ProbeRecipe>(
+            harness.Services,
+            NewSite(),
+            NewSite(),
+            MakeRecipe,
+            async services => [.. (await services.GetRequiredService<PantryPressDbContext>().Database
+                .SqlQuery<Guid>($"SELECT Id AS Value FROM probe.ProbeRecipes WHERE Name = {"Supper"}")
+                .ToListAsync(Timeout)).Select(id => new object?[] { id })]));
+    }
+
+    private async Task<TwoSiteHarness> ProbeHarnessAsync() =>
+        await TwoSiteHarness.CreateAsync(database, configure: o => o.ReplaceService<IModelCustomizer, SiteOwnedProbeCustomizer>());
+
+    private static Task<ProbeRecipe> MakeRecipe(PantryPressDbContext db) =>
+        Task.FromResult(db.Add(new ProbeRecipe { Name = "Supper" }).Entity);
 
     private static SiteId NewSite() => new(Guid.NewGuid());
 

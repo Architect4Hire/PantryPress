@@ -1193,7 +1193,8 @@ marked done after PP1.10b. The owner also approved the Worker purging expired id
       `OutboxMessage` beside `Site` as a written exception.
     - Two-site tests through the PP2.7 harness: a mismatched-site enqueue, parallel siblings with separate contexts, and
       a platform message that sees no site rows. Today's two-site test proves only that sites' messages stay separate,
-      carry their own site, and fail alone.
+      carry their own site, and fail alone. (PP2.7: the harness is ready; these wait for the Worker's site resolver and
+      belong to the first site outbox message.)
   - **PP7 and the import prompts:** per-site fairness in the claim (round-robin or a per-site cap). Today the claim is
     oldest-first across sites, and competing Workers reach for the same candidates. The losers' partial claims cost
     throughput, not correctness; an `UPDATE TOP … READPAST … OUTPUT` claim is the upgrade.
@@ -1847,7 +1848,7 @@ outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dot
 output was filtered too tightly to keep the message, and five later runs (two full, three unit-only) all passed. The
 cause is unknown and recorded here so a recurrence is recognized.
 
-### PP2.7 Two-site test harness
+### PP2.7 Two-site test harness - done
 
 ```text
 SCOPE: Add a reusable test harness that seeds two sites with similar data and asserts no read, write,
@@ -1855,6 +1856,79 @@ cache, or enumeration crosses between them.
 CONSTRAINT: ARCH-015, PSEC-007.
 BEHAVIOR: Plan, wait for approval, implement and apply it to Site and SiteMember.
 ```
+
+*PP2.7 delivery note (done):*
+
+- **What shipped.** In `PantryPress.Tests/TwoSite/`:
+  - `TwoSiteHarness`, over the shared migrated database, with ApiService on request. It seeds two look-alike sites per
+    test with fresh ids:
+    - the same name and tagline;
+    - slugs one letter apart, A's a prefix of B's;
+    - an Owner, Editor, Author, and suspended member each;
+    - accounts that cross between the sites in role (Author on A, Owner on B) and in standing (suspended on A, Editor
+      on B), and a stranger.
+  - `TwoSiteChecks`:
+    - `AssertSiteOwnedIsolatedAsync<T>`, the floor for every site-owned entity;
+    - `AssertReadPathIsolatedAsync<T>`;
+    - `AssertTenantRootUnchangedAsync`;
+    - `AssertIndistinguishableAsync`.
+  - `TenantRootTwoSiteTests`, which applies them to `Site` and `SiteMember`.
+
+  No production code changed.
+- **What differs from the plan.**
+  - **No cache check.** The planned `AssertCacheKeysApart` was a key-shape check that could not fail for a cache that
+    mixes sites, so it was dropped. The cache the tenant root has today, the facade's per-request lookup, is tested
+    directly. The PP7.12 adapter and the PP2.12 resolution caches each owe a behavioral check, named in `tenancy.md`.
+  - **Two checks added, from the review:** the read-path check and the tenant-root snapshot check.
+  - **The seeded world grew:** an account that crosses status between the sites, and B's slug is now A's plus a letter
+    rather than a last letter apart.
+  - **The four existing seeding helpers are left as they were**, as planned.
+- **Reviewers.** `site-isolation-auditor` and `test-gap-analyzer` found no blocker.
+  - **Majors and highs, fixed:**
+    - the cache check could not fail (dropped, as above);
+    - the generic check never tried B's row passed off as A's, the one write only the `SiteId` token stops;
+    - the checks reached only `db.Set<T>()`, so the docs now call the entity check a floor and name what each change's
+      own paths owe, including PP2.10 and PP2.11 for the tenant root;
+    - no seeded account crossed status between the sites.
+  - **Mediums and minors, fixed:**
+    - refusals now expect their own exception and message, and the write-back changes a value so a leak would show;
+    - the indistinguishability check now pins status and code;
+    - a membership suspended between two HTTP requests is refused on the next;
+    - the standings table is symmetric;
+    - a one-statement write across both sites for one account is refused whole, and neither site's rows change;
+    - uppercase slugs over HTTP;
+    - the no-site read and a new row naming B joined the generic check;
+    - the seed prefix is validated;
+    - `ChangeAsync` takes a site;
+    - the probe proof runs through the harness.
+  - **Recorded, not changed:**
+    - A stranger's lookup of a real site makes two queries where an unknown slug makes one, so response time can still
+      tell them apart. That is for the tenancy audit (PP2.14).
+    - The negative controls show each check failing on a visible leak. They cannot show the generic check failing with
+      the stamp or the token removed, because the context will not build without them.
+    - A dependent pointing at the other site's principal is proven for the probe types (PP2.5), not by the generic
+      check.
+    - PP1.10's outbox two-site tests (a mismatched-site enqueue, parallel siblings with separate contexts, a platform
+      message that sees no site rows) wait for the Worker's site resolver. They now belong to the first site outbox
+      message, through this harness.
+- **Tests.**
+  - The probe types through the generic check: a root, and a dependent keyed by site.
+  - Each check shown able to fail: the same site twice; a `SqlQuery` read past the filter.
+  - Tenant root:
+    - every account's standing on each site, by the facade, in both cases;
+    - roles never carried between sites, and a refusal enters nothing;
+    - the request cache keyed by account and slug, and gone after the request (facade and HTTP);
+    - one site's owners never counting toward the other's, with the other's rows unchanged;
+    - one account's cross-site bulk delete and suspend refused whole;
+    - six ways of not reaching a site, each indistinguishable from no site in both cases;
+    - a deleted site the same;
+    - a too-low role the only 403.
+- **Left for later.** Host-header tricks (PP2.12). The cache check (PP7.12). The resolution-cache check (PP2.12). The
+  tenant-root route tests (PP2.10, PP2.11).
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1075 of 1075
+(1065 before this prompt).
 
 ### PP2.8 Reserved slugs and slug policy
 

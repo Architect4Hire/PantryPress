@@ -28,7 +28,9 @@ Read first: `.claude/rules/tenancy.md`, `backend.md`.
 
 ## Checklist
 
-- [ ] Two-site test: B cannot read, list, update, or delete A's rows through the repository and facade.
+- [ ] Two-site test: `TwoSiteChecks.AssertSiteOwnedIsolatedAsync<T>` for the entity (PP2.7), the floor;
+      `AssertReadPathIsolatedAsync<T>` for each repository read beyond the set; and B cannot read, list, update, or
+      delete A's rows through the facade and route, with `TwoSiteHarness` seeding the two sites.
 - [ ] Stamping test: saving with a mismatched `SiteId` fails.
 - [ ] Reference test: B cannot attach a row under A's parent by id.
 - [ ] Migration applies cleanly through the migration service.

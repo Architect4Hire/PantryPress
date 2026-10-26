@@ -113,6 +113,45 @@ Any change that touches site-owned, public, or reader data adds a test using the
 - include host-header tricks for public paths (other site's host, `Host` vs `X-Forwarded-Host`, uppercase,
   trailing dot, custom domain of the other site).
 
+The harness (PP2.7) is `PantryPress.Tests/TwoSite/`. `TwoSiteHarness.SeedAsync` seeds two look-alike sites with fresh
+ids, so tests share the migrated database:
+
+- the same name and tagline, and slugs one letter apart, A's a prefix of B's;
+- an Owner, Editor, Author, and suspended member on each;
+- three accounts that cross between them: one that is Author on A and Owner on B, one suspended on A and Editor on B,
+  and a stranger.
+
+`In(site)` is a scope working on a site, `Scope()` one working on none, `ChangeAsync` writes setup rows (with a site for
+site-owned ones), and `ClientFor(account)` is ApiService signed in. `TwoSiteChecks` holds what a change owes:
+
+- `AssertSiteOwnedIsolatedAsync<T>` for every new site-owned entity. It is the floor: it proves the filter, stamp, and
+  token hold for the type through `db.Set<T>()`.
+  - With no site, a read throws.
+  - As A, list, count, find, and ask after only A's rows.
+  - B's row is untouched by a bulk update or delete.
+  - These writes are refused: a new row naming B, B's row written back or removed, B's row passed off as A's (the token's
+    case), and a row moved to B.
+  - B's row is found exactly as written.
+- `AssertReadPathIsolatedAsync<T>` for each read path the change adds beyond the set: a repository's raw query, a
+  projection, or a join. Its own test shows it catching a `SqlQuery` that skips the filter.
+- `AssertTenantRootUnchangedAsync` around every write to the tenant root. It proves the other site's `Sites` row and
+  memberships are unchanged, row versions included.
+- `AssertIndistinguishableAsync` wherever a refusal could tell a real site from none. It compares the expected status and
+  code, the problem document, and the headers. Content only: timing is not compared.
+
+The checks are a floor, not the debt: the change's own facade and route owe two-site tests through the seeded world.
+PP2.10 and PP2.11 owe these for the tenant root, over ApiService:
+
+- a list returns only the caller's sites;
+- reading B by slug as A's owner answers like no site;
+- a role change or removal on A leaves B's rows unchanged (the shared account's above all);
+- availability never names the holder.
+
+What a cache owes comes with the first cache: the PP7.12 adapter owes a check that a read as B misses A's entry, that
+every key written as B is under B's prefix, and that clearing B leaves A. The resolution caches (PP2.12) owe a check
+that a host or slug that changes hands resolves to its new site at once. Host-header tricks join the harness with the
+first public path (PP2.12).
+
 ## Review
 
 Run `site-isolation-auditor` after any prompt that touches site-owned data.
