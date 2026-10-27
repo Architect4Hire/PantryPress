@@ -2012,7 +2012,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts pa
 outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1174 of 1174
 (1075 before this prompt).
 
-### PP2.9 SiteHost and canonical host
+### PP2.9 SiteHost and canonical host - done
 
 ```text
 SCOPE: Add SiteHost (SiteId, host, kind Subdomain | Custom | WwwVariant, IsCanonical, status) with a unique
@@ -2021,6 +2021,121 @@ CONSTRAINT: SITE-005; Template C.
 RESTRICTION: Hosts stored lower-case without port or trailing dot.
 BEHAVIOR: Plan, wait for approval, migrate, test.
 ```
+
+*PP2.9 delivery note (done 2026-10-27):*
+
+- **What shipped.**
+  - `Modules/Sites/SiteHost`, with `SiteHostId`, `SiteHostKind` (Subdomain, Custom, WwwVariant), and `SiteHostStatus`
+    (Active, Pending) in `Contracts/`.
+  - Each host row holds: SiteId, host, kind, IsCanonical, status, creation time, and a `rowversion`.
+  - `Business/SiteHostNames.TryNormalize` gives the stored form of a host:
+    - ASCII is checked before lower-casing;
+    - one trailing dot is dropped;
+    - no port;
+    - two labels or more, each 1 to 63 characters with no hyphen at either end;
+    - 253 characters at most;
+    - the last label starts with a letter, so no IPv4 literal is accepted in any spelling.
+  - Migration `SiteHosts` adds one table:
+    - `UX_SiteHosts_Host`: unique and binary;
+    - `UX_SiteHosts_SiteId_Canonical`: filtered to canonical hosts;
+    - `IX_SiteHosts_SiteId_Kind`;
+    - a `Restrict` foreign key to `Sites`;
+    - checks on the host's shape, kind, and status, and one that a canonical host is Active and never a `WwwVariant`;
+    - the trigger `TR_SiteHosts_Guard`.
+
+    The trigger refuses losing a canonical host on a site that is not deleted (51007). It also refuses changing a host's
+    site or spelling, or making a host a subdomain or no longer one (51008). The rollback refuses while any host exists
+    (51009).
+- **Owner-approved choices.**
+  - `SiteHost` is part of the tenant root, not site-owned. It has a required `SiteId` but no filter or stamp, because the
+    public tier resolves a site from its Host before any site context exists. Template C's filter and stamp were set aside
+    for the same reason as in PP2.2 and PP2.3.
+  - The host index is the second written exception to `SiteId`-leading indexes.
+  - Statuses: Active and Pending; PP17 adds the rest.
+  - A `WwwVariant` is the other spelling of a custom domain and is never canonical.
+  - All of this is recorded in `tenancy.md` ("Tenant root"), `sites.md`, and the decision log.
+- **What differs from the plan.**
+  - After review:
+    - the last-label rule became "starts with a letter", because `127.0.0.0x1` passed the all-digits rule;
+    - the trigger also refuses a kind change to or from `Subdomain`;
+    - a restore from `Deleted` must also find a canonical host.
+  - `Kind` can change between `Custom` and `WwwVariant`, because switching between apex and `www` swaps them.
+- **What later prompts must do.**
+  - Moving the canonical host has to be one statement (`ExecuteUpdate`). Two tracked updates always fail, whichever order
+    they reach the database in (tested).
+  - Two moves on one site at the same instant can deadlock (1205), and callers must answer that too.
+- **Template K.**
+  - Additive: one new table and trigger, with no backfill. Nothing outside tests creates a site yet.
+  - No code reads the table yet, so it can ship ahead of PP2.10 and PP2.12.
+  - Rollback refuses while any host exists.
+- **Tests.**
+  - Model: keys, indexes, foreign key, trigger, checks, and the enum numbers.
+  - `SiteHostNames`: a table of accepted and refused host names, including the Kelvin sign, fullwidth, zero-width joiner,
+    dotless ı, Cyrillic, ideographic full stops, ports, and IP literals.
+  - Against SQL Server:
+    - the same shapes run through the normalizer and the check, so the .NET rule and the schema agree;
+    - a held host refused to another site;
+    - a second canonical host refused;
+    - losing the canonical host refused, whether by update, delete, or a bulk delete; a deleted site is exempt;
+    - the one-statement move passes and two statements fail;
+    - site, spelling, id, and subdomain kind are fixed;
+    - a stale save is refused.
+  - Two-site:
+    - the harness seeds each look-alike site's canonical subdomain;
+    - `AssertTenantRootUnchangedAsync` now covers hosts;
+    - B cannot take A's host as a pending or active domain, or in upper case or with a trailing dot;
+    - B's host changes leave A alone;
+    - a bulk write across both sites' hosts is refused whole.
+  - Boundary: the tenant-root scan covers the host set, type, configuration, and table, with planted cases.
+- **Reviewers.** `site-isolation-auditor` and `architecture-reviewer` found no blocker.
+  - **Fixed:**
+    - both flagged the claim that a cached host lookup goes stale only when a row comes or goes. That is true of host to
+      site, not of status, kind, or canonical, which change in place, and the wording now says so;
+    - the hex IPv4 gap;
+    - the kind guard;
+    - the restore precondition;
+    - the two-site spellings;
+    - the missing decision-log row.
+  - **Recorded, not changed:**
+    - nothing refuses a custom host under the platform's zones (`app.<zone>`, `www.{slug}.<zone>`, a slug nobody holds
+      yet). The zone is configuration, and dev runs under `dev.pantrypress.app`, so the database cannot say it; this moves
+      from PP2.9 to PP17.2;
+    - a Pending claim holds the unique index, so one site could block another's real domain (PP17: expire claims or
+      filter the index);
+    - nothing enforces that every host query is keyed by host or by a resolved site, the same gap `SiteMember` has.
+- **Left for later.**
+  - PP2.10:
+    - write the site, its first Owner, and its subdomain host in one transaction;
+    - map 2601 on the host index, and 51007 and 51008, to a neutral answer such as `slug-unavailable`;
+    - availability checks `SiteHosts` too, because a renamed site's old host still holds its address.
+  - PP2.12:
+    - resolve Active hosts only, through `SiteHostNames` after splitting off the port, and with a real IP-literal check;
+    - a Pending host answers exactly like an unknown one;
+    - key the cache with `PlatformCacheKey`, and refresh a site's entries on every write to its hosts and on every
+      change of its status;
+    - add a two-site test that a canonical host moving and a custom domain changing hands never send A's readers to B;
+    - the auditor's host-header list, including `www.` plus the other site's host and `127.0.0.0x1`.
+  - PP17:
+    - platform zones;
+    - pending claims;
+    - pairing a `WwwVariant` with its custom domain;
+    - a site-owned row that refers to a host keys it by `(SiteId, Id)`, which needs an alternate key here.
+- **Not verified.**
+  - **The local database.** With `aspire run` up, the migration may have reached your local database before its trigger
+    and shape check were edited after review. If the local `SiteHosts` table is there, drop and re-create the database,
+    or roll the migration back (it is empty) and forward.
+  - **A test that fails intermittently, and failed before this prompt too.** These two tests fail in some full runs:
+    - `IdentityModelTests.Context_refuses_a_host_that_did_not_pin_the_identity_schema`;
+    - `IdentityModelTests.Host_identity_settings_cannot_change_the_pinned_schema`.
+
+    They throw EF Core's `ManyServiceProvidersCreatedWarning` once more than 20 internal providers already exist in the
+    process, which depends on test order. They pass alone, and one of two runs failed them on a clean checkout of
+    `51d6f76`.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1289 of 1291
+(1174 before this prompt), with the model matching the migrations. The two failures are the intermittent ones above, and
+they pass alone.
 
 ### PP2.10 Create, list, and read sites
 

@@ -73,17 +73,18 @@ site the request does not work on. A `site.*` audit action is refused with `None
 ## Tenant root (written exception)
 
 `Site` (PP2.2) is the tenant itself: its id is the `SiteId` every site-owned row carries. `SiteMember` (PP2.3) is what
-grants a site. Both are read before any site context exists - resolving an admin route (rule 4) starts from the caller's
-membership, the public tier (rule 5) from the Host through `SiteHost`, and "my sites" lists across sites by account - and a
-site and its first Owner are written together before there is a context to stamp from. So neither implements
-`ISiteOwned` and neither has a query filter or a stamp. `Site` has no `SiteId` of its own; `SiteMember` carries a required
-one, with a foreign key to `Sites`. Rule 1 holds for everything else, including every other table that refers to a site.
-Because no filter stands behind them:
+grants a site, and `SiteHost` (PP2.9) is what names one from a Host. All three are read before any site context exists -
+resolving an admin route (rule 4) starts from the caller's membership, the public tier (rule 5) from the Host through
+`SiteHost`, and "my sites" lists across sites by account - and a site, its first Owner, and its subdomain are written
+together before there is a context to stamp from. So none of them implements `ISiteOwned` or has a query filter or a stamp.
+`Site` has no `SiteId` of its own; `SiteMember` and `SiteHost` carry a required one, with a foreign key to `Sites`. Rule 1
+holds for everything else, including every other table that refers to a site. Because no filter stands behind them:
 
-- Only the Sites module reaches either table; a boundary test refuses their sets, tables, or configurations anywhere else
-  outside the migrations. Other modules ask a Sites contract, behind a declared module edge.
+- Only the Sites module reaches the three tables; a boundary test refuses their sets, tables, or configurations anywhere
+  else outside the migrations. Other modules ask a Sites contract, behind a declared module edge.
 - Every membership query is keyed by the caller's account, by a site already resolved, or by both; `SiteMembers` has an
-  account-leading index for that, the written exception to `SiteId`-leading indexes.
+  account-leading index for that, the written exception to `SiteId`-leading indexes. Every host query is keyed by a
+  normalized host or by a site already resolved; `SiteHosts`' unique host index is the second written exception.
 - A site row is returned only for the slug or host resolution has authorized, or listed through the caller's own
   memberships. An operator-wide listing is a Sites contract that only `Modules/Platform/` may call, declared when it is
   added.
@@ -91,15 +92,23 @@ Because no filter stands behind them:
   a yes or no, or the unique index's refusal - never the row, its id, or its status (SITE-002). Membership resolution
   answers no such site, a deleted site, no membership, and a suspended one alike.
 - The query filter and the `SiteId` stamp key on `ISiteOwned` only, never on a property of type `SiteId` or named
-  `SiteId`, so they never touch `Site.Id` or `SiteMember.SiteId`. A site's id is minted on the server when the site is
+  `SiteId`, so they never touch `Site.Id`, `SiteMember.SiteId`, or `SiteHost.SiteId`. A site's id is minted on the server when the site is
   created (PP2.10), the one place a `SiteId` value is made, and never accepted from a client.
 - The resolution caches are the exception to rule 8: they are keyed by the normalized slug or host, because no site id is
   known yet, and are invalidated when a slug or host changes hands (SITE-004, DOM-001), since a stale entry would send
   one site's traffic to another. Membership itself is cached per request only (`auth.md`).
 - `SiteMembers`' trigger guards losing a site's last active Owner, not having one. The facade that creates a site writes
   its first Owner in the same transaction (PP2.10); any path that takes a site out of `Deleted` must first find an active
-  Owner with a locking read; account erasure (PP19.11a) marks a site its account solely owns `Deleted`, or hands it on,
-  before removing that account's memberships. `TRUNCATE` and a disabled trigger skip it, which only an operator can do.
+  Owner and a canonical host (PP2.9) with a locking read; account erasure (PP19.11a) marks a site its account solely owns
+  `Deleted`, or hands it on, before removing that account's memberships. `TRUNCATE` and a disabled trigger skip it, which only an operator can do.
+- A host (PP2.9) is stored lower-case with no port or trailing dot (`SiteHostNames`, with a check beneath it), belongs to
+  one site platform-wide, and never changes site or spelling, or becomes or stops being a subdomain: it changes hands by
+  being removed and added again, so which site a host names changes only when a row comes or goes. Its status, kind, and
+  whether it is canonical change in place, so anything cached about them - where a host redirects, whether it answers -
+  is refreshed on every write to that site's hosts and every change of the site's status (PP2.12). Each site that is not deleted keeps exactly one canonical
+  host, active and never a `WwwVariant`: a filtered unique index allows one, and `SiteHosts`' trigger refuses losing it,
+  so moving it is one statement that sets the new and clears the old together. Like the owner trigger, it guards losing
+  one, not having one; the facade that creates a site writes its subdomain in the same transaction (PP2.10).
 - Slugs and hosts are checked for ASCII in .NET before any lookup: the column is `varchar`, and the client's code page
   conversion could turn a look-alike letter into a valid one.
 

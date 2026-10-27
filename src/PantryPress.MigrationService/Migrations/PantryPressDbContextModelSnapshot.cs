@@ -1194,6 +1194,69 @@ namespace PantryPress.MigrationService.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteHost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(253)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<bool>("IsCanonical")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Host")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SiteHosts_Host");
+
+                    b.HasIndex("SiteId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SiteHosts_SiteId_Canonical")
+                        .HasFilter("[IsCanonical] = 1");
+
+                    b.HasIndex("SiteId", "Kind")
+                        .HasDatabaseName("IX_SiteHosts_SiteId_Kind");
+
+                    b.ToTable("SiteHosts", null, t =>
+                        {
+                            t.HasTrigger("TR_SiteHosts_Guard");
+
+                            t.HasCheckConstraint("CK_SiteHosts_Canonical", "[IsCanonical] = 0 OR ([Status] = 0 AND [Kind] <> 2)");
+
+                            t.HasCheckConstraint("CK_SiteHosts_Host_Shape", "DATALENGTH([Host]) BETWEEN 3 AND 253 AND [Host] NOT LIKE '%[^a-z0-9.-]%' COLLATE Latin1_General_100_BIN2 AND [Host] LIKE '%_._%' AND [Host] NOT LIKE '.%' AND [Host] NOT LIKE '%.' AND [Host] NOT LIKE '%..%' AND [Host] NOT LIKE '-%' AND [Host] NOT LIKE '%-' AND [Host] NOT LIKE '%.-%' AND [Host] NOT LIKE '%-.%' AND [Host] NOT LIKE '%[^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.][^.]%' AND SUBSTRING(REVERSE([Host]), CHARINDEX('.', REVERSE([Host])) - 1, 1) LIKE '[a-z]'");
+
+                            t.HasCheckConstraint("CK_SiteHosts_Kind", "[Kind] IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_SiteHosts_Status", "[Status] IN (0, 1)");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteMember", b =>
                 {
                     b.Property<Guid>("SiteId")
@@ -1282,6 +1345,15 @@ namespace PantryPress.MigrationService.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteHost", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

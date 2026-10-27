@@ -17,8 +17,10 @@ Detail: `docs/requirements/pantrypress-customization-spec.md`.
   DNS records under (`app` above all, whose `__Host-` cookies a tenant site there would share; a test reads the
   gateway's hosts and the Terraform). The database refuses a reserved slug on any site write, and refuses reserving a
   slug a site holds, so taking an address from a site is decided on purpose, never by a list edit.
-- `SiteHost` maps every host to one site with one canonical host. An active custom domain becomes canonical;
-  the subdomain 301s to it and always keeps working.
+- `SiteHost` (PP2.9) maps every host to one site with one canonical host. It is part of the tenant root (`tenancy.md`):
+  hosts are stored lower-case without port or trailing dot, unique platform-wide, and never change site or spelling;
+  the canonical host moves in one statement. An active custom domain becomes canonical; the subdomain 301s to it and
+  always keeps working.
 - Status: Provisioning, Live, Suspended, ReadOnly, Offline, Deleted, with correct public status codes.
 
 ## Design settings (PP-D17)

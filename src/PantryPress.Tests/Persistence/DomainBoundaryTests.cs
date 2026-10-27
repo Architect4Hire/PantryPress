@@ -98,20 +98,34 @@ public sealed class DomainBoundaryTests
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
 
-    // PP2.2, PP2.3: the site and its memberships are the tenant root, so their tables have no query filter behind them
-    // (tenancy.md, "Tenant root"). Only the Sites module reaches them - inside the domain the module rules keep its root
-    // types to itself, and this keeps every host from querying the sets or the tables directly. The migrations that create
-    // them are the one exception.
+    // PP2.2, PP2.3, PP2.9: the site, its memberships, and its hosts are the tenant root, so their tables have no query
+    // filter behind them (tenancy.md, "Tenant root"). Only the Sites module reaches them - inside the domain the module
+    // rules keep its root types to itself, and this keeps every host from querying the sets or the tables directly. The
+    // migrations that create them are the one exception.
     // The sets in either spelling, the entity types handed to EF Core by type, the configurations, and the tables by name:
-    // SiteMembers anywhere (no other name shares it), Sites bracketed, quoted, schema-qualified, or after a SQL keyword.
+    // SiteMembers and SiteHosts anywhere (no other name shares them), Sites bracketed, quoted, schema-qualified, or after a
+    // SQL keyword. The bare name SiteHost is let through, because the public tier's code speaks of the host map; its set,
+    // type handed to EF Core, configuration, and table are not.
     private const string TenantRootReference =
-        @"\b(?:Db)?Set<\s*(?:[\w.]+\.)?Site(?:Member)?\s*>|\btypeof\(\s*(?:[\w.]+\.)?Site(?:Member)?\s*\)"
-        + @"|\bSite(?:Member)?Configuration\b|\bSiteMembers?\b"
+        @"\b(?:Db)?Set<\s*(?:[\w.]+\.)?Site(?:Member|Host)?\s*>|\btypeof\(\s*(?:[\w.]+\.)?Site(?:Member|Host)?\s*\)"
+        + @"|\bSite(?:Member|Host)?Configuration\b|\bSiteMembers?\b|\bSiteHosts\b"
         + @"|\[Sites\]|""Sites""|\bdbo\.Sites\b|(?i:\b(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+(?:\[?dbo\]?\.)?\[?Sites\b)";
 
     [Fact]
     public void Only_the_sites_module_reaches_the_tenant_root_tables() =>
         AssertOnlySitesModuleReaches(TenantRootReference, "a tenant root table");
+
+    [Theory]
+    [InlineData("db.Set<SiteHost>().Where(h => h.Host == host)", true)]
+    [InlineData("DbSet<PantryPress.Domain.Modules.Sites.SiteHost> Hosts", true)]
+    [InlineData("model.FindEntityType(typeof(SiteHost))", true)]
+    [InlineData("new SiteHostConfiguration()", true)]
+    [InlineData("SELECT [SiteId] FROM [SiteHosts] WHERE [Host] = @host", true)]
+    [InlineData("SiteHostKind.Custom", false)]
+    [InlineData("SiteHostNames.TryNormalize(value, out var host)", false)]
+    [InlineData("// Host to SiteId through SiteHost.", false)]
+    public void The_tenant_root_scan_sees_the_host_table_and_not_its_contracts(string code, bool reaches) =>
+        Assert.Equal(reaches, Regex.IsMatch(code, TenantRootReference));
 
     // PP2.8: the reserved list is seeded by migrations and never written by the app. Its rows are the database's backstop
     // under the slug policy - "app" above all - so only the Sites module and the migrations name the type, its

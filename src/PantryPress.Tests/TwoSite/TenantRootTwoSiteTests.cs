@@ -14,15 +14,18 @@ namespace PantryPress.Tests.TwoSite;
 // Inside the namespace, so the types win over the PantryPress.Tests.Site namespace (the public site host's tests).
 using PantryPress.Domain.Modules.Sites;
 
-// PP2.7: the two-site harness applied to the tenant root, Site and SiteMember (tenancy.md, "Tenant root"; ARCH-015,
-// PSEC-007). Neither table has a filter behind it, so these are the checks that stand in for one: every account sees
-// exactly its own standing on each of two look-alike sites, the request's lookup cache never carries an answer across
-// accounts, sites, or requests, one site's owners never count toward the other's and a write about one leaves the other's
-// rows alone, and a stranger's answer about a real site is the answer for no site at all.
+// PP2.7: the two-site harness applied to the tenant root, Site, SiteMember, and SiteHost (PP2.9) (tenancy.md, "Tenant
+// root"; ARCH-015, PSEC-007). None of the tables has a filter behind it, so these are the checks that stand in for one:
+// every account sees exactly its own standing on each of two look-alike sites, the request's lookup cache never carries an
+// answer across accounts, sites, or requests, one site's owners and hosts never count toward the other's and a write about
+// one leaves the other's rows alone, and a stranger's answer about a real site is the answer for no site at all.
 [Trait("Category", "Integration")]
 [Collection(MigratedDatabase.CollectionName)]
 public sealed class TenantRootTwoSiteTests(MigratedDatabase database) : IAsyncLifetime
 {
+    private const int UniqueIndexViolation = 2601;
+    private const int CheckConstraintViolation = 547;
+
     private TwoSiteHarness _harness = null!;
 
     private static CancellationToken Timeout => CancellationToken.None;
@@ -225,6 +228,88 @@ public sealed class TenantRootTwoSiteTests(MigratedDatabase database) : IAsyncLi
         Assert.Equal(HttpStatusCode.NoContent, stillThere.StatusCode);
     }
 
+    // PP2.9: each site answers on its own subdomain, the two one letter apart. B cannot take A's host - as a custom domain,
+    // waiting or not, or in another spelling of it - and A's rows are untouched by the attempt.
+    [Fact]
+    public async Task Neither_site_can_take_the_others_host()
+    {
+        var world = await _harness.SeedAsync();
+        Assert.Equal([(world.A.Host, true)], (await HostsAsync(world.A.Id)).Select(h => (h.Host, h.IsCanonical)));
+        Assert.Equal([(world.B.Host, true)], (await HostsAsync(world.B.Id)).Select(h => (h.Host, h.IsCanonical)));
+
+        foreach (var status in new[] { SiteHostStatus.Pending, SiteHostStatus.Active })
+        {
+            await TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.A.Id, async () =>
+            {
+                var error = await Assert.ThrowsAsync<DbUpdateException>(() =>
+                    _harness.ChangeAsync(db => db.Add(Host(world.B.Id, world.A.Host, SiteHostKind.Custom, status))));
+                Assert.Equal(UniqueIndexViolation, Assert.IsType<SqlException>(error.InnerException).Number);
+            });
+        }
+
+        // Upper-case or fully qualified, it would be A's host once normalized, so the schema refuses either spelling.
+        foreach (var spelling in new[] { world.A.Host.ToUpperInvariant(), world.A.Host + "." })
+        {
+            await TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.A.Id, async () =>
+            {
+                var error = await Assert.ThrowsAsync<DbUpdateException>(() =>
+                    _harness.ChangeAsync(db => db.Add(Host(world.B.Id, spelling, SiteHostKind.Custom, SiteHostStatus.Pending))));
+                Assert.Equal(CheckConstraintViolation, Assert.IsType<SqlException>(error.InnerException).Number);
+            });
+        }
+
+        Assert.Equal([world.B.Host], (await HostsAsync(world.B.Id)).Select(h => h.Host));
+    }
+
+    // B's canonical host moves to a custom domain and back, and B's extra host comes and goes; A's rows never change.
+    [Fact]
+    public async Task One_sites_host_changes_leave_the_others_alone()
+    {
+        var world = await _harness.SeedAsync();
+        var custom = Host(world.B.Id, $"{world.B.Slug}.example.com", SiteHostKind.Custom, SiteHostStatus.Active);
+        var subdomain = (await HostsAsync(world.B.Id)).Single().Id;
+
+        await TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.A.Id, async () =>
+        {
+            await _harness.ChangeAsync(db => db.Add(custom));
+            await MoveCanonicalAsync(world.B.Id, custom.Id);
+            await MoveCanonicalAsync(world.B.Id, subdomain);
+            await _harness.ChangeAsync(db => db.Remove(db.Set<SiteHost>().Single(h => h.Id == custom.Id)));
+        });
+
+        Assert.Equal([(world.B.Host, true)], (await HostsAsync(world.B.Id)).Select(h => (h.Host, h.IsCanonical)));
+    }
+
+    // One statement over both sites' hosts: clearing both canonical hosts, removing every host of both, or moving a host of
+    // A's to B. Each is refused whole, so neither site's rows change. The host moved is not A's canonical one, which B's
+    // own canonical host would refuse first.
+    [Fact]
+    public async Task One_write_across_both_sites_hosts_is_refused_whole()
+    {
+        var world = await _harness.SeedAsync();
+        var custom = Host(world.A.Id, $"{world.A.Slug}.example.com", SiteHostKind.Custom, SiteHostStatus.Active);
+        await _harness.ChangeAsync(db => db.Add(custom));
+
+        foreach (var (write, number) in new (Func<PantryPressDbContext, Task> Write, int Number)[]
+        {
+            (db => db.Set<SiteHost>().Where(h => h.SiteId == world.A.Id || h.SiteId == world.B.Id)
+                .ExecuteUpdateAsync(set => set.SetProperty(h => h.IsCanonical, false), Timeout), SiteHostConfiguration.KeepACanonicalErrorNumber),
+            (db => db.Set<SiteHost>().Where(h => h.SiteId == world.A.Id || h.SiteId == world.B.Id)
+                .ExecuteDeleteAsync(Timeout), SiteHostConfiguration.KeepACanonicalErrorNumber),
+            (db => db.Set<SiteHost>().Where(h => h.Host == custom.Host)
+                .ExecuteUpdateAsync(set => set.SetProperty(h => h.SiteId, world.B.Id), Timeout), SiteHostConfiguration.FixedHostErrorNumber),
+        })
+        {
+            await TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.A.Id, () =>
+                TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.B.Id, async () =>
+                {
+                    await using var scope = _harness.Scope();
+                    var error = await Assert.ThrowsAsync<SqlException>(() => write(scope.ServiceProvider.GetRequiredService<PantryPressDbContext>()));
+                    Assert.Equal(number, error.Number);
+                }));
+        }
+    }
+
     // Each seeded account on each site, and the role it should find there: both sites' members both ways, and the three
     // accounts that cross between them.
     private static IEnumerable<(AccountId Account, SeededSite Site, SiteRole? Role)> Standings(TwoSiteWorld world)
@@ -257,6 +342,34 @@ public sealed class TenantRootTwoSiteTests(MigratedDatabase database) : IAsyncLi
             .Select(m => m.AccountId)
             .ToListAsync(Timeout);
     }
+
+    private async Task<List<SiteHost>> HostsAsync(SiteId site)
+    {
+        await using var scope = _harness.Scope();
+        return await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<SiteHost>()
+            .AsNoTracking()
+            .Where(h => h.SiteId == site)
+            .ToListAsync(Timeout);
+    }
+
+    // In one statement, as the canonical host must move (SiteHostConfiguration.GuardTriggerName).
+    private async Task MoveCanonicalAsync(SiteId site, SiteHostId to)
+    {
+        await using var scope = _harness.Scope();
+        await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<SiteHost>()
+            .Where(h => h.SiteId == site && (h.IsCanonical || h.Id == to))
+            .ExecuteUpdateAsync(set => set.SetProperty(h => h.IsCanonical, h => h.Id == to), Timeout);
+    }
+
+    private static SiteHost Host(SiteId site, string host, SiteHostKind kind, SiteHostStatus status) => new()
+    {
+        Id = new SiteHostId(Guid.NewGuid()),
+        SiteId = site,
+        Host = host,
+        Kind = kind,
+        Status = status,
+        CreatedAt = new DateTimeOffset(2026, 10, 27, 12, 0, 0, TimeSpan.Zero),
+    };
 
     private static ISiteMembershipFacade Memberships(AsyncServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<ISiteMembershipFacade>();

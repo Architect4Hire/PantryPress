@@ -15,10 +15,11 @@ namespace PantryPress.Tests.TwoSite;
 // Inside the namespace, so the types win over the PantryPress.Tests.Site namespace (the public site host's tests).
 using PantryPress.Domain.Modules.Sites;
 
-/// <summary>One of the two look-alike sites and the members it was seeded with.</summary>
+/// <summary>One of the two look-alike sites, its canonical subdomain, and the members it was seeded with.</summary>
 internal sealed record SeededSite(
     SiteId Id,
     string Slug,
+    string Host,
     AccountId Owner,
     AccountId Editor,
     AccountId Author,
@@ -26,7 +27,8 @@ internal sealed record SeededSite(
 
 /// <summary>
 /// Two sites that look alike (tenancy.md, "Two-site test"; PP2.7): the same name and tagline, the same members by role,
-/// and slugs one letter apart, A's a prefix of B's, so a match on a prefix or a near miss shows. Three accounts cross the
+/// and slugs one letter apart, A's a prefix of B's, so a match on a prefix or a near miss shows; each answers on its
+/// subdomain, canonical (PP2.9), so the hosts are as alike as the slugs. Three accounts cross the
 /// sites: <see cref="Shared"/> is an Author on A and an Owner on B, carrying a different role into each;
 /// <see cref="SuspendedOnA"/> is suspended on A and an Editor on B, carrying a different standing into each; and
 /// <see cref="Stranger"/> belongs to neither.
@@ -42,6 +44,9 @@ internal sealed record TwoSiteWorld(SeededSite A, SeededSite B, AccountId Shared
 internal sealed class TwoSiteHarness : IAsyncDisposable
 {
     private static readonly DateTimeOffset SeededAt = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>The platform's zone the seeded subdomains sit under, as in production.</summary>
+    public const string SubdomainZone = "pantrypress.app";
 
     private readonly ServiceProvider _services;
     private readonly ApiServiceFactory? _api;
@@ -123,6 +128,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         await ChangeAsync(db =>
         {
             db.AddRange(SiteRow(a), SiteRow(b));
+            db.AddRange(SubdomainRow(a), SubdomainRow(b));
             db.AddRange(aMembers.Concat(bMembers));
             db.Add(Member(a.Id, world.Shared, SiteRole.Author));
             db.Add(Member(b.Id, world.Shared, SiteRole.Owner));
@@ -172,7 +178,14 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
 
     private static (SeededSite Site, SiteMember[] Members) NewSite(string slug)
     {
-        var site = new SeededSite(new SiteId(Guid.NewGuid()), slug, NewAccount(), NewAccount(), NewAccount(), NewAccount());
+        var site = new SeededSite(
+            new SiteId(Guid.NewGuid()),
+            slug,
+            $"{slug}.{SubdomainZone}",
+            NewAccount(),
+            NewAccount(),
+            NewAccount(),
+            NewAccount());
         SiteMember[] members =
         [
             Member(site.Id, site.Owner, SiteRole.Owner),
@@ -192,6 +205,17 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         Status = SiteStatus.Live,
         TimeZone = "America/Chicago",
         Locale = "en-US",
+        CreatedAt = SeededAt,
+    };
+
+    private static SiteHost SubdomainRow(SeededSite site) => new()
+    {
+        Id = new SiteHostId(Guid.NewGuid()),
+        SiteId = site.Id,
+        Host = site.Host,
+        Kind = SiteHostKind.Subdomain,
+        IsCanonical = true,
+        Status = SiteHostStatus.Active,
         CreatedAt = SeededAt,
     };
 

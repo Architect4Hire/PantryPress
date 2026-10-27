@@ -19,4 +19,10 @@ public static class SiteLimits
 
     /// <summary>A BCP 47 language tag ("en-US"); RFC 5646 asks that 35 characters be supported.</summary>
     public const int MaxLocaleLength = 35;
+
+    /// <summary>A host name's longest written form, without the trailing dot (RFC 1035).</summary>
+    public const int MaxHostLength = 253;
+
+    /// <summary>One label of a host name (RFC 1035).</summary>
+    public const int MaxHostLabelLength = 63;
 }

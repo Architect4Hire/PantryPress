@@ -19,7 +19,7 @@ public sealed class SiteOwnershipModelTests
     private const string Unused = "Server=unused;Database=unused";
 
     // The written exceptions that carry a site without being site-owned (tenancy.md, "Operator tables" and "Tenant root").
-    private static readonly string[] SiteBearingExceptions = ["Site", "SiteMember", "OutboxMessage", "AuditEntry"];
+    private static readonly string[] SiteBearingExceptions = ["Site", "SiteMember", "SiteHost", "OutboxMessage", "AuditEntry"];
 
     [Fact]
     public void Every_site_owned_type_is_filtered_by_site_and_guards_its_site_on_write()

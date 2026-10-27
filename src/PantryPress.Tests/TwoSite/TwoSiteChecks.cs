@@ -144,8 +144,8 @@ internal static class TwoSiteChecks
 
     /// <summary>
     /// For the tenant root, which has no filter behind it: <paramref name="act"/> - a call working on or about another
-    /// site, which may itself expect a refusal - leaves <paramref name="site"/>'s row and every one of its memberships
-    /// exactly as they were, down to their row versions.
+    /// site, which may itself expect a refusal - leaves <paramref name="site"/>'s row and every one of its memberships and
+    /// hosts exactly as they were, down to their row versions.
     /// </summary>
     public static async Task AssertTenantRootUnchangedAsync(IServiceProvider services, SiteId site, Func<Task> act)
     {
@@ -175,19 +175,23 @@ internal static class TwoSiteChecks
 
     private static PantryPressDbContext Db(AsyncServiceScope scope) => scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
 
-    // The site's row and memberships as text, row versions included, so any write to them shows.
+    // The site's row, memberships, and hosts as text, row versions included, so any write to them shows.
     private static async Task<string> TenantRootRowsAsync(IServiceProvider services, SiteId site)
     {
         await using var scope = services.CreateAsyncScope();
         var db = Db(scope);
         var row = await db.Set<Site>().AsNoTracking().SingleAsync(s => s.Id == site);
         var members = await db.Set<SiteMember>().AsNoTracking().Where(m => m.SiteId == site).ToListAsync();
+        var hosts = await db.Set<SiteHost>().AsNoTracking().Where(h => h.SiteId == site).ToListAsync();
         return string.Join(
             "\n",
             new[] { $"{row.Id} {row.Slug} {row.Name} {row.Tagline} {row.Status} {row.TimeZone} {row.Locale} {Convert.ToHexString(row.Version)}" }
                 .Concat(members
                     .OrderBy(m => m.AccountId.Value)
-                    .Select(m => $"{m.AccountId} {m.Role} {m.Status} {Convert.ToHexString(m.Version)}")));
+                    .Select(m => $"{m.AccountId} {m.Role} {m.Status} {Convert.ToHexString(m.Version)}"))
+                .Concat(hosts
+                    .OrderBy(h => h.Id.Value)
+                    .Select(h => $"{h.Id} {h.Host} {h.Kind} {h.IsCanonical} {h.Status} {Convert.ToHexString(h.Version)}")));
     }
 
     // Writes the row as its site and keeps its key and every value as stored.
