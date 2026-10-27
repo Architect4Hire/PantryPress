@@ -7,6 +7,7 @@ using PantryPress.Domain.Managers.Idempotency;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.Domain.Modules.Sites;
 using PantryPress.Worker.Outbox;
 
 // A web host only so the orchestrator can probe /health and /alive; the Worker serves no other HTTP.
@@ -47,9 +48,14 @@ builder.Services.AddDataProtection().SetApplicationName("PantryPress");
 builder.Services.AddOptions<KeyManagementOptions>()
     .Validate(
         keys => builder.Environment.IsDevelopment() || !sendsEmail || keys.XmlRepository is not null,
-        "Account email outside Development needs the key ring ApiService shares (PP19): links made here would not validate there.")
+        "Email outside Development needs the key ring ApiService shares (PP19): links made here would not validate there.")
     .ValidateOnStart();
 builder.Services.AddAccountsWorker(builder.Configuration.GetSection("Accounts"), sendsEmail);
+
+// Sites' share: invitation email from the outbox, with the link to join in it (PP2.11) - the first site message, whose
+// delivery scope enters the site it was staged under. Its links are checked by the API too, under the same key ring and
+// the same rule about where the Worker may send them from.
+builder.Services.AddSitesWorker(builder.Configuration.GetSection(SitesOptions.SectionName), sendsEmail);
 
 // The outbox dispatcher and the sweep that also purges expired idempotency keys and sign-outs (PP1.10, PP1.12).
 builder.Services.AddIdempotency(builder.Configuration.GetSection("Idempotency"));

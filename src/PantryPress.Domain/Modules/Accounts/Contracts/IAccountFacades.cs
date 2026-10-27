@@ -77,6 +77,33 @@ public interface IAccountPublishingEligibility
     Task<Result> CheckAsync(AccountId account, CancellationToken cancellationToken);
 }
 
+/// <summary>How an account's own email address compares with one that something was sent to.</summary>
+public enum AccountAddressMatch
+{
+    /// <summary>The account's address is this one, and confirmed.</summary>
+    Confirmed,
+
+    /// <summary>The account's address is this one, but not confirmed yet.</summary>
+    Unconfirmed,
+
+    /// <summary>The account's address is another one, or there is no such account.</summary>
+    OtherAddress,
+}
+
+/// <summary>
+/// Whether an account holds an email address, for a module that sent a link to that address and must know the person
+/// following it reads that inbox: a site invitation (SITE-010; PP2.11). The answer is about the caller's own account
+/// only, and never hands the account's address to the module that asks.
+/// </summary>
+public interface IAccountAddressCheck
+{
+    /// <summary>
+    /// How <paramref name="account"/>'s address compares with <paramref name="email"/>, in the form
+    /// <c>EmailAddresses.Normalize</c> compares them.
+    /// </summary>
+    Task<AccountAddressMatch> MatchAsync(AccountId account, string email, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// The sign-in steps behind the BFF session (ACCT-002, PP-D13; PP1.6). The gateway holds the session and calls these;
 /// the session itself is a cookie there, so nothing here issues or reads one. Sign-in goes through this facade rather

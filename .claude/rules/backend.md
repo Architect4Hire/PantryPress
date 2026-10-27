@@ -53,11 +53,11 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   message names the account and the kind of email, and the Worker reads the address and makes any link when it sends,
   so no address or live token ever sits in the outbox. Its one handler (`AddOutboxHandler`, registered in the
   Worker) is idempotent on the message id: delivery is at least once and in no particular order. The one written
-  exception is an external effect that cannot share a transaction with a record of it: account email is sent again on
-  redelivery, under the same `Message-ID` so the mailbox can recognize the repeat, and a link email that waited longer
-  than its link lives is not sent at all (PP1.12). A handler throws
-  `OutboxPermanentFailureException` when retrying cannot help, and re-resolves the site from `OutboxDelivery.SiteId`
-  before calling a facade. A Worker claims only the types it has handlers for.
+  exception is an external effect that cannot share a transaction with a record of it: account email and invitation
+  email (PP2.11) are sent again on redelivery, under the same `Message-ID` so the mailbox can recognize the repeat, and
+  a link email that waited longer than its link lives (PP1.12), or whose invitation is no longer open, is not sent at
+  all. A handler throws `OutboxPermanentFailureException` when retrying cannot help. A site message's handler finds the
+  delivery's site already entered (`tenancy.md` rule 10, PP2.11), and still checks that what it reads is there. A Worker claims only the types it has handlers for.
 - Idempotency has two owners (PP1.9). Replaying the stored answer to a retried `Idempotency-Key` is host plumbing in
   ApiService, ahead of MVC, over the store in `Managers/Idempotency` (`api-contract.md`). Making the work itself safe
   to repeat - a write whose retry cannot be replayed, such as one that rotates the caller's session - stays the

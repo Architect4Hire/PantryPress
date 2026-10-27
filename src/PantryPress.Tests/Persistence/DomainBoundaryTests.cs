@@ -175,7 +175,7 @@ public sealed class DomainBoundaryTests
 
     // PP2.4: a request's site is set by the code that resolved it and by nothing else (tenancy.md rules 2, 4, and 7). Each
     // resolver is listed by its exact file, with its reason, so a new facade beside them cannot enter a site unnoticed. The
-    // public tier's host resolution (PP2.12) and the Worker's site jobs join this list when they arrive. The writer
+    // public tier's host resolution (PP2.12) joins this list when it arrives. The writer
     // interface and the class behind it are both named here, so neither a cast nor a direct resolve gets past.
     private const string SiteContextWriterReference = @"\bISiteContextWriter\b|(?<!\w)SiteContext\b";
 
@@ -189,7 +189,61 @@ public sealed class DomainBoundaryTests
 
         // A site the request has just created, with a server-minted id and the caller as its Owner (PP2.10).
         Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SitesFacade.cs"),
+
+        // The site sealed inside an invitation's link, which the caller is not yet a member of (PP2.11).
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SiteInvitationAcceptance.cs"),
+
+        // The Worker's resolver: an outbox delivery's scope works on the site its message was staged under (PP2.11).
+        Path.Combine("PantryPress.Domain", "Managers", "Outbox", "OutboxHandlerRegistration.cs"),
     ];
+
+    // PP2.11 (isolation audit): an outbox delivery's scope enters the site its delivery names, so whatever makes a delivery
+    // chooses a site. Only the Worker's processor may, from the row it leased - whose site the writer's own request had
+    // resolved (SiteScope.Current) - and only the kernel's outbox folder names the registration that runs it. Anything
+    // else building a delivery or invoking a registration would enter a site no resolver decided.
+    private const string OutboxDeliveryReference = @"\bnew\s+OutboxDelivery\s*\(|\bOutboxHandlerRegistration\b";
+
+    private static readonly string[] OutboxDeliveryMakers =
+    [
+        Path.Combine("PantryPress.Domain", "Managers", "Outbox"),
+        Path.Combine("PantryPress.Worker", "Outbox", "OutboxProcessor.cs"),
+    ];
+
+    [Fact]
+    public void Only_the_workers_processor_makes_a_delivery()
+    {
+        var source = DomainSource.Project.Parent!;
+        var allowed = OutboxDeliveryMakers.Select(r => Path.Combine(source.FullName, r)).ToList();
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Any(a => file.FullName.Equals(a, StringComparison.OrdinalIgnoreCase))
+                    || allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), OutboxDeliveryReference),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} makes an outbox delivery, which enters a site; only the Worker's processor may.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+        Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed as a delivery maker but is not there."));
+    }
+
+    [Theory]
+    [InlineData("new OutboxDelivery(id, site, 1)", true)]
+    [InlineData("services.GetServices<OutboxHandlerRegistration>()", true)]
+    [InlineData("public Task HandleAsync(Work message, OutboxDelivery delivery, CancellationToken ct)", false)]
+    public void The_delivery_scan_catches_a_delivery_being_made(string code, bool makes) =>
+        Assert.Equal(makes, Regex.IsMatch(code, OutboxDeliveryReference));
 
     [Fact]
     public void Only_the_resolvers_set_the_site_context()

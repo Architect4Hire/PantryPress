@@ -119,6 +119,89 @@ public sealed class SitesApiContractTests
         Assert.True(third.Headers.RetryAfter is not null);
     }
 
+    // PP2.11: inviting gains its Owner policy's 403 and 404 beside a write's own answers; accepting names no site, so it has
+    // no 404, and its 400, 403, and 409 each say which codes they carry.
+    [Fact]
+    public async Task The_admin_document_declares_every_answer_of_the_invitation_routes()
+    {
+        await using var api = ApiServiceFactory.WithoutDatabase(
+            "Development",
+            new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
+
+        using var response = await api.CreateClient().GetAsync("/openapi/v1.json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var paths = document.RootElement.GetProperty("paths");
+        var invite = paths.GetProperty("/api/v1/sites/{siteSlug}/invitations").GetProperty("post");
+        var accept = paths.GetProperty("/api/v1/site-invitations/accept").GetProperty("post");
+
+        Assert.Equal(
+            ["202", "400", "401", "403", "404", "409", "413", "415", "422", "429", "500", "502", "504"],
+            Statuses(invite));
+        Assert.Equal(
+            ["200", "400", "401", "403", "409", "413", "415", "422", "429", "500", "502", "504"],
+            Statuses(accept));
+
+        Assert.Contains("site-role-required", Description(invite, "403"), StringComparison.Ordinal);
+        Assert.Contains("too-many-invitations", Description(invite, "409"), StringComparison.Ordinal);
+        Assert.Contains("invitation-invalid", Description(accept, "400"), StringComparison.Ordinal);
+        Assert.Contains("invitation-other-address", Description(accept, "403"), StringComparison.Ordinal);
+        Assert.Contains("email-not-verified", Description(accept, "403"), StringComparison.Ordinal);
+        Assert.Contains("already-member", Description(accept, "409"), StringComparison.Ordinal);
+        Assert.All(new[] { invite, accept }, op => Assert.Contains("retry", op.GetProperty("description").GetString(), StringComparison.Ordinal));
+
+        // No site id anywhere, and the invite's answer carries no one's address: it is stored to be replayed.
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        foreach (var name in new[] { "InviteMemberRequest", "AcceptInvitationRequest", "SiteInvitationDetail" })
+        {
+            Assert.DoesNotContain(
+                schemas.GetProperty(name).GetProperty("properties").EnumerateObject(),
+                p => p.Name.Contains("site", StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Equal(
+            ["expiresAt", "id", "role"],
+            schemas.GetProperty("SiteInvitationDetail").GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Sites:InvitationLifetime", "00:30:00")]
+    [InlineData("Sites:InvitationLifetime", "31.00:00:00")]
+    [InlineData("Sites:MaxOpenInvitations", "0")]
+    public void The_api_will_not_start_with_invitations_it_cannot_honour(string key, string value)
+    {
+        using var api = ApiServiceFactory.WithoutDatabase(
+            "Production",
+            new Dictionary<string, string?> { [key] = value });
+
+        var refused = Assert.ThrowsAny<Exception>(() => api.Server);
+
+        Assert.IsType<OptionsValidationException>(refused.GetBaseException(), exactMatch: false);
+        Assert.Contains(key, refused.GetBaseException().Message, StringComparison.Ordinal);
+    }
+
+    // Accepting has its own small hourly allowance per account, and a refused attempt still spends it.
+    [Fact]
+    public async Task Accepting_invitations_has_its_own_small_allowance()
+    {
+        await using var api = ApiServiceFactory.WithoutDatabase(
+            extraSettings: new Dictionary<string, string?> { ["RateLimits:InvitationAcceptsPerAccountPerHour"] = "2" });
+        using var client = api.CreateClientFor(Guid.NewGuid());
+        var refused = new { token = "" };
+
+        using var first = await client.PostAsJsonAsync("/api/v1/site-invitations/accept", refused);
+        using var second = await client.PostAsJsonAsync("/api/v1/site-invitations/accept", refused);
+        using var third = await client.PostAsJsonAsync("/api/v1/site-invitations/accept", refused);
+        using var other = await api.CreateClientFor(Guid.NewGuid()).PostAsJsonAsync("/api/v1/site-invitations/accept", refused);
+
+        Assert.Equal(
+            [HttpStatusCode.BadRequest, HttpStatusCode.BadRequest, HttpStatusCode.TooManyRequests, HttpStatusCode.BadRequest],
+            new[] { first.StatusCode, second.StatusCode, third.StatusCode, other.StatusCode });
+        Assert.True(third.Headers.RetryAfter is not null);
+    }
+
+    private static string Description(JsonElement operation, string status) =>
+        operation.GetProperty("responses").GetProperty(status).GetProperty("description").GetString() ?? string.Empty;
+
     private static List<string> Statuses(JsonElement operation) =>
         [.. operation.GetProperty("responses").EnumerateObject().Select(r => r.Name).Order(StringComparer.Ordinal)];
 }

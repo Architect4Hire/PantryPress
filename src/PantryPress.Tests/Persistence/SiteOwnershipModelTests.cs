@@ -29,11 +29,11 @@ public sealed class SiteOwnershipModelTests
         var model = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Model;
 
         var siteOwned = SiteOwnedTypes(model);
-        Assert.Equal(["ProbeRecipe", "ProbeStep"], siteOwned.Select(t => t.ClrType.Name).Order());
+        Assert.Equal(["ProbeRecipe", "ProbeStep", "SiteInvitation"], siteOwned.Select(t => t.ClrType.Name).Order());
         Assert.All(siteOwned, AssertSiteGuarded);
     }
 
-    // Holds of the product model as soon as its first site-owned type arrives; until then it guards the exceptions.
+    // The product model's site-owned types - the first, SiteInvitation, came with PP2.11 - and the written exceptions.
     [Fact]
     public void The_product_model_filters_every_site_owned_type_and_nothing_else_that_carries_a_site()
     {

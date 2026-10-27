@@ -1,11 +1,12 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using PantryPress.Domain.Managers.Tenancy;
 
 namespace PantryPress.Domain.Managers.Outbox;
 
 /// <summary>
-/// One message type the Worker can deliver, and how: read the payload as the message and hand it to the type's
-/// <see cref="IOutboxHandler{TMessage}"/> from the delivery's scope. Registered by
+/// One message type the Worker can deliver, and how: read the payload as the message, enter the delivery's site, and hand
+/// it to the type's <see cref="IOutboxHandler{TMessage}"/> from the delivery's scope. Registered by
 /// <see cref="OutboxServiceCollectionExtensions.AddOutboxHandler{TMessage, THandler}"/>.
 /// </summary>
 public sealed class OutboxHandlerRegistration
@@ -57,6 +58,15 @@ public sealed class OutboxHandlerRegistration
             if (message is null)
             {
                 throw new OutboxPermanentFailureException("The payload is empty.");
+            }
+
+            // The Worker's resolver (tenancy.md rules 2 and 10; PP2.11): a message staged with SiteScope.Current carries
+            // the site its writer's request had resolved, and the delivery's scope works on that site and no other, so the
+            // handler reads site-owned rows through the filter as the request that staged it would have. Account work
+            // carries none and enters none.
+            if (delivery.SiteId is { } site)
+            {
+                services.GetRequiredService<ISiteContextWriter>().Enter(site);
             }
 
             await services.GetRequiredService<IOutboxHandler<TMessage>>().HandleAsync(message, delivery, ct);

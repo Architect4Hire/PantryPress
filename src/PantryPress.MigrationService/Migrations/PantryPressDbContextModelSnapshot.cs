@@ -1257,6 +1257,71 @@ namespace PantryPress.MigrationService.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteInvitation", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("AcceptedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("InvitedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SiteInvitations_SiteId_NormalizedEmail_Pending")
+                        .HasFilter("[Status] = 0");
+
+                    b.ToTable("SiteInvitations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SiteInvitations_Accepted", "([Status] = 1 AND [AcceptedBy] IS NOT NULL AND [AcceptedAt] IS NOT NULL) OR ([Status] <> 1 AND [AcceptedBy] IS NULL AND [AcceptedAt] IS NULL)");
+
+                            t.HasCheckConstraint("CK_SiteInvitations_Expiry", "[ExpiresAt] > [CreatedAt]");
+
+                            t.HasCheckConstraint("CK_SiteInvitations_Role", "[Role] IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_SiteInvitations_Status", "[Status] IN (0, 1, 2)");
+                        });
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteMember", b =>
                 {
                     b.Property<Guid>("SiteId")
@@ -1349,6 +1414,15 @@ namespace PantryPress.MigrationService.Migrations
                 });
 
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteHost", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Sites.Site", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteInvitation", b =>
                 {
                     b.HasOne("PantryPress.Domain.Modules.Sites.Site", null)
                         .WithMany()

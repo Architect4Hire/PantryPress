@@ -79,8 +79,9 @@ published public data (`SiteId`, deliberately public, removable on unpublish); r
 **Site isolation (PP-D03, ARCH-015).** The site is the tenant. Every site-owned entity has `SiteId`, a
 global query filter, server-side stamping, and `SiteId`-leading indexes. Admin routes resolve the site from
 the route plus membership. Public requests resolve it from the Host header only, through `SiteHost`. A site
-ID is never accepted from a request body, query string, or client header. Every site-scoped change owes a
-two-site test.
+ID is never accepted from a request body, query string, or client header. The one written exception is a link
+the server sealed itself: an invitation's token names its site the way a publishing key does (tenancy.md rule
+6a). Every site-scoped change owes a two-site test.
 
 **Public tier (PP-D02, PP-D08).** Publishing builds versioned page data from published revisions behind an
 atomic pointer. The SSR server makes one page-data fetch per request and never touches SQL. Output is

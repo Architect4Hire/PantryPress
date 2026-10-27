@@ -30,10 +30,10 @@ public interface IOutboxHandler<in TMessage>
 
 /// <summary>
 /// Which delivery this is. <see cref="SiteId"/> is the site the writer's request had resolved (<c>SiteScope.Current</c>), or
-/// null for account and platform work, and the handler re-resolves the site from it before calling a facade (tenancy.md
-/// rule 10). Nothing enters a Worker scope's site context yet: every message so far is account work. The first site
-/// message type adds the dispatcher's resolver, which enters the context from this, and declares it among the
-/// <c>DomainBoundaryTests</c> resolvers (PP2.4).
+/// null for account and platform work. The delivery's scope has already entered it when the handler runs
+/// (<see cref="OutboxHandlerRegistration"/>, the Worker's resolver since the first site message, PP2.11), so site-owned rows
+/// read through the filter as that site's (tenancy.md rule 10). The site may have changed since - deleted, or the row
+/// the message names gone - so a handler still checks what it reads before acting on it.
 /// </summary>
 /// <param name="Attempt">1 for the first delivery, counting every delivery that started, including any lost to a crash.</param>
 public sealed record OutboxDelivery(Guid MessageId, SiteId? SiteId, int Attempt);

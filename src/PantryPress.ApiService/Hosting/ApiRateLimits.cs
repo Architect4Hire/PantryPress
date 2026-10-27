@@ -39,6 +39,16 @@ public sealed class ApiRateLimitOptions
     public int SiteCreatesPerAccountPerHour { get; set; } = 5;
 
     /// <summary>
+    /// Invitations one signed-in account may send in an hour (PP2.11). Each sends an email to an address the account typed,
+    /// so this is the brake on using PantryPress to mail strangers, beside each site's cap on open invitations
+    /// (<c>Sites:MaxOpenInvitations</c>). A refused invitation still counts.
+    /// </summary>
+    public int InvitesPerAccountPerHour { get; set; } = 20;
+
+    /// <summary>Invitations one signed-in account may try to accept in an hour (PP2.11).</summary>
+    public int InvitationAcceptsPerAccountPerHour { get; set; } = 20;
+
+    /// <summary>
     /// Requests per minute across every caller for the internal sign-in routes. Deliberately still a global ceiling:
     /// only the gateway can reach this surface, it calls with a client of its own rather than through its proxy, and
     /// it already limits sign-in per address at the browser's end (PP1.8). This is the backstop behind that.
@@ -62,6 +72,8 @@ internal static class ApiRateLimits
     public const string Sites = "sites-signed-in";
     public const string SlugCheck = "sites-slug-check";
     public const string SiteCreate = "sites-create";
+    public const string SiteInvite = "sites-invite";
+    public const string InvitationAccept = "sites-invitation-accept";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -73,6 +85,7 @@ internal static class ApiRateLimits
             .Validate(
                 o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SitesPerAccountPerMinute > 0
                     && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
+                    && o.InvitesPerAccountPerHour > 0 && o.InvitationAcceptsPerAccountPerHour > 0
                     && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
@@ -128,13 +141,23 @@ internal static class ApiRateLimits
             options.AddPolicy(SiteCreate, context =>
             {
                 var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
-                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = limits.SiteCreatesPerAccountPerHour,
-                    Window = TimeSpan.FromHours(1),
-                    QueueLimit = 0,
-                    AutoReplenishment = true,
-                });
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerHour(limits.SiteCreatesPerAccountPerHour));
+            });
+
+            // Invitations, per account like the rest (PP2.11). Inviting is authorized first, so only an Owner's request is
+            // counted; accepting names no site, and every attempt is.
+            options.AddPolicy(SiteInvite, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerHour(limits.InvitesPerAccountPerHour));
+            });
+
+            options.AddPolicy(InvitationAccept, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    AccountKey(context),
+                    _ => PerHour(limits.InvitationAcceptsPerAccountPerHour));
             });
 
             options.OnRejected = async (context, cancellationToken) =>
@@ -164,6 +187,14 @@ internal static class ApiRateLimits
     {
         PermitLimit = permits,
         Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+        AutoReplenishment = true,
+    };
+
+    private static FixedWindowRateLimiterOptions PerHour(int permits) => new()
+    {
+        PermitLimit = permits,
+        Window = TimeSpan.FromHours(1),
         QueueLimit = 0,
         AutoReplenishment = true,
     };

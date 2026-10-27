@@ -39,12 +39,13 @@ public static class OutboxServiceCollectionExtensions
     /// <summary>
     /// Registers <typeparamref name="THandler"/> to deliver <typeparamref name="TMessage"/> in the Worker. A message type
     /// has exactly one handler: registering a second for the same <see cref="IOutboxMessage.OutboxType"/> fails the
-    /// Worker's start.
+    /// Worker's start. Each delivery's scope works on the site its message was staged under, if any.
     /// </summary>
     public static IServiceCollection AddOutboxHandler<TMessage, THandler>(this IServiceCollection services)
         where TMessage : IOutboxMessage
         where THandler : class, IOutboxHandler<TMessage>
     {
+        services.AddSiteContext();
         services.AddScoped<IOutboxHandler<TMessage>, THandler>();
         services.AddSingleton(OutboxHandlerRegistration.For<TMessage>());
         return services;

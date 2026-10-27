@@ -13,6 +13,10 @@ public abstract class ApiControllerBase : ControllerBase
 
     protected IActionResult AcceptedOr(Result result) => result.IsSuccess ? Accepted() : Failure(result.Error);
 
+    /// <summary>202 with the accepted thing, for work that carries on after the answer, such as sending an email.</summary>
+    protected IActionResult AcceptedOr<T>(Result<T> result) =>
+        result.IsSuccess ? StatusCode(StatusCodes.Status202Accepted, result.Value) : Failure(result.Error);
+
     protected IActionResult OkOr<T>(Result<T> result) => result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
 
     /// <summary>201 with <c>Location</c> set to where the created thing is read, from <paramref name="location"/>.</summary>

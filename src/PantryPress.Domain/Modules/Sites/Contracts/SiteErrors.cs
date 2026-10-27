@@ -34,4 +34,33 @@ public static class SiteErrors
         ErrorKind.Conflict,
         "last-owner",
         "A site needs at least one owner. Make someone else an owner first.");
+
+    /// <summary>
+    /// An invitation link that cannot be used: not one of ours, expired, already used, replaced by a newer invitation, or
+    /// for a site that was deleted. One answer for all of them (PP2.11), so a link says nothing about the site it names.
+    /// </summary>
+    public static readonly Error InvitationInvalid = new(
+        ErrorKind.Rejected,
+        "invitation-invalid",
+        "This invitation has expired or was already used. Ask the site's owner to invite you again.");
+
+    /// <summary>
+    /// The invitation went to another address than the caller's. It never says which: the invited person reads that inbox.
+    /// </summary>
+    public static readonly Error InvitationForOtherAddress = new(
+        ErrorKind.Forbidden,
+        "invitation-other-address",
+        "This invitation was sent to a different email address. Sign in with that address to accept it.");
+
+    /// <summary>The caller already belongs to the invitation's site; an invitation never changes a membership.</summary>
+    public static readonly Error AlreadyMember = new(
+        ErrorKind.Conflict,
+        "already-member",
+        "You're already a member of this site.");
+
+    /// <summary>The site already has as many open invitations as it may (<c>Sites:MaxOpenInvitations</c>).</summary>
+    public static readonly Error TooManyInvitations = new(
+        ErrorKind.Conflict,
+        "too-many-invitations",
+        "This site has as many open invitations as it can. Wait for some to be accepted or to expire, then try again.");
 }

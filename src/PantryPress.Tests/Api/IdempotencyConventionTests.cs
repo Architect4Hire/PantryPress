@@ -70,11 +70,12 @@ public sealed class IdempotencyConventionTests
     }
 
     [Fact]
-    public async Task Creating_a_site_is_the_only_route_that_opts_in()
+    public async Task Only_the_site_writes_opt_in()
     {
         // The account routes either have no caller to scope a key to or answer with secrets that must not be stored
         // (IdempotentAttribute). The first real opt-in is creating a site (PP2.10), so a double-clicked "Create" makes
-        // one site; PP2.11's member writes and PP18's publishing API follow. This pins the list so a change is deliberate.
+        // one site; inviting and accepting follow (PP2.11), then PP2.11b's member changes and PP18's publishing API. This
+        // pins the list so a change is deliberate.
         await using var api = ApiServiceFactory.WithoutDatabase(
             "Development",
             new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
@@ -88,7 +89,9 @@ public sealed class IdempotencyConventionTests
                     && parameters.EnumerateArray().Any(p => p.GetProperty("name").GetString() == ApiIdempotency.KeyHeader))
                 .Select(op => $"{op.Name.ToUpperInvariant()} {path.Name}"))
             .ToList();
-        Assert.Equal(["POST /api/v1/sites"], optedIn);
+        Assert.Equal(
+            ["POST /api/v1/site-invitations/accept", "POST /api/v1/sites", "POST /api/v1/sites/{siteSlug}/invitations"],
+            optedIn.Order(StringComparer.Ordinal));
     }
 
     private static Exception Unwrap(Exception error)

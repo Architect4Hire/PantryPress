@@ -1,4 +1,5 @@
 using FluentValidation;
+using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
@@ -60,4 +61,30 @@ internal sealed class ListSitesQueryValidator : AbstractValidator<ListSitesQuery
             .WithMessage("We couldn't continue from that page. Start from the first page.")
             .When(q => q.Cursor is not null);
     }
+}
+
+internal sealed class InviteMemberRequestValidator : AbstractValidator<InviteMemberRequest>
+{
+    public InviteMemberRequestValidator()
+    {
+        RuleFor(r => r.Email).Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage("Enter the email address to invite.")
+            .Must(EmailAddresses.IsValid).WithMessage("Enter an email address like name@example.com.");
+
+        RuleFor(r => r.Role)
+            .Must(role => role is { } value && Enum.IsDefined(value))
+            .WithMessage("Choose the role they'll have: owner, editor, or author.");
+    }
+}
+
+internal sealed class AcceptInvitationRequestValidator : AbstractValidator<AcceptInvitationRequest>
+{
+    // A sealed invitation token is a couple of hundred characters; anything far longer is not one of ours, and is refused
+    // before any cryptography runs.
+    public const int MaxTokenLength = 1024;
+
+    public AcceptInvitationRequestValidator() =>
+        RuleFor(r => r.Token)
+            .Must(token => token is { Length: > 0 and <= MaxTokenLength })
+            .WithMessage("Open the link from your invitation email again.");
 }

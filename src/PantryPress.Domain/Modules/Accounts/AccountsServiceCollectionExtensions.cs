@@ -166,6 +166,7 @@ public static class AccountsServiceCollectionExtensions
         services.AddScoped<ITwoFactorFacade, TwoFactorFacade>();
         services.AddScoped<ISessionFacade, SessionFacade>();
         services.AddScoped<IAccountPublishingEligibility, AccountPublishingEligibility>();
+        services.AddScoped<IAccountAddressCheck, AccountAddressCheck>();
         return services;
     }
 

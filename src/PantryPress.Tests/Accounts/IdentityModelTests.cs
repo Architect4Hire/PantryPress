@@ -31,7 +31,8 @@ public sealed class IdentityModelTests
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
     // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), PP1.12's signed-out
     // sessions (Modules/Accounts), PP2.2's site, PP2.3's memberships, and PP2.9's hosts, the tenant root (Modules/Sites),
-    // and PP2.8's reserved slugs, platform reference data (Modules/Sites).
+    // PP2.8's reserved slugs, platform reference data (Modules/Sites), and PP2.11's invitations, the first site-owned
+    // table (Modules/Sites).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
@@ -42,6 +43,7 @@ public sealed class IdentityModelTests
         typeof(SiteMember),
         typeof(SiteHost),
         typeof(ReservedSlug),
+        typeof(SiteInvitation),
     ];
 
     [Fact]
@@ -92,8 +94,10 @@ public sealed class IdentityModelTests
         Type[] siteCarrying = [typeof(OutboxMessage), typeof(AuditEntry)];
         Type[] membership = [typeof(SiteMember), typeof(SiteHost)];
 
+        // Site-owned rows (PP2.11's invitations first) carry their site by rule; SiteOwnershipModelTests holds them to it.
         Assert.All(
-            db.Model.GetEntityTypes().Where(e => !siteCarrying.Contains(e.ClrType) && !membership.Contains(e.ClrType)),
+            db.Model.GetEntityTypes().Where(e => !siteCarrying.Contains(e.ClrType) && !membership.Contains(e.ClrType)
+                && !typeof(ISiteOwned).IsAssignableFrom(e.ClrType)),
             e => Assert.DoesNotContain(e.GetProperties(), p => p.Name == "SiteId"));
         Assert.All(siteCarrying, type =>
         {

@@ -13,8 +13,9 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 2. A global query filter on `SiteId` applies to every `ISiteOwned` entity. It reads the current site from
    `ISiteContext`, which is set once per request: one scoped context, entered through `ISiteContextWriter`, where
    entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
-   the membership decision and site creation, two files in the Sites module's facades - and a boundary test names each
-   by its file and keeps every other file from naming it. The filter (PP2.5) is a model
+   the membership decision, site creation, and accepting an invitation, three files in the Sites module's facades, and
+   the Worker's outbox delivery in the kernel's outbox folder (PP2.11) - and a boundary test names each by its file and
+   keeps every other file from naming it. The filter (PP2.5) is a model
    convention named `site`, so it reaches every `ISiteOwned` root however the type joined the model; an owned type or one
    under a base that is not site-owned is refused when the model is built. It reads the site per query, so the context may
    be made before the site is entered. **With no site, a site-owned query throws**: site work without a site is a bug,
@@ -36,14 +37,21 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    by any other policy on the route ends the request before its endpoint runs (PP2.4). Only that decision enters a
    site, and one other: creating a site (PP2.10) enters the site it has just minted, with the caller as its Owner, so
    its audit entry is filed under it; if the save then loses the address, the request ends in that unsaved site and
-   nothing after the refusal may use it. A question about another site the caller holds (copying to a second site) asks
+   nothing after the refusal may use it. Accepting an invitation (PP2.11) is the third: the caller is no member yet, so
+   it enters the site sealed in the invitation's link (rule 6a), once that site is found not deleted and before the
+   invitation is read through its filter; a refusal after that ends the request in that site, with nothing filed under it. A question about another site the caller holds (copying to a second site) asks
    `FindAsync`, which enters nothing, because a second site in one request throws.
 5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
    Unknown hosts get the neutral platform 404.
 6. **Publishing API** requests resolve the site from the publishing key.
+6a. **An invitation's link** resolves the site from its token (PP2.11): the site and the invitation, sealed with the data
+   protection key ring ApiService and the Worker share, under a purpose of its own. Like a publishing key it is the
+   server's own word, never a site a client chose, and the invitation it names is read through that site's filter, so a
+   token sealed for one site never finds another's invitation.
 7. A site id is never read from a body, query string, cookie, or client header. ApiService refuses to start when any
    route could bind one: a `SiteId` anywhere in a request type, or a route value, parameter, header, or property whose
-   name is a site id (`SiteIdBindingConvention`, PP2.4).
+   name is a site id (`SiteIdBindingConvention`, PP2.4). A sealed invitation token is not a site id a client sends
+   (rule 6a).
 8. Cache keys, blob prefixes, purge tags, search indexes, and rate-limit partitions all include the site id.
    Use `SiteCacheKey` helpers; never hand-build a key. A cache key (PP2.6) is `SiteCacheKey.For(ISiteContext, area,
    parts…)`: `{siteId}:{area}:{part}:…`, beginning with the site's lowercase id, taken from the context a resolver
@@ -61,7 +69,10 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    and is flagged by the invariant hook elsewhere. Cross-site erasure is operator code too (ADR 0003). The comment
    starts `// Cross-site:` within the three lines above the call, and a boundary test scans every project, tests
    included, for any mention of the method outside `Modules/Platform/` or without that reason (PP2.5).
-10. Background jobs carry `SiteId` in their payload and set `ISiteContext` before touching data.
+10. Background jobs carry `SiteId` in their payload and set `ISiteContext` before touching data. An outbox message
+    carries it beside its payload (`SiteScope.Current`), and the delivery's scope enters it before the handler runs
+    (`OutboxHandlerRegistration`, PP2.11). Only the Worker's processor makes a delivery, from the row it leased, and a
+    boundary test keeps it so. The handler still checks what it reads: the site may have been deleted since.
 
 ## Operator tables (written exceptions)
 

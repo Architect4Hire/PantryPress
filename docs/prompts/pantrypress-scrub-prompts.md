@@ -2275,6 +2275,127 @@ RESTRICTION: Owner only. Invitations expire and are single-use.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
 
+*Split at planning (owner-approved, 2026-10-27):* the prompt needed a new table, the first site outbox message with the
+Worker's site resolver, and four endpoints, which is more than one seam (CLAUDE.md). PP2.11a invites and accepts; PP2.11b
+lists members, changes roles, and removes them.
+
+### PP2.11a Invite by email and accept - done
+
+```text
+SCOPE: Add invite by email and accept an invitation, with the invitation table and its email from the outbox.
+CONSTRAINT: SITE-010; Template B and Template C.
+RESTRICTION: Owner only to invite. Invitations expire and are single-use. Accepting needs the invited address, confirmed.
+BEHAVIOR: Implement with two-site tests.
+```
+
+*PP2.11a delivery note (done 2026-10-27):*
+
+- **What shipped.**
+  - Two admin routes in `SiteInvitationsController`, which injects only `ISiteInvitationsFacade`:
+    - `POST /api/v1/sites/{siteSlug}/invitations` (`SiteOwner`, `[Idempotent]`) answers 202 with `{id, role, expiresAt}`
+      and stages the email. The answer is the same whether or not the address has an account, and it never carries the
+      address.
+    - `POST /api/v1/site-invitations/accept` (signed in, account-level, `[Idempotent]`) answers 200 with the joined site's
+      summary.
+  - `SiteInvitation`, the first site-owned entity: key `(SiteId, Id)`, a filtered unique index for one pending invitation
+    per address per site, check constraints on role, status, acceptance, and expiry, and a rollback that refuses while
+    rows exist (51010). Migration `SiteInvitations`.
+  - Across the seam:
+    - Contracts: `ISiteInvitationsFacade`, `SiteInvitationRequests`, `SiteInvitationId`, `SiteInvitationStatus`, four
+      errors, and two audit codes (`site.member-invited`, `site.member-joined`).
+    - Business: `SiteInvitationRules` and `SiteInvitationEmails`.
+    - Validators for both requests.
+    - `SiteInvitationsFacade` for inviting, and `SiteInvitationAcceptance` for accepting, which is the resolver.
+    - `SiteInvitationsDataLayer`, `SiteInvitationMailDataLayer`, and `SiteInvitationTokens`.
+    - `SiteInvitationRepository`, `SiteMemberRepository.IsMemberAsync`, and two `SitesUnitOfWork` saves.
+  - Accounts gained `IAccountAddressCheck`, which answers only about the caller's own address. `EmailAddresses` and
+    `EmailLinkOrigin` moved to `Managers/Email` so both modules share them.
+  - Worker:
+    - `OutboxHandlerRegistration` enters the delivery's site before a handler runs. This is the Worker's resolver, for
+      every site message.
+    - `AddSitesWorker` registers `SiteInvitationEmailHandler` when email is sent.
+    - The AppHost and the Terraform set `Sites__AppBaseUrl` to the admin origin.
+  - Rate limits: invites 20 an hour and accepts 20 an hour, per account.
+- **Owner-approved decisions:** the split, 7-day links, and acceptance bound to the invited address, confirmed.
+- **Defaults (DECIDE, stated in the decision log):**
+  - 50 open invitations per site; the address being invited again does not count;
+  - non-live sites can still invite and admit;
+  - a revoke by re-inviting is not audited on its own.
+- **What differs from the plan.**
+  - The invite answer has no `email`: idempotent answers are stored, and an address does not belong there.
+  - Accepting checks membership before the invitation, so the retry of a lost answer hears `already-member`, as the
+    route's description says.
+  - From review:
+    - acceptance moved into its own file, so the resolver allow-list names only it;
+    - the site is entered only once found not deleted;
+    - same-address invites take turns under an app lock, with the unique index beneath it;
+    - the cap no longer counts the invitation being replaced;
+    - a boundary test keeps every file but the Worker's processor from making an outbox delivery, since a delivery now
+      enters a site;
+    - the message carries the invitation id alone.
+- **Tests.**
+  - Unit: the rules, the email (encoding, the link fragment, day wording), the token (round trip, altered, other purpose,
+    garbage), the validators, address normalization, and the Worker registration.
+  - Outbox: a delivery works on its message's site and account work on none, scope by scope.
+  - Two-site, over ApiService against SQL Server:
+    - `AssertSiteOwnedIsolatedAsync<SiteInvitation>` and the repository's read paths;
+    - an invite is filed under its site alone, with its outbox message and audit entry there;
+    - only the named site's Owner may invite, and strangers, suspended members, and B's Owner get A's answer as if A
+      were not there;
+    - re-inviting replaces only that site's invitation;
+    - accepting joins only the invited site, and B's tenant root is unchanged, including for B's own Owner;
+    - the link works once;
+    - only the invited inbox, confirmed, may accept, in any letter case;
+    - every unusable link gets one byte-identical answer, a token sealed for B naming A's invitation included;
+    - a membership is never changed by an invitation;
+    - six simultaneous accepts make one member, and six simultaneous invites leave one open;
+    - each site has its own cap;
+    - an idempotent replay works;
+    - the email is redelivered under one id with a working link, is not sent once closed, and reads only as its site;
+    - a refused accept files nothing under either site.
+  - Contract: every declared status and code, no site id or address in the schemas, startup refused for bad lifetimes
+    and caps, the accept limit, the idempotent route list, the AppHost wiring, and the model and migration lists.
+- **Reviewers.** `site-isolation-auditor`, `architecture-reviewer`, and `api-contract-checker` found no blocker.
+  - **Fixed:**
+    - the rules and the decision log for the two new resolvers;
+    - the outbox delivery reachable from anywhere;
+    - the accept route's retry description;
+    - the cap counting a replaced invitation;
+    - concurrent invites leaving two open;
+    - the unguarded rollback;
+    - the misplaced doc comment;
+    - the unused payload field;
+    - the incomplete 400 descriptions;
+    - the missing two-site cases.
+  - **Recorded, not changed:**
+    - a live link's refusals differ from a dead one's;
+    - closed invitations are kept until PP19 purges them, and PP19.11a must erase by address;
+    - the 429 title says "a minute" for the hourly limits, as `sites-create` already did;
+    - an Owner can re-invite one address up to the hourly limit, since revoked invitations do not count;
+    - `EmailAddressRules` now only forwards to the kernel.
+- **Left for later.**
+  - PP2.11b: the members list, role changes, and removal, with the 51003 and 1205 answers PP2.3 assigned to PP2.11, and
+    the tenant-root two-site tests for a role change or removal on A leaving B's rows unchanged.
+  - PP3: the admin app's `/join` page, which reads the token from the fragment and posts it.
+  - PP14: the member count, checked at accept. PP19: the persisted key ring, and purging closed invitations.
+- **Not verified.** Nothing ran against Azure. If `aspire run` was up, the first version of the migration may have
+  reached your local database before its index changed in review: drop and re-create the database, or roll the
+  migration back (it refuses while it has rows) and forward.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1467 of 1467
+(1400 before this prompt).
+
+### PP2.11b Members list, role changes, and removal
+
+```text
+SCOPE: Add list members, change a member's role, and remove a member, on the site's admin routes.
+CONSTRAINT: SITE-010; Template B; PP2.11a.
+RESTRICTION: Owner only. The last active Owner can never be demoted or removed: SiteRoles' rules, the trigger's 51003, and a
+deadlock (1205) all answer last-owner. Unknown and other sites' members are indistinguishable.
+BEHAVIOR: Plan, wait for approval, implement with two-site tests, including a role change or removal on A leaving B's
+rows unchanged (the shared account's above all).
+```
+
 ### PP2.12 PantryPress.Site host and host resolution
 
 ```text

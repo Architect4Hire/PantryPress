@@ -61,15 +61,21 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
 
     public IServiceProvider Services => _services;
 
+    /// <summary>ApiService's own services, for what only its host registers: its key ring, its outbox handlers.</summary>
+    public IServiceProvider ApiServices =>
+        (_api ?? throw new InvalidOperationException("This harness was made without ApiService.")).Services;
+
     /// <param name="database">The shared migrated database.</param>
     /// <param name="withApi">Also start ApiService over that database, with the site policy probe routes.</param>
     /// <param name="configure">More context configuration, such as a planted test model.</param>
     /// <param name="apiSettings">ApiService settings over the harness's own, such as a site limit under test.</param>
+    /// <param name="apiServices">More ApiService services, such as the Worker's half of an outbox message under test.</param>
     public static async Task<TwoSiteHarness> CreateAsync(
         MigratedDatabase database,
         bool withApi = false,
         Action<DbContextOptionsBuilder>? configure = null,
-        IReadOnlyDictionary<string, string?>? apiSettings = null)
+        IReadOnlyDictionary<string, string?>? apiSettings = null,
+        Action<IServiceCollection>? apiServices = null)
     {
         var connectionString = await database.App.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, CancellationToken.None)
             ?? throw new InvalidOperationException("The test AppHost has no pantrypress connection string.");
@@ -87,6 +93,8 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
                 ["RateLimits:SitesPerAccountPerMinute"] = "100000",
                 ["RateLimits:SlugChecksPerAccountPerMinute"] = "100000",
                 ["RateLimits:SiteCreatesPerAccountPerHour"] = "100000",
+                ["RateLimits:InvitesPerAccountPerHour"] = "100000",
+                ["RateLimits:InvitationAcceptsPerAccountPerHour"] = "100000",
                 ["Sites:UnconfirmedAccountSiteLimit"] = "100000",
             };
             foreach (var (key, value) in apiSettings ?? new Dictionary<string, string?>())
@@ -97,7 +105,11 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
             api = new ApiServiceFactory(
                 "Testing",
                 settings,
-                services => services.AddProbes(new IdempotencyProbeLedger(), typeof(SitePolicyProbeController)));
+                services =>
+                {
+                    services.AddProbes(new IdempotencyProbeLedger(), typeof(SitePolicyProbeController));
+                    apiServices?.Invoke(services);
+                });
             _ = api.Server;
         }
 

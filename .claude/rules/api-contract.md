@@ -4,8 +4,9 @@ Applies to admin API, public site API, and publishing API.
 
 - Routes: admin `/api/v1/sites/{siteSlug}/…`; public `/api/public/v1/…`; publishing `/api/publishing/v1/…`.
   Site work that names no site of the caller's is account-level (PP2.10): creating a site and listing the caller's
-  sites at `/api/v1/sites`, and checking an address at `/api/v1/slug-availability` - never a literal segment beside
-  `{siteSlug}`, where a site could take the same word as its slug.
+  sites at `/api/v1/sites`, checking an address at `/api/v1/slug-availability`, and joining a site through an
+  invitation at `/api/v1/site-invitations/accept`, whose site comes only from the invitation's sealed link (PP2.11) -
+  never a literal segment beside `{siteSlug}`, where a site could take the same word as its slug.
   The signed-in person's own account (sign-up, password, two-factor) is account-scoped at `/api/v1/account/…` and
   never takes a site (PP1.2).
 - The session itself is the exception to "admin routes live in ApiService": `/api/v1/account/session` (sign in, the

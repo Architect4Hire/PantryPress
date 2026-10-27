@@ -21,6 +21,22 @@ public sealed class SitesOptions
     /// </summary>
     public int UnconfirmedAccountSiteLimit { get; set; } = 1;
 
+    /// <summary>
+    /// How long an invitation's link works if nobody uses it (PP2.11): seven days, approved at PP2.11. Inviting the
+    /// address again replaces it with a fresh one.
+    /// </summary>
+    public TimeSpan InvitationLifetime { get; set; } = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// How many open invitations one site may have at once (PP2.11), so an Owner cannot use a site to send email to
+    /// address after address. Accepted, replaced, and expired ones do not count. PP14's member limit comes on top.
+    /// </summary>
+    public int MaxOpenInvitations { get; set; } = 50;
+
+    /// <summary>At least an hour and at most 30 days: a link that outlives a month is a standing key to the site.</summary>
+    public bool HasValidInvitationLifetime() =>
+        InvitationLifetime >= TimeSpan.FromHours(1) && InvitationLifetime <= TimeSpan.FromDays(30);
+
     /// <summary>Lower-case, with no port and no dot at either end, and long enough for the longest slug.</summary>
     public bool HasValidZone() => SiteSubdomains.IsValidZone(SubdomainZone);
 }

@@ -171,8 +171,10 @@ locals {
       env = {
         "ConnectionStrings__pantrypress" = local.sql_connection["worker"]
         "ConnectionStrings__blobs"       = local.blob_endpoint
-        # The Worker sends account email from the outbox (PP1.10b), so the links in it are written here.
+        # The Worker sends account email from the outbox (PP1.10b), so the links in it are written here, and
+        # invitation email (PP2.11) from the same origin.
         "Accounts__AppBaseUrl" = local.admin_origin
+        "Sites__AppBaseUrl"    = local.admin_origin
       }
       secret_env = { "ConnectionStrings__redis" = "redis-connection" }
       secrets    = { "redis-connection" = azurerm_key_vault_secret.redis_connection.versionless_id }

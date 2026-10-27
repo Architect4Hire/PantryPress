@@ -1,4 +1,4 @@
-using System.Net;
+using PantryPress.Domain.Managers.Email;
 
 namespace PantryPress.Domain.Modules.Accounts;
 
@@ -13,17 +13,5 @@ public sealed class AccountsOptions
     public string AppBaseUrl { get; set; } = string.Empty;
 
     /// <summary>An absolute origin with no path, query, or fragment; plain HTTP only on this machine.</summary>
-    public bool IsValid() =>
-        Uri.TryCreate(AppBaseUrl, UriKind.Absolute, out var uri)
-        && (uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && IsLoopback(uri)))
-        && uri.AbsolutePath == "/"
-        && string.IsNullOrEmpty(uri.Query)
-        && string.IsNullOrEmpty(uri.Fragment)
-        && string.IsNullOrEmpty(uri.UserInfo);
-
-    private static bool IsLoopback(Uri uri) =>
-        uri.IsLoopback
-        || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-        || uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase)
-        || (IPAddress.TryParse(uri.Host, out var address) && IPAddress.IsLoopback(address));
+    public bool IsValid() => EmailLinkOrigin.IsValid(AppBaseUrl);
 }

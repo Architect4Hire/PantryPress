@@ -1,22 +1,15 @@
-using System.Net.Mail;
+using PantryPress.Domain.Managers.Email;
 
 namespace PantryPress.Domain.Modules.Accounts.Business;
 
-/// <summary>Email address rules for accounts (ACCT-001). Pure: no I/O.</summary>
+/// <summary>Email address rules for accounts (ACCT-001): the shared kernel's shape, and the domain part. Pure: no I/O.</summary>
 internal static class EmailAddressRules
 {
     /// <summary>RFC 5321 path limit, the same bound <c>EmailMessage</c> enforces on recipients.</summary>
-    public const int MaxLength = 254;
+    public const int MaxLength = EmailAddresses.MaxLength;
 
     /// <summary>One bare address with a dotted domain: no display name, comments, or surrounding spaces.</summary>
-    public static bool IsValid(string? email) =>
-        !string.IsNullOrEmpty(email)
-        && email.Length <= MaxLength
-        && MailAddress.TryCreate(email, out var address)
-        && address.Address == email
-        && string.IsNullOrEmpty(address.DisplayName)
-        && address.Host.Contains('.', StringComparison.Ordinal)
-        && !email.Any(char.IsControl);
+    public static bool IsValid(string? email) => EmailAddresses.IsValid(email);
 
     /// <summary>The domain part, lower-cased; only for addresses that pass <see cref="IsValid"/>.</summary>
     public static string DomainOf(string email) => email[(email.LastIndexOf('@') + 1)..].ToLowerInvariant();
