@@ -30,7 +30,8 @@ public sealed class IdentityModelTests
 
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
     // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), PP1.12's signed-out
-    // sessions (Modules/Accounts), and PP2.2's site and PP2.3's memberships, the tenant root (Modules/Sites).
+    // sessions (Modules/Accounts), PP2.2's site and PP2.3's memberships, the tenant root (Modules/Sites), and PP2.8's
+    // reserved slugs, platform reference data (Modules/Sites).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
@@ -39,6 +40,7 @@ public sealed class IdentityModelTests
         typeof(RevokedSession),
         typeof(Site),
         typeof(SiteMember),
+        typeof(ReservedSlug),
     ];
 
     [Fact]

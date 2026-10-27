@@ -259,7 +259,7 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 | Transactional outbox and Worker dispatcher          | PP1.10                  | In progress on `dev`                            |
 | Audit log                                           | PP1.11                  | Not started                                     |
 | `Site`, `SiteMember`, query filter, stamping        | PP2.2 to PP2.5          | Not started                                     |
-| Reserved slugs and slug policy                      | PP2.8                   | Not started                                     |
+| Reserved slugs and slug policy                      | PP2.8                   | Done                                            |
 | `SiteHost` and canonical host                       | PP2.9                   | Not started                                     |
 | Create-site endpoint                                | PP2.10                  | Not started                                     |
 | Public host resolution and status answers           | PP2.12, PP2.13          | Not started                                     |

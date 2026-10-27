@@ -1930,7 +1930,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts pa
 outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1075 of 1075
 (1065 before this prompt).
 
-### PP2.8 Reserved slugs and slug policy
+### PP2.8 Reserved slugs and slug policy - done
 
 ```text
 SCOPE: Implement the SITE-002 slug policy with a versioned reserved list stored as platform reference data.
@@ -1940,6 +1940,77 @@ RESTRICTION: ASCII only, case-insensitive comparison. The list reserves every ho
 would share the admin app's origin (PP1.12).
 BEHAVIOR: Plan, wait for approval, implement with table-driven tests.
 ```
+
+*PP2.8 delivery note (done 2026-10-27):*
+
+- **What shipped.**
+  - `Modules/Sites/Business/SlugPolicy`, pure code. `Check` returns the stored slug or the refusal. `IsWellFormed` is
+    there for PP2.10's validator. The order of checks:
+    - ASCII, before anything is lower-cased (`SiteSlugs`), so comparison is case-insensitive and no look-alike letter
+      becomes a real one;
+    - a host name's label: no hyphen at either end, and none doubled, which rules out `xn--` labels a browser shows in
+      Unicode;
+    - not a site id's 8-4-4-4-12 hex shape;
+    - the reserved list.
+  - `Business/ReservedSlugs`, versioned (`Version` and each entry's `Since`). Four reasons:
+    - platform hosts: `app`, `api`, `www`, `dev`, `mail`, `status`, and others;
+    - infrastructure;
+    - impersonation;
+    - product pages.
+
+    `demo` and `cook` stay claimable.
+  - Platform reference data, `ReservedSlugs` (no `SiteId`), seeded from that list. Migration `ReservedSlugs` adds:
+    - `TR_Sites_SlugNotReserved`: refuses a new or changed reserved slug (51005); an unchanged one is let through;
+    - `TR_ReservedSlugs_NotHeld`: refuses reserving a slug any site holds, a deleted one included (51006, naming the slug
+      for the operator). It is created before the seed, so the first list is checked too;
+    - the hyphen rules in `CK_Sites_Slug_Shape`.
+  - `SiteErrors.SlugUnavailable` (`slug-unavailable`, 409).
+- **Owner-approved choices.**
+  - A migration that would reserve a held slug fails; it never grandfathers the site.
+  - `--` is refused anywhere.
+  - Both triggers are in.
+- **What differs from the plan.**
+  - A refused shape is `Error.Validation` (`validation-failed`) with a `slug` field rather than a new `slug-invalid` code,
+    because every field error in the codebase has that shape.
+  - The site-id shape rule answers PP2.6's open question (both reviewers asked for it). It is in .NET only, not the
+    check constraint.
+  - `mta-sts`, `openpgpkey`, and `platform` joined the list after review.
+- **Template K.**
+  - The migration is not purely additive: it tightens a check on `Sites` and adds a trigger there. No app path writes
+    `Sites` before PP2.10, so no row can fail the tighter check.
+  - An app build without the `HasTrigger` declaration would fail its writes to `Sites`.
+  - Rollback drops both triggers and the table, and restores the looser check. Only reference data goes.
+- **Reviewers.** `architecture-reviewer` and `site-isolation-auditor` found no blocker and no major.
+  - **Changed after review:**
+    - the site-id shape rule;
+    - a boundary test keeping `ReservedSlug` to the Sites module and the migrations;
+    - the Terraform check widened to every literal host label;
+    - a race test for the lock hint, which fails with the hint removed;
+    - `IsReserved` made internal;
+    - the 51006 message names the slug;
+    - wording that claimed no path could skip the trigger;
+    - cases for the Kelvin sign, fullwidth letters, a zero-width joiner, and NUL.
+  - **Recorded, not changed:**
+    - A bulk load skips triggers and checks unless it asks for them, and an operator can disable a trigger or delete a
+      reserved row. The .NET policy still refuses, because it reads the list in code.
+    - The auditor's trailing-space concern does not hold: `SiteSchemaTests` shows `'pie '` refused by the shape check.
+    - `SlugPolicy.Check` names the `slug` field; PP2.10's validator may own that key instead.
+- **Left for later.**
+  - PP2.10:
+    - map 51005, 51006, and the slug index's 2601 to `slug-unavailable`, never the trigger's text;
+    - declare the 409 in the admin document;
+    - an indistinguishability test across a reserved slug, a held one, a deleted site's, and a case variant.
+  - PP2.9 and DOM-001: refuse a custom domain under the platform's own zones (`app.*` above all), and decide whether a
+    slug kept by a rename redirect is unavailable.
+  - PP2.12: host-header tricks with `app.<zone>` and `xn--` hosts.
+- **Not verified: the local database.** With `aspire run` up, the migration may have reached your local database early.
+  It was regenerated under the same id after review (three more seed rows and the 51006 message). A local database that
+  took the first version lacks those rows and has the older trigger text; drop and re-create it, or roll the migration
+  back and forward.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1174 of 1174
+(1075 before this prompt).
 
 ### PP2.9 SiteHost and canonical host
 

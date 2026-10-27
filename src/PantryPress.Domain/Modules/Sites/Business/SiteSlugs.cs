@@ -3,8 +3,8 @@ using PantryPress.Domain.Modules.Sites.Contracts;
 namespace PantryPress.Domain.Modules.Sites.Business;
 
 /// <summary>
-/// The shape of a slug, for looking one up (SITE-002). Only the shape: what may be taken - the reserved list and the
-/// finer rules - is PP2.8's slug policy.
+/// The shape of a slug, for looking one up (SITE-002). Only the shape: what a site may take - a host name's rules and the
+/// reserved list - is <see cref="SlugPolicy"/>'s. A slug the policy refuses simply holds no site.
 /// </summary>
 public static class SiteSlugs
 {

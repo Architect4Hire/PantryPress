@@ -448,6 +448,688 @@ namespace PantryPress.MigrationService.Migrations
                     b.ToTable("RevokedSessions", (string)null);
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Sites.ReservedSlug", b =>
+                {
+                    b.Property<string>("Slug")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.HasKey("Slug");
+
+                    b.ToTable("ReservedSlugs", null, t =>
+                        {
+                            t.HasTrigger("TR_ReservedSlugs_NotHeld");
+
+                            t.HasCheckConstraint("CK_ReservedSlugs_Reason", "[Reason] IN (0, 1, 2, 3)");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+
+                    b.HasData(
+                        new
+                        {
+                            Slug = "app",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "api",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "www",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "dev",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "mail",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "status",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "admin",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "staging",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "preview",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "prod",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "sandbox",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "beta",
+                            Reason = 0,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "email",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "smtp",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "imap",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "pop3",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "webmail",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "ns1",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "ns2",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "ns3",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "ns4",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "dns",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "autodiscover",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "autoconfig",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "cdn",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "static",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "assets",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "media",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "img",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "images",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "files",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "uploads",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "ftp",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "sftp",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "localhost",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "wpad",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "isatap",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "vpn",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "proxy",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "origin",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "edge",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "cache",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "health",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "mta-sts",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "openpgpkey",
+                            Reason = 1,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "pantrypress",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "pantry-press",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "creatorpantry",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "creator-pantry",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "support",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "help",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "helpdesk",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "billing",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "payments",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "checkout",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "security",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "login",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "signin",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "sign-in",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "signup",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "sign-up",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "register",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "logout",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "account",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "accounts",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "auth",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "oauth",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "sso",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "password",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "verify",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "abuse",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "postmaster",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "hostmaster",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "webmaster",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "root",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "administrator",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "noreply",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "no-reply",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "official",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "team",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "staff",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "moderator",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "operator",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "system",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "platform",
+                            Reason = 2,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "blog",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "docs",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "pricing",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "about",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "contact",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "legal",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "terms",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "privacy",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "cookies",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "press",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "careers",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "jobs",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "news",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "community",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "forum",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "shop",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "store",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "developer",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "developers",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "publish",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "import",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "dashboard",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "studio",
+                            Reason = 3,
+                            Since = 1
+                        },
+                        new
+                        {
+                            Slug = "settings",
+                            Reason = 3,
+                            Since = 1
+                        });
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.Site", b =>
                 {
                     b.Property<Guid>("Id")
@@ -502,10 +1184,14 @@ namespace PantryPress.MigrationService.Migrations
 
                     b.ToTable("Sites", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Sites_Slug_Shape", "LEN([Slug]) BETWEEN 3 AND 40 AND [Slug] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2");
+                            t.HasTrigger("TR_Sites_SlugNotReserved");
+
+                            t.HasCheckConstraint("CK_Sites_Slug_Shape", "LEN([Slug]) BETWEEN 3 AND 40 AND [Slug] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Slug] NOT LIKE '-%' AND [Slug] NOT LIKE '%-' AND [Slug] NOT LIKE '%--%'");
 
                             t.HasCheckConstraint("CK_Sites_Status", "[Status] IN (0, 1, 2, 3, 4, 5)");
                         });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.SiteMember", b =>

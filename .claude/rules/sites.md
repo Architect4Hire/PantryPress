@@ -7,6 +7,16 @@ Detail: `docs/requirements/pantrypress-customization-spec.md`.
 
 - Slugs: 3–40 lowercase letters, digits, hyphens; unique; reserved list; availability never reveals the
   holder. Renames are limited and the old host redirects for 12 months.
+- The slug policy (PP2.8) is `SlugPolicy` in Sites' Business: ASCII checked before lower-casing, so comparison is
+  case-insensitive and no look-alike letter becomes a real one; a host name's label (no hyphen at either end, none
+  doubled, which also rules out `xn--` look-alikes); not a site id's shape; then the reserved list. A refused shape is
+  a `slug` field error; a reserved slug is `slug-unavailable`, the same answer a held one gets, so neither the reason
+  nor the holder shows.
+- The reserved list is platform reference data: `ReservedSlugs` in Sites' Business, versioned, and seeded into the
+  `ReservedSlugs` table, so a change is a reviewed migration. It reserves every host PantryPress answers on or holds
+  DNS records under (`app` above all, whose `__Host-` cookies a tenant site there would share; a test reads the
+  gateway's hosts and the Terraform). The database refuses a reserved slug on any site write, and refuses reserving a
+  slug a site holds, so taking an address from a site is decided on purpose, never by a list edit.
 - `SiteHost` maps every host to one site with one canonical host. An active custom domain becomes canonical;
   the subdomain 301s to it and always keeps working.
 - Status: Provisioning, Live, Suspended, ReadOnly, Offline, Deleted, with correct public status codes.

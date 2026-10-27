@@ -110,7 +110,26 @@ public sealed class DomainBoundaryTests
         + @"|\[Sites\]|""Sites""|\bdbo\.Sites\b|(?i:\b(?:FROM|JOIN|UPDATE|INTO|TABLE)\s+(?:\[?dbo\]?\.)?\[?Sites\b)";
 
     [Fact]
-    public void Only_the_sites_module_reaches_the_tenant_root_tables()
+    public void Only_the_sites_module_reaches_the_tenant_root_tables() =>
+        AssertOnlySitesModuleReaches(TenantRootReference, "a tenant root table");
+
+    // PP2.8: the reserved list is seeded by migrations and never written by the app. Its rows are the database's backstop
+    // under the slug policy - "app" above all - so only the Sites module and the migrations name the type, its
+    // configuration, or its table.
+    private const string ReservedSlugReference = @"\bReservedSlug(?:Configuration)?\b|\bReservedSlugs\b";
+
+    [Fact]
+    public void Only_the_sites_module_reaches_the_reserved_slug_table() =>
+        AssertOnlySitesModuleReaches(ReservedSlugReference, "the reserved slug table");
+
+    [Theory]
+    [InlineData("db.Set<ReservedSlug>().Add(row);", true)]
+    [InlineData("DELETE FROM [ReservedSlugs]", true)]
+    [InlineData("SlugPolicy.Check(slug)", false)]
+    public void The_reserved_slug_scan_sees_the_table_and_not_the_policy(string code, bool reaches) =>
+        Assert.Equal(reaches, Regex.IsMatch(code, ReservedSlugReference));
+
+    private static void AssertOnlySitesModuleReaches(string pattern, string what)
     {
         var source = DomainSource.Project.Parent!;
         var allowed = new[]
@@ -132,8 +151,8 @@ public sealed class DomainBoundaryTests
 
                 scanned++;
                 Assert.False(
-                    Regex.IsMatch(File.ReadAllText(file.FullName), TenantRootReference),
-                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches a tenant root table outside Modules/Sites.");
+                    Regex.IsMatch(File.ReadAllText(file.FullName), pattern),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches {what} outside Modules/Sites.");
             }
         }
 

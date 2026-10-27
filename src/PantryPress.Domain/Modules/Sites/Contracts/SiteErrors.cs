@@ -20,6 +20,15 @@ public static class SiteErrors
         "site-role-required",
         "Your role on this site doesn't include this. Ask the site's owner if you need it.");
 
+    /// <summary>
+    /// A slug no site may take: reserved (PP2.8), or held by another site (PP2.10). The two are one answer, so availability
+    /// never says which, let alone who holds it (SITE-002).
+    /// </summary>
+    public static readonly Error SlugUnavailable = new(
+        ErrorKind.Conflict,
+        "slug-unavailable",
+        "That address isn't available. Try another.");
+
     /// <summary>The change would leave the site with no active owner (SITE-010; PP2.3).</summary>
     public static readonly Error LastOwner = new(
         ErrorKind.Conflict,

@@ -100,9 +100,17 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     /// </summary>
     public async Task<TwoSiteWorld> SeedAsync(string prefix = "supper")
     {
-        if (prefix.Length is 0 or > 20 || !prefix.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-') || !char.IsAsciiLetterLower(prefix[0]))
+        // A hyphen joins the prefix to the id, so it may not end with one or hold two together: the slug would break the
+        // slug policy's rules, which the schema enforces too (PP2.8).
+        if (prefix.Length is 0 or > 20
+            || !prefix.All(c => c is (>= 'a' and <= 'z') or (>= '0' and <= '9') or '-')
+            || !char.IsAsciiLetterLower(prefix[0])
+            || prefix[^1] == '-'
+            || prefix.Contains("--", StringComparison.Ordinal))
         {
-            throw new ArgumentException("A seed prefix is 1 to 20 lowercase letters, digits, or hyphens, starting with a letter.", nameof(prefix));
+            throw new ArgumentException(
+                "A seed prefix is 1 to 20 lowercase letters, digits, or single hyphens, starting with a letter and not ending with a hyphen.",
+                nameof(prefix));
         }
 
         // As alike as two slugs can be: B's is A's with one more letter.

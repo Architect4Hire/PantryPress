@@ -20,7 +20,8 @@ public sealed class Site
 
     /// <summary>
     /// The site's address under pantrypress.app, unique across the platform (SITE-002). Always lower-case ASCII; the
-    /// slug policy that decides what is allowed is PP2.8's, and the schema refuses anything outside its shape.
+    /// slug policy (<c>Business.SlugPolicy</c>, PP2.8) decides what is allowed, and the schema refuses anything outside its
+    /// shape or on the reserved list.
     /// </summary>
     public string Slug { get; set; } = string.Empty;
 

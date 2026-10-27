@@ -24,7 +24,7 @@ public sealed class MigrationServiceRegistrationTests
 
         // PP1.4 adds the second one, which seeds the PlatformAdmin role row (ACCT-005); PP1.9 the idempotency keys; PP1.10
         // the transactional outbox; PP1.11 the append-only audit log; PP1.12 the signed-out sessions; PP2.2 the sites;
-        // PP2.3 their members.
+        // PP2.3 their members; PP2.8 the reserved slugs.
         Assert.Collection(
             db.Database.GetMigrations(),
             first => Assert.EndsWith("_InitialIdentity", first, StringComparison.Ordinal),
@@ -34,7 +34,8 @@ public sealed class MigrationServiceRegistrationTests
             fifth => Assert.EndsWith("_AuditLog", fifth, StringComparison.Ordinal),
             sixth => Assert.EndsWith("_SessionRevocations", sixth, StringComparison.Ordinal),
             seventh => Assert.EndsWith("_Sites", seventh, StringComparison.Ordinal),
-            eighth => Assert.EndsWith("_SiteMembers", eighth, StringComparison.Ordinal));
+            eighth => Assert.EndsWith("_SiteMembers", eighth, StringComparison.Ordinal),
+            ninth => Assert.EndsWith("_ReservedSlugs", ninth, StringComparison.Ordinal));
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

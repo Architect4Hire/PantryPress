@@ -17,6 +17,17 @@ internal sealed class SiteConfiguration : IEntityTypeConfiguration<Site>
     public const string StatusConstraintName = "CK_Sites_Status";
 
     /// <summary>
+    /// Created by the ReservedSlugs migration: refuses a new or changed slug that is on the reserved list (PP2.8), beneath
+    /// the slug policy, so no EF Core or T-SQL insert or update - a bulk update, raw SQL, a facade that forgot to ask - can
+    /// take one. A bulk load skips triggers and checks unless it asks for them (<c>FireTriggers</c>, <c>CheckConstraints</c>),
+    /// and only an operator can disable it. A site whose slug is unchanged is let through. Declaring it keeps EF Core from
+    /// using an OUTPUT clause that a table with triggers cannot take.
+    /// </summary>
+    public const string SlugNotReservedTriggerName = "TR_Sites_SlugNotReserved";
+
+    public const int SlugReservedErrorNumber = 51005;
+
+    /// <summary>
     /// Slugs compare byte for byte, so uniqueness never depends on the server's default collation. The shape check
     /// admits only lower-case, so the binary index is as strict as a case-insensitive one: "Pie" cannot sit beside "pie".
     /// </summary>
@@ -26,11 +37,15 @@ internal sealed class SiteConfiguration : IEntityTypeConfiguration<Site>
     {
         builder.ToTable(TableName, table =>
         {
-            // A backstop under PP2.8's slug policy, which owns the reserved list and the finer rules.
+            table.HasTrigger(SlugNotReservedTriggerName);
+
+            // A backstop under the slug policy (PP2.8): its shape, and a host name's label - no hyphen at either end, and
+            // none doubled.
             table.HasCheckConstraint(
                 SlugShapeConstraintName,
                 $"LEN([Slug]) BETWEEN {SiteLimits.MinSlugLength} AND {SiteLimits.MaxSlugLength} " +
-                $"AND [Slug] NOT LIKE '%[^a-z0-9-]%' COLLATE {BinaryCollation}");
+                $"AND [Slug] NOT LIKE '%[^a-z0-9-]%' COLLATE {BinaryCollation} " +
+                "AND [Slug] NOT LIKE '-%' AND [Slug] NOT LIKE '%-' AND [Slug] NOT LIKE '%--%'");
             // Built from the enum, so a new status changes the model and gets its migration.
             table.HasCheckConstraint(
                 StatusConstraintName,

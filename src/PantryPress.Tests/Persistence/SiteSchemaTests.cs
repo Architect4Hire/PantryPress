@@ -15,7 +15,7 @@ using PantryPress.Domain.Modules.Sites;
 
 // PP2.2: the site table (SITE-001) against the schema the migration service applies. Two sites that look alike live
 // side by side and stay apart, a slug is the platform's one at a time, a save from a stale read is refused, and the
-// slug-shape and status checks hold under PP2.8's slug policy even for a write that skips it.
+// slug-shape and status checks hold under the slug policy (PP2.8) even for a write that skips it.
 [Trait("Category", "Integration")]
 [Collection(MigratedDatabase.CollectionName)]
 public sealed class SiteSchemaTests(MigratedDatabase database) : IAsyncLifetime
@@ -97,7 +97,7 @@ public sealed class SiteSchemaTests(MigratedDatabase database) : IAsyncLifetime
         Assert.Equal("First writer", (await FindAsync(site.Id)).Name);
     }
 
-    // The policy that decides a slug is PP2.8's; this is the backstop under it. Upper-case is refused outright, which is
+    // The slug policy decides a slug (PP2.8); this is the backstop under it. Upper-case is refused outright, which is
     // what lets a byte-for-byte unique index stand in for a case-insensitive one. The Cyrillic look-alike is refused only
     // because the client's code page turns it into '?' before the server sees it, which is why slugs are checked for ASCII
     // in .NET before any lookup (tenancy.md, "Tenant root").
@@ -111,6 +111,10 @@ public sealed class SiteSchemaTests(MigratedDatabase database) : IAsyncLifetime
     [InlineData("pіe")]
     [InlineData("pie ")]
     [InlineData("")]
+    [InlineData("-pie")] // PP2.8: a host name's label has no hyphen at either end, and none doubled
+    [InlineData("pie-")]
+    [InlineData("pie--crust")]
+    [InlineData("xn--pple-43d")]
     public async Task A_slug_outside_the_shape_is_refused(string slug)
     {
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => AddAsync(NewSite(slug)));
