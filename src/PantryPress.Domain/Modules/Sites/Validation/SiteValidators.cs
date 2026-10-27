@@ -77,6 +77,30 @@ internal sealed class InviteMemberRequestValidator : AbstractValidator<InviteMem
     }
 }
 
+internal sealed class ListSiteMembersQueryValidator : AbstractValidator<ListSiteMembersQuery>
+{
+    public ListSiteMembersQueryValidator()
+    {
+        RuleFor(q => q.Limit)
+            .InclusiveBetween(1, SiteMemberCursor.MaxLimit)
+            .WithMessage($"Ask for 1 to {SiteMemberCursor.MaxLimit} members at a time.")
+            .When(q => q.Limit is not null);
+
+        RuleFor(q => q.Cursor)
+            .Must(cursor => SiteMemberCursor.TryRead(cursor, out _))
+            .WithMessage("We couldn't continue from that page. Start from the first page.")
+            .When(q => q.Cursor is not null);
+    }
+}
+
+internal sealed class ChangeMemberRoleRequestValidator : AbstractValidator<ChangeMemberRoleRequest>
+{
+    public ChangeMemberRoleRequestValidator() =>
+        RuleFor(r => r.Role)
+            .Must(role => role is { } value && Enum.IsDefined(value))
+            .WithMessage("Choose their new role: owner, editor, or author.");
+}
+
 internal sealed class AcceptInvitationRequestValidator : AbstractValidator<AcceptInvitationRequest>
 {
     // A sealed invitation token is a couple of hundred characters; anything far longer is not one of ours, and is refused

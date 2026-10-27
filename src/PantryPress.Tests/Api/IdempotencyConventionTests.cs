@@ -90,7 +90,13 @@ public sealed class IdempotencyConventionTests
                 .Select(op => $"{op.Name.ToUpperInvariant()} {path.Name}"))
             .ToList();
         Assert.Equal(
-            ["POST /api/v1/site-invitations/accept", "POST /api/v1/sites", "POST /api/v1/sites/{siteSlug}/invitations"],
+            [
+                "DELETE /api/v1/sites/{siteSlug}/members/{memberId}",
+                "POST /api/v1/site-invitations/accept",
+                "POST /api/v1/sites",
+                "POST /api/v1/sites/{siteSlug}/invitations",
+                "PUT /api/v1/sites/{siteSlug}/members/{memberId}/role",
+            ],
             optedIn.Order(StringComparer.Ordinal));
     }
 

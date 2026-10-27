@@ -105,6 +105,26 @@ public interface IAccountAddressCheck
 }
 
 /// <summary>
+/// The email addresses of accounts another module already holds by id, for showing who they are to someone entitled to
+/// know: a site's Owner reading the site's member list (SITE-010; PP2.11b). It answers only for the ids it is given,
+/// never searches by address, and says nothing else about an account. What is read here is shown, never logged, cached,
+/// or stored.
+/// </summary>
+public interface IAccountDirectory
+{
+    /// <summary>The most ids one call answers for: a page of a list, at its largest.</summary>
+    public const int MaxAccounts = 100;
+
+    /// <summary>
+    /// The address each of <paramref name="accounts"/> signs in with, as its owner typed it. An account with no row -
+    /// being closed, say - is missing from the answer. More than <see cref="MaxAccounts"/> ids is a bug, and throws.
+    /// </summary>
+    Task<IReadOnlyDictionary<AccountId, string>> FindAddressesAsync(
+        IReadOnlyCollection<AccountId> accounts,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
 /// The sign-in steps behind the BFF session (ACCT-002, PP-D13; PP1.6). The gateway holds the session and calls these;
 /// the session itself is a cookie there, so nothing here issues or reads one. Sign-in goes through this facade rather
 /// than Identity's <c>SignInManager</c>, because the account store does not save on its own.

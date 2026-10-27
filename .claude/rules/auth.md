@@ -53,6 +53,10 @@
   and a suspended one are one answer, 404 `site-not-found`; a member whose role is too low gets 403 `site-role-required`.
   The host refuses to start when a `{siteSlug}` route lacks a site policy, or a site policy sits anywhere else.
 - Membership lookups are cached for one request only, keyed by account and slug, and never across requests.
+- Only an Owner lists, re-roles, and removes members (PP2.11b), naming a member by their account id within the route's site;
+  an id that is not a member there is 404 `member-not-found`, alike for another site's member. A change takes effect at the
+  member's next request, since roles are read from `SiteMembers` every time; no security stamp rotates. A change that would
+  leave no active Owner is 409 `last-owner`, whether `SiteRoles` refuses it or the database does (the trigger, a deadlock).
 
 ## Publishing keys (PP-D15, PSEC-008)
 

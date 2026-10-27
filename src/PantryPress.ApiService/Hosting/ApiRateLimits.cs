@@ -48,6 +48,15 @@ public sealed class ApiRateLimitOptions
     /// <summary>Invitations one signed-in account may try to accept in an hour (PP2.11).</summary>
     public int InvitationAcceptsPerAccountPerHour { get; set; } = 20;
 
+    /// <summary>Requests per minute for one Owner reading a site's members (PP2.11b).</summary>
+    public int SiteMembersPerAccountPerMinute { get; set; } = 60;
+
+    /// <summary>
+    /// Role changes and removals one Owner may make in a minute (PP2.11b), across their sites. Its own allowance, so
+    /// reading the list never spends it. A refused change still counts.
+    /// </summary>
+    public int SiteMemberChangesPerAccountPerMinute { get; set; } = 30;
+
     /// <summary>
     /// Requests per minute across every caller for the internal sign-in routes. Deliberately still a global ceiling:
     /// only the gateway can reach this surface, it calls with a client of its own rather than through its proxy, and
@@ -74,6 +83,8 @@ internal static class ApiRateLimits
     public const string SiteCreate = "sites-create";
     public const string SiteInvite = "sites-invite";
     public const string InvitationAccept = "sites-invitation-accept";
+    public const string SiteMemberList = "sites-members";
+    public const string SiteMemberChange = "sites-member-change";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -86,6 +97,7 @@ internal static class ApiRateLimits
                 o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SitesPerAccountPerMinute > 0
                     && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
                     && o.InvitesPerAccountPerHour > 0 && o.InvitationAcceptsPerAccountPerHour > 0
+                    && o.SiteMembersPerAccountPerMinute > 0 && o.SiteMemberChangesPerAccountPerMinute > 0
                     && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
@@ -158,6 +170,22 @@ internal static class ApiRateLimits
                 return RateLimitPartition.GetFixedWindowLimiter(
                     AccountKey(context),
                     _ => PerHour(limits.InvitationAcceptsPerAccountPerHour));
+            });
+
+            // A site's members, per account (PP2.11b). Every route is an Owner's, authorized first, so only an Owner's
+            // request is counted.
+            options.AddPolicy(SiteMemberList, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.SiteMembersPerAccountPerMinute));
+            });
+
+            options.AddPolicy(SiteMemberChange, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    AccountKey(context),
+                    _ => PerMinute(limits.SiteMemberChangesPerAccountPerMinute));
             });
 
             options.OnRejected = async (context, cancellationToken) =>

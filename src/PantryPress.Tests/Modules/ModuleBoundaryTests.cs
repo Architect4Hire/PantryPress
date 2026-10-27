@@ -68,8 +68,9 @@ public sealed class ModuleBoundaryTests
     /// <summary>
     /// The module dependencies this domain declares (ARCH-001). Platform asks Accounts for the Identity role it
     /// administers. Sites names the account a membership belongs to by its <c>AccountId</c> (PP2.3), asks whether an
-    /// account's email address is confirmed before letting it own more sites (PP2.10), and whether an account holds the
-    /// address an invitation went to before letting it join (PP2.11). Nothing goes the
+    /// account's email address is confirmed before letting it own more sites (PP2.10), whether an account holds the
+    /// address an invitation went to before letting it join (PP2.11), and its members' addresses to show their Owner
+    /// (PP2.11b). Nothing goes the
     /// other way, so the graph stays acyclic. Add an edge here only with a reason.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedModuleEdges = new(StringComparer.Ordinal)

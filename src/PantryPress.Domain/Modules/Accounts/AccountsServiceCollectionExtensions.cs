@@ -61,6 +61,7 @@ public static class AccountsServiceCollectionExtensions
 
         services.AddScoped<AccountsUnitOfWork>();
         services.AddScoped<SessionRevocationRepository>();
+        services.AddScoped<AccountAddressRepository>();
         services.AddScoped<AccountsDataLayer>();
         services.AddAuditLog();
         return identity;
@@ -167,6 +168,7 @@ public static class AccountsServiceCollectionExtensions
         services.AddScoped<ISessionFacade, SessionFacade>();
         services.AddScoped<IAccountPublishingEligibility, AccountPublishingEligibility>();
         services.AddScoped<IAccountAddressCheck, AccountAddressCheck>();
+        services.AddScoped<IAccountDirectory, AccountDirectory>();
         return services;
     }
 

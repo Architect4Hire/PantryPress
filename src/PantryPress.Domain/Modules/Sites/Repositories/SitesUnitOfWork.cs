@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 
 namespace PantryPress.Domain.Modules.Sites.Repositories;
@@ -32,6 +34,21 @@ internal enum AcceptanceOutcome
 
     /// <summary>The invitation was used or replaced in the meantime. Nothing was saved.</summary>
     NoLongerOpen,
+}
+
+/// <summary>How saving a member's new role, or their removal, ended (PP2.11b).</summary>
+internal enum MemberChangeOutcome
+{
+    Saved,
+
+    /// <summary>The change would now leave the site with no active owner. Nothing was saved.</summary>
+    LastOwner,
+
+    /// <summary>The member was removed in the meantime, and the change was a new role. Nothing was saved.</summary>
+    NotFound,
+
+    /// <summary>Someone else changed the same member in the meantime. Nothing was saved.</summary>
+    Changed,
 }
 
 /// <summary>At most <paramref name="Max"/> sites owned by <paramref name="Account"/>, the new one included.</summary>
@@ -125,6 +142,71 @@ internal sealed class SitesUnitOfWork(PantryPressDbContext db)
                 cancellationToken))
             {
                 return AcceptanceOutcome.NoLongerOpen;
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Saves a member's new role, or their removal, that the facade staged with its audit entry (PP2.11b). The facade
+    /// applied <c>SiteRoles</c>' last-owner rule to what it read; a change racing this one can still make it untrue, and
+    /// then the database has the last word: the owner trigger refuses (51003), two owners leaving at the same instant
+    /// deadlock and one is rolled back (1205), and the member's version refuses a save from a stale read. This asks the
+    /// database again rather than reading its error numbers, as for a new site, though the asking is SQL Server's own
+    /// locking read: whatever ended the save, if the change would now leave the site with no active owner, that is the answer - and if the member already stands as asked, the change is made, by this
+    /// request's retried commit or by someone else's. A removal of a member who is gone is made - by a retried commit of
+    /// this one, or by another Owner removing them at the same moment; a new role for one is
+    /// <see cref="MemberChangeOutcome.NotFound"/>. A stale read, or a fault that outlasted its retries with the member still
+    /// as read, is <see cref="MemberChangeOutcome.Changed"/>: trying again may work. What nothing explains is thrown.
+    /// </summary>
+    /// <param name="newRole">The member's new role, or null for their removal.</param>
+    public async Task<MemberChangeOutcome> SaveMemberChangeAsync(
+        SiteId site,
+        AccountId member,
+        SiteRole? newRole,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return MemberChangeOutcome.Saved;
+        }
+        catch (Exception failure) when (failure is DbUpdateException or RetryLimitExceededException)
+        {
+            // Nothing staged may go out with a later save: not the change, and not its audit entry.
+            db.ChangeTracker.Clear();
+
+            // Read as the owner trigger reads, with locks: a committed-snapshot read would see the site from before a change
+            // still in flight - the one that won a deadlock against this save, say - and answer as if it never happened. A
+            // locking read waits for it to end. The site's memberships are few, and read once, so the member and the owner
+            // count agree.
+            var rows = await db.Set<SiteMember>()
+                .FromSql($"SELECT * FROM [SiteMembers] WITH (READCOMMITTEDLOCK) WHERE [SiteId] = {site.Value}")
+                .AsNoTracking()
+                .ToListAsync(cancellationToken);
+            if (rows.SingleOrDefault(m => m.AccountId == member) is not { } current)
+            {
+                return newRole is null ? MemberChangeOutcome.Saved : MemberChangeOutcome.NotFound;
+            }
+
+            if (newRole == current.Role)
+            {
+                return MemberChangeOutcome.Saved;
+            }
+
+            var owners = rows.Count(m => m.Role == SiteRole.Owner && m.Status == SiteMemberStatus.Active);
+            var rule = newRole is { } role
+                ? SiteRoles.CanChangeRole(current.Role, current.Status, role, owners)
+                : SiteRoles.CanRemove(current.Role, current.Status, owners);
+            if (!rule.IsSuccess)
+            {
+                return MemberChangeOutcome.LastOwner;
+            }
+
+            if (failure is DbUpdateConcurrencyException or RetryLimitExceededException)
+            {
+                return MemberChangeOutcome.Changed;
             }
 
             throw;

@@ -7,7 +7,8 @@ namespace PantryPress.Domain.Modules.Accounts.DataLayer;
 
 /// <summary>
 /// The Accounts data layer (ARCH-002): composes Identity's user manager over <see cref="AccountUserStore"/>, the signed-out
-/// sessions in <see cref="SessionRevocationRepository"/>, and the <see cref="AccountsUnitOfWork"/> for the facades.
+/// sessions in <see cref="SessionRevocationRepository"/>, accounts' addresses by id in <see cref="AccountAddressRepository"/>,
+/// and the <see cref="AccountsUnitOfWork"/> for the facades.
 /// Platform roles are not here: they live in <see cref="AccountRolesDataLayer"/>, which only the operator's process
 /// registers (ACCT-005). Nothing here saves except <see cref="SaveChangesAsync"/>, <see cref="SaveNewAccountAsync"/>, and
 /// <see cref="SaveRevocationAsync"/>, which the facades call, and <see cref="PurgeExpiredRevocationsAsync"/>, one batched
@@ -16,7 +17,8 @@ namespace PantryPress.Domain.Modules.Accounts.DataLayer;
 internal sealed class AccountsDataLayer(
     AccountUserManager users,
     AccountsUnitOfWork unitOfWork,
-    SessionRevocationRepository revocations)
+    SessionRevocationRepository revocations,
+    AccountAddressRepository addresses)
 {
     // Hashing a password for an address that already has an account makes both sign-up paths do the same slow work.
     private static readonly ApplicationUser TimingUser = new();
@@ -24,6 +26,10 @@ internal sealed class AccountsDataLayer(
     public Task<ApplicationUser?> FindAsync(AccountId account) => users.FindByIdAsync(account.ToString());
 
     public Task<ApplicationUser?> FindByEmailAsync(string email) => users.FindByEmailAsync(email);
+
+    /// <summary>The addresses of the accounts with these ids that have one (PP2.11b).</summary>
+    public Task<IReadOnlyDictionary<Guid, string>> FindAddressesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        addresses.FindAsync(ids, cancellationToken);
 
     public void HashPasswordForTiming(string password) => users.PasswordHasher.HashPassword(TimingUser, password);
 

@@ -2266,7 +2266,7 @@ outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dot
 (1291 before this prompt). PP2.9's intermittent `IdentityModelTests` (`ManyServiceProvidersCreatedWarning`,
 order-dependent) passed in this run and failed in an earlier one; they pass alone.
 
-### PP2.11 Invitations and member management
+### PP2.11 Invitations and member management - done
 
 ```text
 SCOPE: Add invite by email, accept, change role, and remove member endpoints.
@@ -2385,7 +2385,7 @@ BEHAVIOR: Implement with two-site tests.
 Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1467 of 1467
 (1400 before this prompt).
 
-### PP2.11b Members list, role changes, and removal
+### PP2.11b Members list, role changes, and removal - done
 
 ```text
 SCOPE: Add list members, change a member's role, and remove a member, on the site's admin routes.
@@ -2395,6 +2395,110 @@ deadlock (1205) all answer last-owner. Unknown and other sites' members are indi
 BEHAVIOR: Plan, wait for approval, implement with two-site tests, including a role change or removal on A leaving B's
 rows unchanged (the shared account's above all).
 ```
+
+*PP2.11b delivery note (done 2026-10-27):*
+
+- **What shipped.**
+  - Three admin routes in `SiteMembersController`, which injects only `ISiteMembersFacade`, all behind `SiteOwner`:
+    - `GET /api/v1/sites/{siteSlug}/members` answers 200 with a page of `{id, email, role, status, joinedAt, isYou}`,
+      ordered by join time and then account. `limit` runs 1 to 100 (default 50) and the cursor is opaque.
+    - `PUT /api/v1/sites/{siteSlug}/members/{memberId}/role` with `{role}` answers 204. It is `[Idempotent]`, with the key
+      optional.
+    - `DELETE /api/v1/sites/{siteSlug}/members/{memberId}` answers 204. It is `[Idempotent]`, with the key optional.
+  - New codes: 404 `member-not-found` and 409 `member-changed`. The existing 409 `last-owner` gets its first callers.
+  - Across the seam:
+    - Contracts: `ISiteMembersFacade`, `SiteMemberRequests`, two errors, and two audit codes
+      (`site.member-role-changed`, `site.member-removed`).
+    - Business: `SiteMemberCursor`. `SiteRoles`' last-owner rules get their first caller.
+    - Validators for the list query and the role request.
+    - `SiteMembersFacade` and `SiteMembersDataLayer`.
+    - `SiteMemberRepository` gains a keyset page (`FromSql`, keyed by site), a tracked find, an owner count, and a
+      remove.
+    - `SitesUnitOfWork.SaveMemberChangeAsync`.
+  - Accounts gained `IAccountDirectory` (`AccountDirectory`, `AccountAddressRepository`): addresses for the ids given,
+    at most 100 a call.
+  - Rate limits per account: list 60 a minute, changes 30 a minute.
+- **Owner-approved decisions:**
+  - the Owner sees members' addresses, through the new Accounts contract;
+  - a member's id is their account id;
+  - listing is Owner-only, as the prompt says.
+- **What differs from the plan.**
+  - The domain has no SQL Server package, so SQL error numbers are not read. After a failed save the unit of work asks
+    again, as PP2.10 did. A change that would now leave no owner is `last-owner`, which covers both 51003 and 1205.
+  - That second read has a `READCOMMITTEDLOCK` hint: a snapshot read could let a deadlock's loser see the site from
+    before the winner's commit.
+  - From review:
+    - A member id is accepted only in the lower-case spelling the list writes, so a key matches one request.
+    - Retries of an Owner's own step-down or removal are documented (403 `site-role-required`, 404 `site-not-found`),
+      because the site policy runs before the replay.
+    - `member-changed` tells the client to use a new key.
+    - A fault that outlasted its retries with nothing changed is `member-changed`, not a 500.
+    - The audit reason is a fixed `role:{was}->{now}`, not prose.
+    - A boundary test keeps `IAccountDirectory` to the member list.
+    - A test ties the list's page size to the directory's.
+- **Tests.**
+  - Unit:
+    - the cursor (round trip, offsets, every malformed shape);
+    - the validators;
+    - both audit entries;
+    - the page-size coupling.
+  - Two-site, over ApiService against SQL Server:
+    - each Owner lists exactly their own site's members, with the shared accounts' own role and standing on each;
+    - addresses come from Accounts, and no address of a non-member appears;
+    - pages cover every member once, A cursor from B, or the lowest position there is, lists only A's members.
+    - every bad query parameter is named;
+    - Editors, Authors, and the shared account get 403;
+    - suspended members, strangers, and B's Owner get A's answer as if A were not there;
+    - B's members, unknown ids, malformed ids, and other spellings are byte-identical 404s through A, with both sites
+      unchanged;
+    - **a role change and a removal of the shared account on A leave B's rows unchanged**, and the account's next request
+      reflects each on A alone;
+    - the shared account acting as B's Owner reaches only B's members, and its changes on B leave A unchanged;
+    - suspended members keep their standing;
+    - a repeat records nothing;
+    - the last active Owner can be neither demoted nor removed, and a suspended Owner does not count;
+    - an Owner who is not the last may step down or leave;
+    - six-round and six-way races leave exactly one Owner, every loser answered `last-owner`;
+    - the trigger's refusal is mapped through the unit of work;
+    - a forced deadlock that outlasts its retries is answered `last-owner` only after the winner commits;
+    - stale reads answer changed, not found, or done;
+    - keyed replays of both writes, a key reused on another request, and keyed retries of an Owner's own change;
+    - the change allowance.
+  - Contract: every declared status, code, and description, the `memberId` description, the idempotent route list, the
+    route list, and no site id in any schema.
+  - **Checked by planting:** with the lock hint removed, the deadlock test fails three runs in three. The ordinary races
+    pass without it: their losers arrive after the commit, and in the race runs 19 losers met the trigger (51003) and
+    none deadlocked.
+- **Reviewers.** `api-contract-checker`, `site-isolation-auditor`, and `architecture-reviewer` found no blocker and no
+  major except the contract checker's one:
+  - **Fixed:**
+    - retry descriptions that promised a replay an Owner's own change cannot get;
+    - `member-changed` advice for the key;
+    - the `memberId` description and its two spellings;
+    - the list's 400 description;
+    - the `email` doc;
+    - who may read the directory;
+    - the weak cursor check;
+    - the shared account acting from B;
+    - the "provider-neutral" comment;
+    - the 500 after exhausted retries;
+    - the prose audit reason;
+    - the page-size coupling;
+    - staging a role through the data layer.
+  - **Recorded, not changed:**
+    - two Owners removing one member at once both hear 204, and only the first is audited;
+    - the unit of work applies `SiteRoles` itself, as PP2.10's save does;
+    - an Owner of two sites sees one account id on both.
+- **Left for later.**
+  - PP14: suspending and reinstating members for a downgrade (`SiteRoles.CanSuspend` is ready), and member-count limits.
+  - PP3: the admin app's members page.
+  - A route for an Editor or Author to leave a site, listing and revoking pending invitations, and email to a member who
+    was changed or removed are not in any prompt yet.
+  - PP19.11a must erase memberships before an account's row goes; until then the list shows `email: null` for it.
+- **Not verified.** Nothing ran against Azure. No migration.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1540 of 1540
+(1467 before this prompt).
 
 ### PP2.12 PantryPress.Site host and host resolution
 

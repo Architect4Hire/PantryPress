@@ -23,7 +23,8 @@ public static class SitesServiceCollectionExtensions
     /// route names (PP2.3), which the admin API's site policies ask, and which sets the request's site context (PP2.4);
     /// and it creates sites and reads them for their members (PP2.10). ApiService calls this because admin site routes
     /// live there; other hosts call it when they need something from it. It invites people to a site and lets them join
-    /// (PP2.11), staging each invitation's email in the outbox for the Worker. <see cref="SitesOptions"/> is bound from the
+    /// (PP2.11), staging each invitation's email in the outbox for the Worker, and lets an Owner list, re-role, and remove
+    /// members (PP2.11b), with their addresses from Accounts' directory of addresses, which the host registers with Accounts. <see cref="SitesOptions"/> is bound from the
     /// <c>Sites</c> section of the host's configuration and checked when a host starts, so every host that calls this
     /// sets <c>Sites:SubdomainZone</c>. The host also registers <c>PantryPressDbContext</c>, the clock, and data protection
     /// with the application name the Worker shares, since the API checks the invitation links the Worker makes.
@@ -60,6 +61,11 @@ public static class SitesServiceCollectionExtensions
         services.AddScoped<IValidator<AcceptInvitationRequest>, AcceptInvitationRequestValidator>();
         services.AddScoped<SiteInvitationAcceptance>();
         services.AddScoped<ISiteInvitationsFacade, SiteInvitationsFacade>();
+
+        services.AddScoped<SiteMembersDataLayer>();
+        services.AddScoped<IValidator<ListSiteMembersQuery>, ListSiteMembersQueryValidator>();
+        services.AddScoped<IValidator<ChangeMemberRoleRequest>, ChangeMemberRoleRequestValidator>();
+        services.AddScoped<ISiteMembersFacade, SiteMembersFacade>();
         return services;
     }
 

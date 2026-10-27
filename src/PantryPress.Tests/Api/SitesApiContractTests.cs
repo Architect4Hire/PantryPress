@@ -163,6 +163,72 @@ public sealed class SitesApiContractTests
             schemas.GetProperty("SiteInvitationDetail").GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
     }
 
+    // PP2.11b: every member route gains its Owner policy's 403 and 404; the writes add member-not-found to that 404 and say
+    // which codes their 409 carries, and their answers carry nothing to store.
+    [Fact]
+    public async Task The_admin_document_declares_every_answer_of_the_member_routes()
+    {
+        await using var api = ApiServiceFactory.WithoutDatabase(
+            "Development",
+            new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
+
+        using var response = await api.CreateClient().GetAsync("/openapi/v1.json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var paths = document.RootElement.GetProperty("paths");
+        var list = paths.GetProperty("/api/v1/sites/{siteSlug}/members").GetProperty("get");
+        var role = paths.GetProperty("/api/v1/sites/{siteSlug}/members/{memberId}/role").GetProperty("put");
+        var remove = paths.GetProperty("/api/v1/sites/{siteSlug}/members/{memberId}").GetProperty("delete");
+
+        Assert.Equal(["200", "400", "401", "403", "404", "413", "429", "500", "502", "504"], Statuses(list));
+        Assert.Equal(
+            ["204", "400", "401", "403", "404", "409", "413", "415", "422", "429", "500", "502", "504"],
+            Statuses(role));
+        Assert.Equal(
+            ["204", "400", "401", "403", "404", "409", "413", "422", "429", "500", "502", "504"],
+            Statuses(remove));
+
+        foreach (var write in new[] { role, remove })
+        {
+            Assert.Contains("site-role-required", Description(write, "403"), StringComparison.Ordinal);
+            Assert.Contains("member-not-found", Description(write, "404"), StringComparison.Ordinal);
+            Assert.Contains("site-not-found", Description(write, "404"), StringComparison.Ordinal);
+            Assert.Contains("last-owner", Description(write, "409"), StringComparison.Ordinal);
+            Assert.Contains("member-changed", Description(write, "409"), StringComparison.Ordinal);
+            Assert.Contains("retry", write.GetProperty("description").GetString(), StringComparison.Ordinal);
+            Assert.False(write.GetProperty("responses").GetProperty("204").TryGetProperty("content", out _));
+            Assert.Contains("new Idempotency-Key", Description(write, "409"), StringComparison.Ordinal);
+            Assert.Contains(
+                write.GetProperty("parameters").EnumerateArray(),
+                p => p.GetProperty("name").GetString() == "memberId"
+                    && p.TryGetProperty("description", out var description) && description.GetString() is { Length: > 0 });
+        }
+
+        // An owner changing their own membership cannot have the first answer replayed: each write says what a retry hears.
+        Assert.Contains("site-role-required", role.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains("site-not-found", remove.GetProperty("description").GetString(), StringComparison.Ordinal);
+        Assert.Contains("validation-failed", Description(list, "400"), StringComparison.Ordinal);
+
+        Assert.All(
+            list.GetProperty("parameters").EnumerateArray().Where(p => p.GetProperty("in").GetString() == "query"),
+            p => Assert.True(p.TryGetProperty("description", out var description) && description.GetString() is { Length: > 0 }, p.GetRawText()));
+
+        // No site id anywhere; a member is named by their own id, and their standing is a kebab-case string.
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        foreach (var name in new[] { "ChangeMemberRoleRequest", "SiteMemberItem", "SiteMemberPage" })
+        {
+            Assert.DoesNotContain(
+                schemas.GetProperty(name).GetProperty("properties").EnumerateObject(),
+                p => p.Name.Contains("site", StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Equal(
+            ["email", "id", "isYou", "joinedAt", "role", "status"],
+            schemas.GetProperty("SiteMemberItem").GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(
+            ["active", "suspended"],
+            schemas.GetProperty("SiteMemberStatus").GetProperty("enum").EnumerateArray().Select(e => e.GetString()));
+    }
+
     [Theory]
     [InlineData("Sites:InvitationLifetime", "00:30:00")]
     [InlineData("Sites:InvitationLifetime", "31.00:00:00")]

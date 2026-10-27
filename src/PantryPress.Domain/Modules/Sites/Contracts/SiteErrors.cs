@@ -36,6 +36,21 @@ public static class SiteErrors
         "A site needs at least one owner. Make someone else an owner first.");
 
     /// <summary>
+    /// No member of this site has that id (PP2.11b): unknown, not an id at all, or a member of another site only - one
+    /// answer, so an id says nothing about anyone outside the site.
+    /// </summary>
+    public static readonly Error MemberNotFound = new(
+        ErrorKind.NotFound,
+        "member-not-found",
+        "We couldn't find that member on this site. They may already have been removed.");
+
+    /// <summary>Someone else changed the same member at the same moment; nothing was changed by this request.</summary>
+    public static readonly Error MemberChanged = new(
+        ErrorKind.Conflict,
+        "member-changed",
+        "Someone else changed this member just now. Check the member list and try again.");
+
+    /// <summary>
     /// An invitation link that cannot be used: not one of ours, expired, already used, replaced by a newer invitation, or
     /// for a site that was deleted. One answer for all of them (PP2.11), so a link says nothing about the site it names.
     /// </summary>

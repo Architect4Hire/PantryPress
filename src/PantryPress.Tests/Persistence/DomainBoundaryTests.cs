@@ -245,6 +245,56 @@ public sealed class DomainBoundaryTests
     public void The_delivery_scan_catches_a_delivery_being_made(string code, bool makes) =>
         Assert.Equal(makes, Regex.IsMatch(code, OutboxDeliveryReference));
 
+    // PP2.11b (isolation audit): the account directory hands out sign-in addresses for whatever account ids it is given, with
+    // no site or membership check of its own. Its one caller asks only for the members of the site its Owner policy
+    // entered; any other caller is declared here, with its reason.
+    private const string AccountDirectoryReference = @"\bI?AccountDirectory\b";
+
+    private static readonly string[] AccountDirectoryReaders =
+    [
+        // The contract, its facade, and its registration.
+        Path.Combine("PantryPress.Domain", "Modules", "Accounts"),
+
+        // A site's Owner reading the site's member list (SITE-010; PP2.11b).
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SiteMembersFacade.cs"),
+    ];
+
+    [Fact]
+    public void Only_the_member_list_reads_the_account_directory()
+    {
+        var source = DomainSource.Project.Parent!;
+        var allowed = AccountDirectoryReaders.Select(r => Path.Combine(source.FullName, r)).ToList();
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Any(a => file.FullName.Equals(a, StringComparison.OrdinalIgnoreCase))
+                    || allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), AccountDirectoryReference),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reads accounts' addresses; only a declared reader may.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+        Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed as a directory reader but is not there."));
+    }
+
+    [Theory]
+    [InlineData("IAccountDirectory directory", true)]
+    [InlineData("services.AddScoped<IAccountDirectory, AccountDirectory>()", true)]
+    [InlineData("IAccountAddressCheck addresses", false)]
+    public void The_directory_scan_catches_a_reader(string code, bool reads) =>
+        Assert.Equal(reads, Regex.IsMatch(code, AccountDirectoryReference));
+
     [Fact]
     public void Only_the_resolvers_set_the_site_context()
     {

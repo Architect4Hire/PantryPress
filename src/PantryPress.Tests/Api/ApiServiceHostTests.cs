@@ -132,6 +132,9 @@ public sealed class ApiServiceHostTests
                 "/api/v1/sites",
                 "/api/v1/sites/{siteSlug}",
                 "/api/v1/sites/{siteSlug}/invitations",
+                "/api/v1/sites/{siteSlug}/members",
+                "/api/v1/sites/{siteSlug}/members/{memberId}",
+                "/api/v1/sites/{siteSlug}/members/{memberId}/role",
                 "/api/v1/slug-availability",
             ],
             paths.Order(StringComparer.Ordinal));
