@@ -2,7 +2,8 @@
 
 ## Accounts
 
-- ASP.NET Core Identity in `Modules/Accounts`. Email verification required before publishing (ACCT-001).
+- ASP.NET Core Identity in `Modules/Accounts`. Email verification required before publishing (ACCT-001), and before
+  owning more than one site (PP2.10, `Sites:UnconfirmedAccountSiteLimit`).
 - Optional TOTP two-factor; required for `PlatformAdmin`. Setting it up needs a confirmed email address (PP1.12), and a
   reset that confirms an address for the first time clears a second factor the account already had. An authenticator
   code works once; the same right code sent again is refused (`code-already-used`) without counting toward lockout.

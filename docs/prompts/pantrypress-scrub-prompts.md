@@ -2137,7 +2137,7 @@ outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dot
 (1174 before this prompt), with the model matching the migrations. The two failures are the intermittent ones above, and
 they pass alone.
 
-### PP2.10 Create, list, and read sites
+### PP2.10 Create, list, and read sites - done
 
 ```text
 SCOPE: Add endpoints to create a site (with its subdomain SiteHost and the creator as Owner), list the
@@ -2147,6 +2147,124 @@ RESTRICTION: Plan limits arrive in PP14 through the entitlements facade. Availab
 holder of a taken slug.
 BEHAVIOR: Plan, wait for approval, implement with two-site tests.
 ```
+
+*PP2.10 delivery note (done 2026-10-27):*
+
+- **What shipped.**
+  - Four admin routes in `SitesController`, which injects only `ISitesFacade`:
+    - `POST /api/v1/sites` answers 201 with `Location` and the new site. It is `[Idempotent]`, with the key optional.
+    - `GET /api/v1/sites` lists the caller's active memberships on sites that are not deleted, by slug. `limit` runs 1 to
+      100 (default 50) and the cursor is opaque.
+    - `GET /api/v1/sites/{siteSlug}` sits behind `SiteAuthor`.
+    - `GET /api/v1/slug-availability?slug=` answers `{slug, available}`.
+  - Across the seam:
+    - Contracts: `ISitesFacade`, `SiteRequests` (no site id anywhere), and `SiteAudit` (`site.created`).
+    - Business: `SiteSubdomains`, `SiteListCursor`, and `SiteText` (one-line plain text, BCP 47 shape).
+    - Validators for the create request, the list query, and the availability query.
+    - `SitesFacade` and `SitesDataLayer`.
+    - Repositories: `SiteHostRepository`, a list and an existence read on `SiteRepository`, and `SitesUnitOfWork`.
+    - `SitesOptions.SubdomainZone`, checked at startup.
+  - Wiring:
+    - The AppHost sets the zone to `localhost` locally (SITE-009) and to a parameter otherwise. The Terraform sets it to
+      `dns_zone_name`.
+    - Each site route has its own per-account limit: list and read 60 a minute, address checks 120 a minute, creates 5
+      an hour.
+  - An account whose email address is not confirmed owns at most one site (`Sites:UnconfirmedAccountSiteLimit`,
+    owner-approved after review), counting every Owner membership, deleted sites included. Past it, create answers 403
+    `email-not-verified` before the address is asked about. The save counts again inside its transaction under
+    `UPDLOCK, HOLDLOCK` on the account's memberships, so simultaneous creates cannot all pass.
+- **Owner-approved defaults (DECIDE, stated).**
+  - A new site starts `Live`, with no `sites.provision`, because no handler exists (G-01).
+  - Creating before the email is confirmed is allowed.
+  - No plan limit until PP14.
+  - A slug is never reissued: reserved, held by any site (deleted included), or still some site's host all answer as one.
+- **What differs from the plan.**
+  - Availability moved from `/api/v1/sites/availability` to `/api/v1/slug-availability`, so it can never shadow a site whose
+    slug is `availability` (`api-contract.md` updated).
+  - Races are settled by re-asking after a failed save rather than reading SQL Server error numbers. This meets PP2.8's and
+    PP2.9's request to map 2601 and 51005 to 51008, and no database message reaches a caller.
+  - From review:
+    - a retried save that meets its own committed site counts as saved;
+    - creating sites got its own hourly limit, and a refused create counts toward it;
+    - `AddSites` no longer registers the clock (the host does);
+    - availability is validated with FluentValidation;
+    - a site with no canonical host fails with a named error.
+- **Also changed.**
+  - A query parameter that fails to bind is reported under its own name (`limit`), not as an unnamed field.
+  - The admin document now:
+    - gives a 201 its `Location` header;
+    - names both codes a 409 on an idempotent create can carry;
+    - drops the unreachable 403 from `SiteAuthor` routes.
+  - The resolver boundary test names `SiteMembershipFacade.cs` and `SitesFacade.cs` by file instead of the whole folder.
+  - `tenancy.md` rules 2 and 4 name site creation as the second place a site is entered.
+- **Tests.**
+  - Business and validators: zones, cursors, locales, one-line text with unpaired surrogates, and each field's error.
+  - Two-site, over ApiService against SQL Server:
+    - create writes three rows and one audit entry, and A's and B's tenant-root rows stay unchanged;
+    - held, case-variant, deleted, reserved, and host-only slugs give byte-identical refusals from create and from
+      availability;
+    - every account in the seeded world lists exactly its own sites and roles;
+    - pagination, and every bad query parameter named;
+    - a cursor made from A's slug grants nothing;
+    - reads by every role, and by the shared account on both sites;
+    - non-members in both cases, and a deleted site, answer like no site;
+    - a `siteId` in the body names nothing;
+    - an idempotent replay works, and one account's key replays nothing to another;
+    - a six-way race leaves one site, one owner, one host, and one audit entry, and each loser's answer is a taken
+      address's;
+    - the save path covers held, hosted, and reserved slugs, a non-address fault that throws, and a landed retry that
+      counts as saved;
+    - anonymous callers get 401, alike for a real and a missing site.
+  - Unconfirmed limit (its own harness, limit 1):
+    - one site, then 403 for a free, a taken, and a reserved address alike;
+    - an owned site counts, deleted or not, and an Editor role does not;
+    - a confirmed account is not limited;
+    - six simultaneous creates by one unconfirmed account make one site. This fails three runs in three without the
+      lock hint.
+  - Startup is refused with a negative limit.
+  - Contract and host:
+    - every declared status, `Location`, the 409's codes, and the required `slug`;
+    - no id in any schema;
+    - startup refused without a valid zone;
+    - the create limit counts refused creates;
+    - the AppHost wiring, local and published;
+    - creating a site is the only idempotent route.
+- **Reviewers.** `site-isolation-auditor`, `architecture-reviewer`, and `api-contract-checker` found no blocker and no
+  isolation major.
+  - **Fixed:**
+    - Terraform did not set the zone, so a deployed API would not start;
+    - a lost commit acknowledgement could answer the creator 409;
+    - one shared limit for create, list, and checks;
+    - the folder-wide resolver allow-list;
+    - rules 2 and 4;
+    - the missing-host 500;
+    - hand validation in availability;
+    - the unnamed query-field error;
+    - the 409 and `Location` declarations;
+    - the 403 on `SiteAuthor` routes;
+    - the cursor message;
+    - the missing test cases the auditor listed.
+  - **Recorded, not changed:**
+    - authorization still runs before the rate limiter, so a refused site read is not counted (PP2.3's order, now
+      decided);
+    - refusals differ in timing, and only content is compared (PP2.7);
+    - the tenant root's tables are joined through the caller's memberships for the list;
+    - response schemas mark no member required, as with every existing record; a client-generation concern for PP3.
+- **Left for later.**
+  - Squatting by many confirmed accounts is left to PP14's site counts and PP19.9's velocity limits. Releasing the slugs
+    of sites whose owners never confirmed stays an option for the operator console (PP19).
+  - PP2.12:
+    - a newly created site's subdomain must resolve at once, with no stale "unknown host";
+    - the Site host calls `AddSites` and so needs `Sites:SubdomainZone`.
+  - PP14: the entitlements check before creating (step 1).
+  - PP17.2: a pending custom host under the platform zone can block a slug; refuse it there.
+  - The provisioning prompt after PP9.5: `Provisioning`, `sites.provision`, default theme and settings.
+- **Not verified.** Nothing ran against Azure. The Terraform change is one environment variable.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1400 of 1400
+(1291 before this prompt). PP2.9's intermittent `IdentityModelTests` (`ManyServiceProvidersCreatedWarning`,
+order-dependent) passed in this run and failed in an earlier one; they pass alone.
 
 ### PP2.11 Invitations and member management
 

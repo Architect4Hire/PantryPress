@@ -173,16 +173,22 @@ public sealed class DomainBoundaryTests
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
     }
 
-    // PP2.4: a request's site is set by the code that resolved it and by nothing else (tenancy.md rules 2, 4, and 7). Today
-    // that is the Sites module's facades, from the route's slug and the caller's membership; the public tier's host
-    // resolution (PP2.12) and the Worker's site jobs join this list when they arrive, each with its reason. The writer
+    // PP2.4: a request's site is set by the code that resolved it and by nothing else (tenancy.md rules 2, 4, and 7). Each
+    // resolver is listed by its exact file, with its reason, so a new facade beside them cannot enter a site unnoticed. The
+    // public tier's host resolution (PP2.12) and the Worker's site jobs join this list when they arrive. The writer
     // interface and the class behind it are both named here, so neither a cast nor a direct resolve gets past.
     private const string SiteContextWriterReference = @"\bISiteContextWriter\b|(?<!\w)SiteContext\b";
 
     private static readonly string[] SiteContextResolvers =
     [
+        // The context itself.
         Path.Combine("PantryPress.Domain", "Managers", "Tenancy"),
-        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades"),
+
+        // An admin route's site, from its slug and the caller's membership (PP2.4).
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SiteMembershipFacade.cs"),
+
+        // A site the request has just created, with a server-minted id and the caller as its Owner (PP2.10).
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SitesFacade.cs"),
     ];
 
     [Fact]
@@ -197,7 +203,8 @@ public sealed class DomainBoundaryTests
             var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
             foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
             {
-                if (allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                if (allowed.Any(a => file.FullName.Equals(a, StringComparison.OrdinalIgnoreCase))
+                    || allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
@@ -210,6 +217,7 @@ public sealed class DomainBoundaryTests
         }
 
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+        Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed as a resolver but is not there."));
     }
 
     [Theory]

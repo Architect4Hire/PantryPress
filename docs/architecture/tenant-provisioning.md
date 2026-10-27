@@ -153,6 +153,21 @@ nothing slow.
 The unique slug index is the race guard: two sign-ups taking the same slug at the same moment both pass
 validation, one commits, the other gets 409 `slug-unavailable`.
 
+**As built at PP2.10.** Steps 2 to 6 and 9 shipped, in that order and in one save, with these differences:
+
+- Step 1 waits for PP14. Until then a per-account hourly create limit applies, and an account whose email address is
+  not confirmed owns at most one site (`Sites:UnconfirmedAccountSiteLimit`), deleted ones included, counted again under
+  a lock at the save.
+- Step 2 also refuses a slug any site has held, a deleted one included, and a slug whose subdomain is still some
+  site's host.
+- Step 3 inserts the site `Live` (G-01), with time zone and locale from the create request (locale defaults to
+  `en-US`).
+- Step 4 enters the new site before the audit entry is recorded, because nothing site-owned is written yet.
+- Steps 7 and 8 wait for the prompts that own the settings and the provisioning job.
+- The subdomain's zone is `Sites:SubdomainZone`: `localhost` locally, and the environment's DNS zone deployed.
+- A save that loses the race re-asks whether the slug, its host, or a reserved row now blocks it, rather than
+  reading SQL Server error numbers. A save that meets its own already-committed site counts as saved.
+
 At this point the public host already resolves, through `SiteHost`, to a site in `Provisioning`. The public
 tier answers it with the neutral "coming soon" page and `503` plus a short `Retry-After`, never a 404, so a
 search engine or an early visitor does not record the host as missing.
@@ -256,12 +271,12 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 | Piece                                               | Prompt                  | State                                           |
 | --------------------------------------------------- | ----------------------- | ----------------------------------------------- |
 | Account sign-up, verification email, abuse controls | PP1.2                   | Done                                            |
-| Transactional outbox and Worker dispatcher          | PP1.10                  | In progress on `dev`                            |
-| Audit log                                           | PP1.11                  | Not started                                     |
-| `Site`, `SiteMember`, query filter, stamping        | PP2.2 to PP2.5          | Not started                                     |
+| Transactional outbox and Worker dispatcher          | PP1.10                  | Done                                            |
+| Audit log                                           | PP1.11                  | Done                                            |
+| `Site`, `SiteMember`, query filter, stamping        | PP2.2 to PP2.5          | Done                                            |
 | Reserved slugs and slug policy                      | PP2.8                   | Done                                            |
 | `SiteHost` and canonical host                       | PP2.9                   | Done                                            |
-| Create-site endpoint                                | PP2.10                  | Not started                                     |
+| Create-site endpoint                                | PP2.10                  | Done (site starts `Live`, G-01)                 |
 | Public host resolution and status answers           | PP2.12, PP2.13          | Not started                                     |
 | Page-data build, pointer switch, warm-up            | PP7.11, PP7.12          | Not started                                     |
 | Legal, About and Start here templates               | PP8.5, PP8.5a           | Not started                                     |

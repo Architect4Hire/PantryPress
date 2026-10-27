@@ -79,14 +79,34 @@ internal static class ApiOpenApi
                             signedIn: metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Any()
                                 && !metadata.OfType<Microsoft.AspNetCore.Authorization.IAllowAnonymous>().Any());
 
-                        // A site route's policy answers before the route does (PP2.3).
-                        if (metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
-                            .Any(a => a.Policy is { } policy && SitePolicies.LeastRole.ContainsKey(policy)))
+                        // A site route's policy answers before the route does (PP2.3). Its 403 only where some member's
+                        // role can be too low: every member is at least an Author.
+                        var leastRoles = metadata.OfType<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
+                            .Where(a => a.Policy is { } policy && SitePolicies.LeastRole.ContainsKey(policy))
+                            .Select(a => SitePolicies.LeastRole[a.Policy!])
+                            .ToList();
+                        if (leastRoles.Count > 0)
                         {
                             GatewayAnswers.AddOrExtend(operation, "404", "No such site, or the caller is not an active member of "
                                 + "it - one answer, so a slug reveals nothing (site-not-found).");
+                        }
+
+                        if (leastRoles.Any(r => r != SiteRole.Author))
+                        {
                             GatewayAnswers.AddOrExtend(operation, "403", "The caller's role on this site is too low "
                                 + "(site-role-required).");
+                        }
+
+                        // A created thing says where it is read (PP2.10).
+                        if (operation.Responses?.TryGetValue("201", out var created) is true && created is OpenApiResponse declared)
+                        {
+                            declared.Headers ??= new Dictionary<string, IOpenApiHeader>();
+                            declared.Headers["Location"] = new OpenApiHeader
+                            {
+                                Description = "Where the created thing is read in this API.",
+                                Required = true,
+                                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                            };
                         }
 
                         return Task.CompletedTask;
@@ -157,7 +177,8 @@ internal static class ApiOpenApi
                             declared.Headers ??= new Dictionary<string, IOpenApiHeader>();
                             declared.Headers["Retry-After"] = new OpenApiHeader
                             {
-                                Description = "Seconds to wait before retrying while the first request is still running.",
+                                Description = "With idempotency-key-in-use only: seconds to wait before retrying while the "
+                                    + "first request with this key is still running.",
                                 Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
                             };
                         }

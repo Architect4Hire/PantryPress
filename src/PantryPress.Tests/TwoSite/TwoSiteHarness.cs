@@ -1,8 +1,10 @@
 using Aspire.Hosting.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Tenancy;
+using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Contracts;
@@ -46,7 +48,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     private static readonly DateTimeOffset SeededAt = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     /// <summary>The platform's zone the seeded subdomains sit under, as in production.</summary>
-    public const string SubdomainZone = "pantrypress.app";
+    public const string SubdomainZone = ApiServiceFactory.SubdomainZone;
 
     private readonly ServiceProvider _services;
     private readonly ApiServiceFactory? _api;
@@ -62,10 +64,12 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     /// <param name="database">The shared migrated database.</param>
     /// <param name="withApi">Also start ApiService over that database, with the site policy probe routes.</param>
     /// <param name="configure">More context configuration, such as a planted test model.</param>
+    /// <param name="apiSettings">ApiService settings over the harness's own, such as a site limit under test.</param>
     public static async Task<TwoSiteHarness> CreateAsync(
         MigratedDatabase database,
         bool withApi = false,
-        Action<DbContextOptionsBuilder>? configure = null)
+        Action<DbContextOptionsBuilder>? configure = null,
+        IReadOnlyDictionary<string, string?>? apiSettings = null)
     {
         var connectionString = await database.App.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, CancellationToken.None)
             ?? throw new InvalidOperationException("The test AppHost has no pantrypress connection string.");
@@ -73,19 +77,35 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         ApiServiceFactory? api = null;
         if (withApi)
         {
+            // The seeded accounts have no confirmed address, and most tests create more than one site with them: the
+            // limit on unconfirmed accounts is lifted here and tested with its own setting.
+            var settings = new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:pantrypress"] = connectionString,
+                ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
+                ["RateLimits:SignedInAccountPerMinute"] = "100000",
+                ["RateLimits:SitesPerAccountPerMinute"] = "100000",
+                ["RateLimits:SlugChecksPerAccountPerMinute"] = "100000",
+                ["RateLimits:SiteCreatesPerAccountPerHour"] = "100000",
+                ["Sites:UnconfirmedAccountSiteLimit"] = "100000",
+            };
+            foreach (var (key, value) in apiSettings ?? new Dictionary<string, string?>())
+            {
+                settings[key] = value;
+            }
+
             api = new ApiServiceFactory(
                 "Testing",
-                new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:pantrypress"] = connectionString,
-                    ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
-                    ["RateLimits:SignedInAccountPerMinute"] = "100000",
-                },
+                settings,
                 services => services.AddProbes(new IdempotencyProbeLedger(), typeof(SitePolicyProbeController)));
             _ = api.Server;
         }
 
         var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Sites:SubdomainZone"] = SubdomainZone })
+            .Build());
+        services.AddApplicationClock();
         services.AddAccountsIdentitySchema();
         services.AddPantryPressDbContext((_, options) =>
         {

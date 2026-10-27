@@ -15,5 +15,9 @@ public abstract class ApiControllerBase : ControllerBase
 
     protected IActionResult OkOr<T>(Result<T> result) => result.IsSuccess ? Ok(result.Value) : Failure(result.Error);
 
+    /// <summary>201 with <c>Location</c> set to where the created thing is read, from <paramref name="location"/>.</summary>
+    protected IActionResult CreatedOr<T>(Result<T> result, Func<T, string> location) =>
+        result.IsSuccess ? Created(location(result.Value), result.Value) : Failure(result.Error);
+
     protected ObjectResult Failure(Error error) => ApiProblems.FromError(this, error);
 }

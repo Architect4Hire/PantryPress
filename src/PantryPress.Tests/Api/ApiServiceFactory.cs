@@ -25,6 +25,9 @@ internal sealed class ApiServiceFactory(
 {
     public const string TestAccountHeader = "X-Test-Account";
 
+    /// <summary>The platform's zone, as in production.</summary>
+    public const string SubdomainZone = "pantrypress.app";
+
     // Nothing listens here; hosts that never open a connection still need a well-formed connection string.
     public const string UnreachableDatabase =
         "Server=127.0.0.1,1;Database=none;User Id=none;Password=none;TrustServerCertificate=true;Connect Timeout=1";
@@ -66,6 +69,9 @@ internal sealed class ApiServiceFactory(
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environment);
+
+        // The API refuses to start without the zone new sites' addresses sit under (PP2.10); a test may set another.
+        builder.UseSetting("Sites:SubdomainZone", SubdomainZone);
         foreach (var (key, value) in settings)
         {
             builder.UseSetting(key, value);

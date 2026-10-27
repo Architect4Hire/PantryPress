@@ -7,6 +7,15 @@ Detail: `docs/requirements/pantrypress-customization-spec.md`.
 
 - Slugs: 3–40 lowercase letters, digits, hyphens; unique; reserved list; availability never reveals the
   holder. Renames are limited and the old host redirects for 12 months.
+- Creating a site (PP2.10, `ISitesFacade`) writes the site, its creator as active Owner, and its canonical subdomain
+  `{slug}.{zone}` in one save. The zone is `Sites:SubdomainZone` (`localhost` locally, SITE-009; the environment's DNS
+  zone deployed), never taken from a request. A slug is unavailable when it is reserved, held by any site - a deleted
+  one included, so a slug is never reissued - or its subdomain is still some site's host; every one of those is the
+  same `slug-unavailable` (409) from create and `available: false` from availability. A new site starts `Live` with no
+  page data until the provisioning job exists (tenant-provisioning G-01). Creating sites has its own small per-account
+  hourly limit until PP14's entitlements cap the count. An account whose email address is not confirmed owns at most
+  `Sites:UnconfirmedAccountSiteLimit` sites (1), deleted ones included; past it, create answers 403 `email-not-verified`
+  before the address is asked about, and the save counts again under a lock on the account's memberships.
 - The slug policy (PP2.8) is `SlugPolicy` in Sites' Business: ASCII checked before lower-casing, so comparison is
   case-insensitive and no look-alike letter becomes a real one; a host name's label (no hyphen at either end, none
   doubled, which also rules out `xn--` look-alikes); not a site id's shape; then the reserved list. A refused shape is

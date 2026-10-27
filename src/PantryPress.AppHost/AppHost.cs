@@ -116,6 +116,18 @@ if (!isLocalDevelopment)
     worker.WithEnvironment("Accounts__AppBaseUrl", builder.AddParameter("app-base-url"));
 }
 
+// The zone a new site's own address sits under, {slug}.{zone} (SITE-003; PP2.10). Locally it is localhost, which browsers
+// resolve for every name under it (SITE-009); elsewhere a parameter, because the dev deployment is dev.pantrypress.app and
+// production pantrypress.app. Never taken from a request.
+if (isLocalDevelopment)
+{
+    apiService.WithEnvironment("Sites__SubdomainZone", "localhost");
+}
+else
+{
+    apiService.WithEnvironment("Sites__SubdomainZone", builder.AddParameter("site-subdomain-zone"));
+}
+
 // The admin SPA's dev server (PP-D08: client-rendered). Browsers are meant to reach it through the gateway's catch-all
 // YARP route, so cookies and antiforgery behave as they will in production. That route lives in the gateway's
 // appsettings.Development.json and names this resource ("admin"), so both exist only in local Development runs: in

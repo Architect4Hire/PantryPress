@@ -20,6 +20,25 @@ public sealed class ApiRateLimitOptions
     public int SignedInAccountPerMinute { get; set; } = 30;
 
     /// <summary>
+    /// Requests per minute for one signed-in account listing its sites or reading one (PP2.10). Its own allowance, so
+    /// neither typing an address nor creating a site spends it.
+    /// </summary>
+    public int SitesPerAccountPerMinute { get; set; } = 60;
+
+    /// <summary>
+    /// Requests per minute for one signed-in account asking whether an address is free, which an admin app may do as the
+    /// blogger types (PP2.10).
+    /// </summary>
+    public int SlugChecksPerAccountPerMinute { get; set; } = 120;
+
+    /// <summary>
+    /// Sites one signed-in account may create in an hour (PP2.10). A slug is never reissued once a site has held it, so
+    /// this is the brake on one account taking addresses it does not mean to use, until PP14's entitlements cap the
+    /// number of sites and PP19.9 adds new-site velocity limits. A refused create still counts.
+    /// </summary>
+    public int SiteCreatesPerAccountPerHour { get; set; } = 5;
+
+    /// <summary>
     /// Requests per minute across every caller for the internal sign-in routes. Deliberately still a global ceiling:
     /// only the gateway can reach this surface, it calls with a client of its own rather than through its proxy, and
     /// it already limits sign-in per address at the browser's end (PP1.8). This is the backstop behind that.
@@ -40,6 +59,9 @@ internal static class ApiRateLimits
     public const string SignedInAccount = "account-signed-in";
     public const string SignIn = "account-sign-in";
     public const string SessionCheck = "account-session-check";
+    public const string Sites = "sites-signed-in";
+    public const string SlugCheck = "sites-slug-check";
+    public const string SiteCreate = "sites-create";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -49,7 +71,9 @@ internal static class ApiRateLimits
         services.AddOptions<ApiRateLimitOptions>()
             .Bind(configuration)
             .Validate(
-                o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SignInPerMinute > 0
+                o => o.AnonymousAccountPerIpPerMinute > 0 && o.SignedInAccountPerMinute > 0 && o.SitesPerAccountPerMinute > 0
+                    && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
+                    && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
             .ValidateOnStart();
@@ -86,6 +110,33 @@ internal static class ApiRateLimits
                 return RateLimitPartition.GetFixedWindowLimiter(key, _ => PerMinute(limits.SignedInAccountPerMinute));
             });
 
+            // The site routes, partitioned by account as well, each with its own allowance (PP2.10). A route that names a
+            // site is authorized first (PP2.3), so a refused site lookup is not counted: its answer reveals nothing, and
+            // whether a site lives at an address is public through the site itself.
+            options.AddPolicy(Sites, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.SitesPerAccountPerMinute));
+            });
+
+            options.AddPolicy(SlugCheck, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.SlugChecksPerAccountPerMinute));
+            });
+
+            options.AddPolicy(SiteCreate, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = limits.SiteCreatesPerAccountPerHour,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                });
+            });
+
             options.OnRejected = async (context, cancellationToken) =>
             {
                 var response = context.HttpContext.Response;
@@ -105,6 +156,9 @@ internal static class ApiRateLimits
         });
         return services;
     }
+
+    private static string AccountKey(HttpContext context) =>
+        context.User.TryGetAccountId(out var account) ? account.ToString() : "anonymous";
 
     private static FixedWindowRateLimiterOptions PerMinute(int permits) => new()
     {

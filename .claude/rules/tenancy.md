@@ -13,7 +13,8 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 2. A global query filter on `SiteId` applies to every `ISiteOwned` entity. It reads the current site from
    `ISiteContext`, which is set once per request: one scoped context, entered through `ISiteContextWriter`, where
    entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
-   the Sites module's facades - and a boundary test keeps every other file from naming it. The filter (PP2.5) is a model
+   the membership decision and site creation, two files in the Sites module's facades - and a boundary test names each
+   by its file and keeps every other file from naming it. The filter (PP2.5) is a model
    convention named `site`, so it reaches every `ISiteOwned` root however the type joined the model; an owned type or one
    under a base that is not site-owned is refused when the model is built. It reads the site per query, so the context may
    be made before the site is entered. **With no site, a site-owned query throws**: site work without a site is a bug,
@@ -33,8 +34,10 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    is the resolution: admitting the caller enters the site, and a refused decision - 404 or 403 - enters none. The site
    policies stacked on one route are one decision, so a role that passes one and fails another enters nothing; a refusal
    by any other policy on the route ends the request before its endpoint runs (PP2.4). Only that decision enters a
-   site: a question about another site the caller holds (copying to a second site) asks `FindAsync`, which enters
-   nothing, because a second site in one request throws.
+   site, and one other: creating a site (PP2.10) enters the site it has just minted, with the caller as its Owner, so
+   its audit entry is filed under it; if the save then loses the address, the request ends in that unsaved site and
+   nothing after the refusal may use it. A question about another site the caller holds (copying to a second site) asks
+   `FindAsync`, which enters nothing, because a second site in one request throws.
 5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
    Unknown hosts get the neutral platform 404.
 6. **Publishing API** requests resolve the site from the publishing key.

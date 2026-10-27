@@ -128,6 +128,9 @@ public sealed class ApiServiceHostTests
                 "/api/v1/account/two-factor/enable",
                 "/api/v1/account/two-factor/recovery-codes",
                 "/api/v1/account/two-factor/setup",
+                "/api/v1/sites",
+                "/api/v1/sites/{siteSlug}",
+                "/api/v1/slug-availability",
             ],
             paths.Order(StringComparer.Ordinal));
 

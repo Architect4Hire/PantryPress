@@ -93,7 +93,7 @@ internal static class ApiProblems
         var plain = new ModelStateDictionary();
         foreach (var key in context.ModelState.Where(e => e.Value?.Errors.Count > 0).Select(e => e.Key))
         {
-            plain.AddModelError(ToFieldName(key), "This isn't in the format we expected.");
+            plain.AddModelError(ToFieldName(key, QueryNames(context)), "This isn't in the format we expected.");
         }
 
         var factory = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
@@ -136,8 +136,16 @@ internal static class ApiProblems
         _ => null,
     };
 
-    // "$.accountId" from System.Text.Json becomes the JSON field name; a missing or unreadable body ("request", "$")
-    // belongs to no field.
-    private static string ToFieldName(string key) =>
-        key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : string.Empty;
+    // "$.accountId" from System.Text.Json becomes the JSON field name, and a query parameter's own name is its field
+    // ("limit" in "?limit=abc", PP2.10); a missing or unreadable body ("request", "$") belongs to no field.
+    private static string ToFieldName(string key, IReadOnlySet<string> queryNames) =>
+        key.StartsWith("$.", StringComparison.Ordinal) ? key[2..]
+        : queryNames.Contains(key) ? key
+        : string.Empty;
+
+    private static HashSet<string> QueryNames(ActionContext context) =>
+        context.ActionDescriptor.Parameters
+            .Where(p => p.BindingInfo?.BindingSource == BindingSource.Query)
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.Ordinal);
 }

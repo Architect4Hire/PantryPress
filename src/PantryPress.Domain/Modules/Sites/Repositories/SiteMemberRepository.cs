@@ -22,4 +22,13 @@ internal sealed class SiteMemberRepository(PantryPressDbContext db)
             .ToListAsync(cancellationToken);
         return roles is [var role] ? role : null;
     }
+
+    /// <summary>
+    /// How many sites the account owns, through any Owner membership, active or suspended, on a site of any status, a
+    /// deleted one included: a deleted site still holds its slug. Keyed by the account alone, on its own index.
+    /// </summary>
+    public Task<int> CountOwnedAsync(AccountId account, CancellationToken cancellationToken) =>
+        db.Set<SiteMember>().CountAsync(m => m.AccountId == account && m.Role == SiteRole.Owner, cancellationToken);
+
+    public void Add(SiteMember member) => db.Set<SiteMember>().Add(member);
 }

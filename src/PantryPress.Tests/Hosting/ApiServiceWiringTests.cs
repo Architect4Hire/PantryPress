@@ -22,6 +22,9 @@ public sealed class ApiServiceWiringTests
         Assert.Contains("ConnectionStrings__pantrypress", api.Keys);
         Assert.DoesNotContain(api.Keys, k => k.StartsWith("DevelopmentMail__", StringComparison.Ordinal));
         Assert.DoesNotContain("Accounts__AppBaseUrl", api.Keys);
+
+        // A local run's sites answer at {slug}.localhost (SITE-009; PP2.10).
+        Assert.Equal("localhost", api["Sites__SubdomainZone"]);
         Assert.Contains("ConnectionStrings__pantrypress", variables.Keys);
         Assert.Contains("DevelopmentMail__Host", variables.Keys);
         Assert.Contains("DevelopmentMail__Port", variables.Keys);
@@ -47,6 +50,11 @@ public sealed class ApiServiceWiringTests
             var origin = Assert.IsType<ParameterResource>(variables["Accounts__AppBaseUrl"]);
             Assert.Equal("app-base-url", origin.Name);
             Assert.DoesNotContain(variables.Keys, k => k.StartsWith("DevelopmentMail__", StringComparison.Ordinal));
+
+            // Deployed, the zone new sites' addresses sit under is the environment's own (PP2.10).
+            var apiService = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "apiservice");
+            var zone = Assert.IsType<ParameterResource>((await GetEnvironmentAsync(apiService, appHost.ExecutionContext))["Sites__SubdomainZone"]);
+            Assert.Equal("site-subdomain-zone", zone.Name);
         }
         finally
         {

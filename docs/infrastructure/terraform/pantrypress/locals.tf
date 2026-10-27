@@ -129,6 +129,8 @@ locals {
       env = {
         "ConnectionStrings__pantrypress" = local.sql_connection["apiservice"]
         "ConnectionStrings__blobs"       = local.blob_endpoint
+        # A new site's own address is {slug}.<zone> (SITE-003; PP2.10). The API refuses to start without it.
+        "Sites__SubdomainZone" = var.dns_zone_name
       }
       secret_env = { "Gateway__SharedSecret" = "gateway-secret" }
       secrets    = { "gateway-secret" = azurerm_key_vault_secret.gateway_secret.versionless_id }

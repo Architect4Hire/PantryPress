@@ -70,18 +70,25 @@ public sealed class IdempotencyConventionTests
     }
 
     [Fact]
-    public async Task No_route_in_this_service_opts_in_yet()
+    public async Task Creating_a_site_is_the_only_route_that_opts_in()
     {
         // The account routes either have no caller to scope a key to or answer with secrets that must not be stored
-        // (IdempotentAttribute). The first real opt-ins are PP2's site writes and PP18's publishing API; until then a
-        // key sent to this service is accepted and ignored, which this pins so the change is deliberate.
+        // (IdempotentAttribute). The first real opt-in is creating a site (PP2.10), so a double-clicked "Create" makes
+        // one site; PP2.11's member writes and PP18's publishing API follow. This pins the list so a change is deliberate.
         await using var api = ApiServiceFactory.WithoutDatabase(
             "Development",
             new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
 
         using var response = await api.CreateClient().GetAsync("/openapi/v1.json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
-        Assert.DoesNotContain(ApiIdempotency.KeyHeader, await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        var optedIn = document.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject()
+                .Where(op => op.Value.TryGetProperty("parameters", out var parameters)
+                    && parameters.EnumerateArray().Any(p => p.GetProperty("name").GetString() == ApiIdempotency.KeyHeader))
+                .Select(op => $"{op.Name.ToUpperInvariant()} {path.Name}"))
+            .ToList();
+        Assert.Equal(["POST /api/v1/sites"], optedIn);
     }
 
     private static Exception Unwrap(Exception error)
