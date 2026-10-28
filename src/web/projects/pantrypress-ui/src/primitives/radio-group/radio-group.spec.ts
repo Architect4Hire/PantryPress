@@ -76,7 +76,9 @@ describe('PpRadioGroup', () => {
     host.layout.setValue('right');
     await fixture.whenStable();
     expect(radios('layout').map((radio) => radio.checked)).toEqual([true, false, false]);
-    radios('layout')[0].dispatchEvent(new Event('blur'));
+    radios('layout')[0].dispatchEvent(
+      new FocusEvent('focusout', { bubbles: true, relatedTarget: null }),
+    );
     expect(host.layout.touched).toBe(true);
   });
 

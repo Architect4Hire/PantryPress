@@ -2947,7 +2947,7 @@ BEHAVIOR: Plan, wait for approval, implement with a contrast test.
   - `ng build pantrypress-admin`, built to a scratch path: the styles bundle is 1.04 kB compressed.
   - Not run: a live `aspire run` or a browser check of the modes.
 
-### PP3.3 Admin primitives: actions and inputs
+### PP3.3 Admin primitives: actions and inputs - done
 
 ```text
 SCOPE: Add admin primitives: button, icon button, text field, textarea, select, checkbox, radio group,
@@ -2955,6 +2955,68 @@ switch, and field wrapper with label, hint, and error.
 CONSTRAINT: add-admin-component; design-system.md.
 BEHAVIOR: Plan, wait for approval, implement with unit and axe tests.
 ```
+
+*PP3.3 delivery note (done 2026-10-28):*
+
+- **What shipped.** Nine primitives in `@pantrypress/ui` (`src/primitives/`), exported with a `Pp` prefix.
+  - On the browser's own elements, so forms, `routerLink`, and the keyboard work natively:
+    - `button[pp-button]`, `a[pp-button]`, `button[pp-icon-button]`, `a[pp-icon-button]`;
+    - `input[pp-text-field]`, `textarea[pp-textarea]`, `select[pp-select]`.
+  - Custom elements that work in reactive forms, over native inputs: `pp-checkbox`, `pp-switch`, `pp-radio-group`.
+  - `pp-field` gives its one control a label, a hint, and an error through `PP_FIELD`.
+  - Owner-approved choices:
+    - the native-element approach, with the library's lint allowing kebab-case attribute selectors;
+    - `disabled` and `disabled-ink` token pairs, exempt from contrast;
+    - `axe-core` 4.14.0 as a new devDependency, its only addition;
+    - `eslint.ssr-safety.js` over `primitives/`.
+  - `@angular/forms` joins the library's peer dependencies.
+- **Tests.** 72 library specs, up from 20. They cover:
+  - every variant and state, with axe in each;
+  - reactive-form read, write, disable, and touched;
+  - a busy button or link that ignores a press;
+  - caller `aria-*` merged with the field's;
+  - `[ngValue]` options;
+  - a value the form puts straight back;
+  - a server render (`renderApplication`) that gives the same ids twice.
+
+  These were shown failing on a deliberate break: the radio group's sync, the per-application id sequence, and axe
+  itself (`axe.spec.ts`).
+- **Differs from the approved plan.**
+  - After `design-review`:
+    - A text control keeps a caller's own `aria-describedby` and `aria-invalid`, joined with the field's. Those inputs
+      are aliased to the native names, with a reasoned lint opt-out.
+    - Ids come from `PpIdSequence`, one counter per application, so a prerendered page's ids do not depend on which
+      worker rendered it and match the browser's.
+    - Busy buttons drop hover and press styling.
+    - A radio group is touched only when focus leaves the group.
+  - The busy guard listens in the capture phase: the caller's `(click)` runs before a host listener, which the first
+    run proved.
+  - Checked state is written to the element by an effect as well as bound, so a value set and undone before the view
+    refreshes still shows truly.
+  - "Arrow keys move between radios" is the browser's own behavior over one radio name. jsdom cannot press arrows, so
+    PP3.6's browser run proves it.
+- **Open, for later prompts.**
+  - **Busy is only heard as "unavailable".** The spinner has no words, so a task that must say its progress aloud
+    uses PP3.4's live region.
+  - **The checkbox has no `error` or `required`.** Sign-up's consent box (PP3.8) needs both.
+  - **Forced colors.** A disabled switch looks like an enabled one there. `tokens.spec.ts` forbids system colors in
+    library CSS, so a `forced-colors` block needs a decision first.
+  - **The busy guard's gaps.** It does not stop an ancestor's capturing handler, a middle-click on a busy link, or
+    `requestSubmit()`.
+  - **"(optional)" and "Error:" are English.** The admin app's i18n decides how they are translated.
+  - **Browser checks for PP3.6:**
+    - the switch's `::before` in Firefox and Safari;
+    - `:dir(rtl)`;
+    - Safari's native select;
+    - the unchecked box and radio borders, and `accent-hover`, `accent-active`, and `danger` against `bg` in both
+      modes.
+  - **The axe helper lives in `src/`,** which the themes entry point may not import, so PP7's reader specs need their
+    own.
+- **Verification.**
+  - Tests: `ng test pantrypress-ui` (72 of 72) and `npm test` (all three projects).
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Builds: `ng build pantrypress-ui`, and `ng build pantrypress-admin` to a scratch path.
+  - Not run: a browser, `aspire run`, or a Playwright flow. There is no screen yet; PP3.6's showcase is the first.
 
 ### PP3.4 Admin primitives: layout and feedback
 

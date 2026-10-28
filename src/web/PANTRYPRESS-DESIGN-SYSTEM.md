@@ -78,7 +78,9 @@ literal color outside an `--L-*` or `--D-*` value, there and in every other styl
 app. A new role is a pair, an entry in the light, dark, and auto blocks, and its contrast pairs, in one change.
 
 The admin chrome departs on purpose from the Studio mockup (`docs/design/mockups/pantrypress-studio-mockup.html`): it
-uses the spec's role names, not the mockup's `--c-*` names, and PantryPress's teal and orange, not the mockup's indigo.
+uses the spec's role names, not the mockup's `--c-*` names, and PantryPress's teal and orange, not the mockup's indigo;
+its switch is a track and thumb, not the mockup's plain checkbox; and its controls are 40 px tall in `--base` text with
+`--r-sm` corners, not the mockup's 13 px inputs.
 
 ### Color roles
 
@@ -144,26 +146,33 @@ script anywhere. A blog's fonts come from the curated registry (THM-006); the pl
 The admin primitives (PP3.3 on) sit on the browser's own elements wherever one exists, so native behavior comes free:
 form submission, `routerLink`, `autocomplete`, the keyboard, and Angular's reactive forms.
 
-| Primitive                                                            | Use                                              | Notes                                                                                                                                                                                       |
-| -------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `button[pp-button]`, `a[pp-button]`                                  | An action with words                             | `variant` (`primary`, `secondary`, `quiet`, `danger`; secondary by default, so a primary is chosen), `size` (`md`, `sm`), `busy`. A `<button>` is `type="button"` unless it says otherwise. |
-| `button[pp-icon-button]`, `a[pp-icon-button]`                        | An action shown only as an icon                  | The `label` is required and becomes its name; the projected `<svg>` is `aria-hidden` and brings its own 20 × 20 size.                                                                       |
-| `pp-field`                                                           | A label, hint, and error around one text control | The hint sits above the control and the error below it. The control takes the field's id and description through `PP_FIELD`, and `aria-invalid` while an error shows.                       |
-| `input[pp-text-field]`, `textarea[pp-textarea]`, `select[pp-select]` | Text and list choices                            | Native attributes pass through. Outside a field the control keeps its own `id` and needs its own name.                                                                                      |
-| `pp-checkbox`, `pp-switch`                                           | Yes or no; on or off at once                     | A label wraps the native checkbox, so the words are part of the target. A switch is `role="switch"` and differs by the thumb's place. Reactive forms or `[(checked)]`.                      |
-| `pp-radio-group`                                                     | One of a few, all shown                          | A `fieldset` and `legend` over native radios sharing a name, so the arrow keys move between them. Typed `options`, compared with `Object.is`.                                               |
+| Primitive                                                            | Use                                              | Notes                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button[pp-button]`, `a[pp-button]`                                  | An action with words                             | `variant` (`primary`, `secondary`, `quiet`, `danger`; secondary by default, so a primary is chosen), `size` (`md`, `sm`), `busy`. A `<button>` is `type="button"` unless it says otherwise.                                                                               |
+| `button[pp-icon-button]`, `a[pp-icon-button]`                        | An action shown only as an icon                  | The `label` is required and becomes its name. The caller's projected `<svg>` must be `aria-hidden` and carry its own 20 × 20 size; nothing checks either.                                                                                                                 |
+| `pp-field`                                                           | A label, hint, and error around one text control | The hint sits above the control and the error below it. The control takes the field's id and description through `PP_FIELD`, and `aria-invalid` while an error shows.                                                                                                     |
+| `input[pp-text-field]`, `textarea[pp-textarea]`, `select[pp-select]` | Text and list choices                            | Native attributes pass through. A caller's own `aria-describedby` and `aria-invalid` are joined with the field's, never replaced. `id` is an input: outside a field the control keeps it, inside one the field's id wins. Outside a field the control needs its own name. |
+| `pp-checkbox`, `pp-switch`                                           | Yes or no; on or off at once                     | A label wraps the native checkbox, so the words are part of the target. A switch is `role="switch"` and differs by the thumb's place. Reactive forms or `[(checked)]`.                                                                                                    |
+| `pp-radio-group`                                                     | One of a few, all shown                          | A `fieldset` and `legend` over native radios sharing a name, so the arrow keys move between them. Typed `options`, compared with `Object.is`. Touched once focus leaves the whole group.                                                                                  |
 
-- **Busy** keeps a button focusable and announced (`aria-busy`, `aria-disabled`) and drops a press before any of the
-  caller's handlers see it: the guard listens in the capture phase.
+- **Busy** keeps a button focusable and marks it busy and unavailable (`aria-busy`, `aria-disabled`); the spinner has
+  no words, so a screen reader hears only "unavailable", and a task that needs its progress said aloud says it in its
+  own live region (PP3.4). A press is dropped in the capture phase, before the element's own handlers, `routerLink`
+  included, and every ancestor's bubbling handler. It does not stop an ancestor's capturing handler, a middle-click on
+  a busy link, or a form's `requestSubmit()`.
 - **Errors** are the caller's words, shown with an icon and a hidden "Error:" so they are never color alone. A field
   marks itself optional in words; a required one sets the native `required` on its control.
 - **Checked state** is written to the element whenever it changes, as well as bound, so a value set and undone before
   the view refreshes still shows truly.
-- **Ids** come from a counter, never a random value, so a prerendered page is the same on every build.
-- **Server-safe.** The platform's public pages prerender with these, so `primitives/` passes `eslint.ssr-safety.js`.
-- **Tests.** Each primitive's spec runs axe (`testing/axe.ts`, WCAG 2.x A and AA, 2.2 included) in every state it
-  covers. jsdom draws nothing, so color contrast is `tokens.spec.ts`'s, and both modes as drawn are the showcase's
-  (PP3.6).
+- **Ids** come from `PpIdSequence`, a counter per application rather than per process, never a random value: every
+  page starts at 1 wherever it renders, so a prerendered page is the same on every build and its ids match the
+  browser's.
+- **Server-safe.** The platform's public pages prerender with these, so `primitives/` passes `eslint.ssr-safety.js`,
+  and a spec renders them with `renderApplication`, twice, to the same HTML ids.
+- **Tests.** The specs run axe (`testing/axe.ts`, WCAG 2.x A and AA, 2.2 included) over every primitive in every state
+  they cover: the text controls in `field.spec.ts` and `control.spec.ts`, the switch in `checkbox.spec.ts` and
+  `choice.spec.ts`. jsdom draws nothing, so color contrast is `tokens.spec.ts`'s, and both modes as drawn are the
+  showcase's (PP3.6).
 
 ## Accessibility
 
@@ -188,7 +197,8 @@ WCAG 2.2 AA everywhere, in light and dark, is the floor (THM-003, CMP-006).
   assertive.
 - **Reflow and zoom.** Pages work at 320 CSS px wide and at 200% zoom without sideways scrolling.
 - **Motion.** `prefers-reduced-motion` is respected; nothing flashes.
-- **Tests.** Each primitive has axe tests in both modes and in every state the showcase shows (PP3.6). Each public
+- **Tests.** Each primitive has axe tests in every state its specs cover, and is checked in both modes as drawn in the
+  showcase (PP3.6). Each public
   option value has golden and axe tests in both modes (PP7, PP11), and each preset a manual keyboard and screen-reader
   check (THM-003).
 
@@ -199,7 +209,7 @@ WCAG 2.2 AA everywhere, in light and dark, is the floor (THM-003, CMP-006).
 | Library selectors | `pp-` elements in kebab-case, or a `pp-` attribute on the browser's own element; `pp` attribute directives in camelCase (ESLint) | `pp-field`, `button[pp-button]`, `ppTooltip`   |
 | Library classes   | `Pp` before the name, so an export never collides with an app's own component                                                    | `PpButton`, `PpRadioOption`                    |
 | App selectors     | `ppa-` in `pantrypress-admin`, `pps-` in `pantrypress-site` (ESLint)                                                             | `ppa-site-switcher`                            |
-| Files             | kebab-case, one component per file, its spec beside it                                                                           | `text-field.ts`, `text-field.spec.ts`          |
+| Files             | kebab-case, one component per file, its spec beside it (or the spec of the primitive it is tested within)                        | `checkbox.ts`, `checkbox.spec.ts`              |
 | Color tokens      | The role, never the hue, with the `--L-` and `--D-` pairs behind it                                                              | `--accent`, `--L-accent`                       |
 | Scale tokens      | Family, then an ascending step                                                                                                   | `--space-3`, `--shadow-1`                      |
 | Variants          | A typed input, reflected on the host as a `data-*` attribute that the styles select on; never `data-mode`                        | `variant="primary"` → `data-variant="primary"` |

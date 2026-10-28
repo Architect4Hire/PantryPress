@@ -33,11 +33,11 @@
   color: var(--accent-ink);
 }
 
-:host([data-variant='primary']:hover:not(:disabled)) {
+:host([data-variant='primary']:hover:not(:disabled, [aria-busy='true'])) {
   background: var(--accent-hover);
 }
 
-:host([data-variant='primary']:active:not(:disabled)) {
+:host([data-variant='primary']:active:not(:disabled, [aria-busy='true'])) {
   background: var(--accent-active);
 }
 
@@ -47,11 +47,11 @@
   color: var(--ink);
 }
 
-:host([data-variant='secondary']:hover:not(:disabled)) {
+:host([data-variant='secondary']:hover:not(:disabled, [aria-busy='true'])) {
   border-color: var(--ink);
 }
 
-:host([data-variant='secondary']:active:not(:disabled)) {
+:host([data-variant='secondary']:active:not(:disabled, [aria-busy='true'])) {
   background: var(--bg);
 }
 
@@ -60,7 +60,7 @@
   color: var(--accent-text);
 }
 
-:host([data-variant='quiet']:hover:not(:disabled)) {
+:host([data-variant='quiet']:hover:not(:disabled, [aria-busy='true'])) {
   text-decoration: underline;
 }
 
@@ -69,7 +69,7 @@
   color: var(--danger-ink);
 }
 
-:host([data-variant='danger']:hover:not(:disabled)) {
+:host([data-variant='danger']:hover:not(:disabled, [aria-busy='true'])) {
   text-decoration: underline;
 }
 

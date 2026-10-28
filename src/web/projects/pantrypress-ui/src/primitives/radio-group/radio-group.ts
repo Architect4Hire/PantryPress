@@ -40,6 +40,7 @@ export interface PpRadioOption<T> {
       [attr.aria-describedby]="describedBy()"
       [attr.aria-invalid]="error() ? 'true' : null"
       [attr.aria-required]="required() ? 'true' : null"
+      (focusout)="left($event)"
     >
       <legend class="legend">
         {{ legend() }}
@@ -62,7 +63,6 @@ export interface PpRadioOption<T> {
               [disabled]="isDisabled()"
               [attr.aria-describedby]="option.hint ? optionHintId($index) : null"
               (change)="select(option)"
-              (blur)="onTouched()"
             />
             <span class="text">{{ option.label }}</span>
           </label>
@@ -121,6 +121,15 @@ export class PpRadioGroup<T> extends PpChoiceBase<T | null> {
 
   protected optionHintId(index: number): string {
     return `${this.name}-option-${index}-hint`;
+  }
+
+  /** Touched once focus leaves the whole group, not while the arrow keys move between its radios. */
+  protected left(event: FocusEvent): void {
+    const group = event.currentTarget as HTMLElement;
+    const next = event.relatedTarget as Node | null;
+    if (!next || !group.contains(next)) {
+      this.onTouched();
+    }
   }
 
   protected select(option: PpRadioOption<T>): void {
