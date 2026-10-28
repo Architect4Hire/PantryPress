@@ -2876,7 +2876,7 @@ default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), 
 
 ## PP3 — Design system and admin shell
 
-### PP3.1 Design-system decisions
+### PP3.1 Design-system decisions - done
 
 ```text
 SCOPE: Write src/web/PANTRYPRESS-DESIGN-SYSTEM.md: principles, token architecture, the two entry points
