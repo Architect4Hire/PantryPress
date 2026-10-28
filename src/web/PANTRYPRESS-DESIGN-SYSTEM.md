@@ -60,37 +60,60 @@ the same thing on both sides it has the same name, and where the meaning differs
 1. **Pairs.** Every color token has a light and a dark value, `--L-<name>` and `--D-<name>`.
 2. **Active tokens.** `--<name>` is chosen from its pair by `data-mode` (`light`, `dark`, or `auto`) on the root: `.site`
    on a blog (spec 4.3), the app root on the platform home. `auto` follows `prefers-color-scheme` in CSS alone, so a
-   prerendered or SSR page gets its mode with JavaScript off. `color-scheme` is set with it.
+   prerendered or SSR page gets its mode with JavaScript off. `color-scheme` is set with it. The platform home sets
+   `data-mode` on `<html>`, so the page background and scrollbars follow it; with none it is `auto`, and an unknown
+   value is light. Any element may set its own, so one page can show both modes (the showcase). `data-mode` is
+   reserved: no component input is reflected under that name.
 3. **Components** read active tokens only. A component never reads an `--L-*` or `--D-*` token, never picks a mode
    itself, and never mixes or lightens a color: derived colors are tokens too, computed in a token file (admin) or on
    the server (public, CUS-STD-04).
 
-Tokens that do not change with mode (fonts, sizes, radius, motion) have one value and no pair.
+Tokens that do not change with mode (fonts, sizes, radius, motion) have one value and no pair. A token built from a
+color token (a shadow) is declared again wherever a mode is set, so it takes that mode's color.
+
+The platform home's tokens are `projects/pantrypress-ui/src/styles/tokens.css` (PP3.2), exported as
+`@pantrypress/ui/tokens.css` and loaded by `pantrypress-admin` ahead of its own styles. `tokens.spec.ts` beside it
+measures every pair that can meet in both modes, requires every role to be measured or named as exempt, and refuses a
+literal color outside an `--L-*` or `--D-*` value, there and in every other style source of the library and the admin
+app. A new role is a pair, an entry in the light, dark, and auto blocks, and its contrast pairs, in one change.
+
+The admin chrome departs on purpose from the Studio mockup (`docs/design/mockups/pantrypress-studio-mockup.html`): it
+uses the spec's role names, not the mockup's `--c-*` names, and PantryPress's teal and orange, not the mockup's indigo.
 
 ### Color roles
 
-Shared, with the meanings in spec 4.1:
+Shared, with the meanings in spec 4.1, except where the table says otherwise:
 
-| Role          | Meaning                                           |
-| ------------- | ------------------------------------------------- |
-| `bg`          | Page background                                   |
-| `surface`     | Raised or tinted panels                           |
-| `ink`         | Body text                                         |
-| `muted`       | Secondary text; still 4.5:1 on `bg` and `surface` |
-| `line`        | Borders, dividers, input outlines                 |
-| `accent`      | Brand fill: primary buttons, active states        |
-| `accent-ink`  | Text and icons on `accent`                        |
-| `accent-text` | The brand color as text on `bg`: links            |
-| `hl`          | Highlight: badges, stars                          |
-| `hl-ink`      | Text on `hl`                                      |
+| Role          | Meaning                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| `bg`          | Page background                                                                                 |
+| `surface`     | Raised or tinted panels                                                                         |
+| `ink`         | Body text                                                                                       |
+| `muted`       | Secondary text; still 4.5:1 on `bg` and `surface`                                               |
+| `line`        | Borders and input outlines; 3:1 on `bg` and `surface` (see below)                               |
+| `accent`      | Brand fill: primary buttons, active states                                                      |
+| `accent-ink`  | Text and icons on `accent`                                                                      |
+| `accent-text` | The brand color as text on `bg`: links (underlined in running text)                             |
+| `hl`          | Highlight fill: badges, stars; on the platform home always under `hl-ink`, never a mark on `bg` |
+| `hl-ink`      | Text on `hl`                                                                                    |
 
 On a blog the brand is the blogger's; on the platform home it is PantryPress's. The meaning is the same, so the name is.
+
+`line` is the one drift. Spec 4.1 calls it "borders and dividers", and its public tone values are decorative (about
+1.3:1). The platform home's `line` outlines inputs, so it is held to 3:1, and its decorative dividers are `line-subtle`.
+A public input border drawn in the spec's `line` would fail WCAG 1.4.11; PP7.4 and PP11 settle the public side.
+
+Fills hold text, never a focusable control: `accent`, `hl`, and the status fills carry a label in their `-ink`, and
+anything focusable sits on `bg` or `surface`, so the focus ring always has a surface to stand on. A notice or toast is
+a `surface` panel with a status border or icon, not a status fill. An icon, border, or dot drawn in a status color on
+`bg` or `surface` uses its `-text` role.
 
 Admin only, because a blog has no use for them:
 
 | Role                                   | Meaning                                                                                              |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `danger`, `warning`, `success`, `info` | Status fills, each with `-ink` (text on the fill) and `-text` (the color as text on `bg`)            |
+| `line-subtle`                          | Decorative dividers only, never the one thing that shows where a control is, so no contrast floor    |
 | `focus`                                | The focus ring; at least 3:1 against every surface it can sit on                                     |
 | `overlay`                              | The scrim behind a dialog or drawer                                                                  |
 | `accent-hover`, `accent-active`        | Interaction states of the brand fill; other roles add states the same way when a primitive needs one |
@@ -104,13 +127,13 @@ Shared names (spec 4.2): `--f-display`, `--f-body`, `--display-weight`, `--displ
 
 Admin families, whose steps PP3.2 sets:
 
-| Family    | Names                               | Notes                                                                           |
-| --------- | ----------------------------------- | ------------------------------------------------------------------------------- |
-| Type      | `--text-<step>`, `--leading-<step>` | Steps up from `--base`; sizes in `rem` so zoom and the browser's text size work |
-| Space     | `--space-<n>`                       | One scale for padding, gaps, and margins                                        |
-| Radius    | `--r`, `--r-sm`, `--r-full`         |                                                                                 |
-| Elevation | `--shadow-<n>`                      | Shadow colors are tokens with pairs                                             |
-| Motion    | `--dur-<step>`, `--ease-<name>`     | Every duration is `0s` under `prefers-reduced-motion: reduce`                   |
+| Family    | Names                               | Notes                                                                                                                                                          |
+| --------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type      | `--text-<step>`, `--leading-<step>` | Fixed `rem` steps, so zoom and the browser's text size work; `--text-2` is `--base`, the body size, and `--text-1` is for hints and meta only, never body text |
+| Space     | `--space-<n>`                       | One scale for padding, gaps, and margins                                                                                                                       |
+| Radius    | `--r`, `--r-sm`, `--r-full`         |                                                                                                                                                                |
+| Elevation | `--shadow-<n>`                      | Shadow colors are tokens with pairs                                                                                                                            |
+| Motion    | `--dur-<step>`, `--ease-<name>`     | Every duration is `0.01ms` under `prefers-reduced-motion: reduce`: instant, but `transitionend` still fires                                                    |
 
 Fonts are self-hosted WOFF2 with explicit loaded weights and `font-display: swap`; no remote font and no font-loading
 script anywhere. A blog's fonts come from the curated registry (THM-006); the platform home's are PantryPress's own.
@@ -122,8 +145,12 @@ WCAG 2.2 AA everywhere, in light and dark, is the floor (THM-003, CMP-006).
 - **Contrast.** Text 4.5:1; large text, icons, input borders, and other UI parts 3:1. Measured by a spec over every
   pair of tokens that can meet, in both modes, never judged by eye. On a blog the server corrects colors and refuses
   any it cannot fix (THM-005).
-- **Focus.** Every interactive element shows a visible ring in `--focus`, at least 3:1 against every surface it can sit
-  on, never removed without a replacement, and never hidden behind a sticky header or toast (2.4.11).
+- **Focus.** Every interactive element shows a visible ring in `--focus`, drawn as an `outline` (so it survives forced
+  colors) outside the element with an offset, so it sits on the surface behind, never on the control's own fill; at
+  least 3:1 against every surface it can sit on, never removed without a replacement, and never hidden behind a sticky
+  header or toast (2.4.11).
+- **Links.** A link in running text is underlined: `accent-text` is not far enough from `ink` to tell a link by color
+  alone (1.4.1).
 - **Keyboard.** Everything works from the keyboard in a sensible order. Nothing needs dragging: a reorder has buttons or
   keys (2.5.7). Dialogs and drawers hold focus while open and give it back when they close.
 - **Targets.** At least 24 × 24 CSS px, or spaced so a 24 px circle around each touches no other (2.5.8).
@@ -140,15 +167,15 @@ WCAG 2.2 AA everywhere, in light and dark, is the floor (THM-003, CMP-006).
 
 ## Naming
 
-| What              | Rule                                                                                   | Example                                        |
-| ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Library selectors | `pp-` elements in kebab-case, `pp` attribute directives in camelCase (ESLint)          | `pp-button`, `ppTooltip`                       |
-| App selectors     | `ppa-` in `pantrypress-admin`, `pps-` in `pantrypress-site` (ESLint)                   | `ppa-site-switcher`                            |
-| Files             | kebab-case, one component per file, its spec beside it                                 | `text-field.ts`, `text-field.spec.ts`          |
-| Color tokens      | The role, never the hue, with the `--L-` and `--D-` pairs behind it                    | `--accent`, `--L-accent`                       |
-| Scale tokens      | Family, then an ascending step                                                         | `--space-3`, `--shadow-1`                      |
-| Variants          | A typed input, reflected on the host as a `data-*` attribute that the styles select on | `variant="primary"` → `data-variant="primary"` |
-| Public options    | The spec's attribute names on `.site`, unchanged                                       | `data-header="split"`                          |
+| What              | Rule                                                                                                      | Example                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Library selectors | `pp-` elements in kebab-case, `pp` attribute directives in camelCase (ESLint)                             | `pp-button`, `ppTooltip`                       |
+| App selectors     | `ppa-` in `pantrypress-admin`, `pps-` in `pantrypress-site` (ESLint)                                      | `ppa-site-switcher`                            |
+| Files             | kebab-case, one component per file, its spec beside it                                                    | `text-field.ts`, `text-field.spec.ts`          |
+| Color tokens      | The role, never the hue, with the `--L-` and `--D-` pairs behind it                                       | `--accent`, `--L-accent`                       |
+| Scale tokens      | Family, then an ascending step                                                                            | `--space-3`, `--shadow-1`                      |
+| Variants          | A typed input, reflected on the host as a `data-*` attribute that the styles select on; never `data-mode` | `variant="primary"` → `data-variant="primary"` |
+| Public options    | The spec's attribute names on `.site`, unchanged                                                          | `data-header="split"`                          |
 
 Tokens carry no `pp-` prefix: the public names are fixed by the spec, the shared names have to match them, and no
 third-party CSS shares the pages.

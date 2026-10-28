@@ -9,5 +9,10 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "sideEffects": false
+  "exports": {
+    "./tokens.css": "./styles/tokens.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
 }

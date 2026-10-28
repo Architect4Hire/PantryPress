@@ -2887,7 +2887,7 @@ RESTRICTION: Document only.
 BEHAVIOR: Show the draft, wait for approval, write.
 ```
 
-### PP3.2 Token foundation
+### PP3.2 Token foundation - done
 
 ```text
 SCOPE: Implement the shared token foundation (color, type, space, radius, elevation, motion) with light and
@@ -2896,6 +2896,56 @@ CONSTRAINT: PP3.1; design-system.md.
 RESTRICTION: Tokens are the only place colors live. Self-hosted fonts only.
 BEHAVIOR: Plan, wait for approval, implement with a contrast test.
 ```
+
+*PP3.2 delivery note (done 2026-10-28):*
+
+- **What shipped.**
+  - `projects/pantrypress-ui/src/styles/tokens.css`, exported as `@pantrypress/ui/tokens.css` and loaded by
+    `pantrypress-admin` ahead of its own styles. It holds every color as an `--L-*` / `--D-*` pair (the owner-approved,
+    logo-led palette: teal accent, orange highlight and focus), the active tokens switched by `data-mode` (light, dark,
+    and auto in CSS alone; no attribute is auto, and any element may set its own), and the type, space, radius,
+    elevation, and motion families.
+  - Fonts are system stacks (owner decision): nothing is fetched. PPL.6 brings self-hosted Fredoka and DM Sans and
+    switches `--f-display` and `--f-body`.
+  - `tokens.spec.ts`, 20 tests. It measures WCAG 2.x contrast for every pair that can meet, in both modes, and requires
+    every role to be measured or named exempt. It checks that each role is switched in all three mode blocks and that
+    those blocks stay in order. It refuses a literal color outside an `--L-*` or `--D-*` value, in the token file and
+    in every other style source of the library and the admin app. It also checks that reduced motion makes every
+    duration instant. Each rule was shown failing on a deliberate break. `contrast.ts` is the formula, kept out of the
+    package for the specs and PPL.6's focus-ring spec.
+- **Differs from the approved plan.**
+  - `line-subtle`, a new admin-only role for decorative dividers, as approved. The design-system document records it,
+    with `line` held to 3:1 because it outlines inputs.
+  - After `design-review`:
+    - Reduced motion is `0.01ms`, not `0s`, so `transitionend` still fires.
+    - `sideEffects` is `["*.css"]`, so a script import of the tokens survives bundling.
+    - `<meta name="color-scheme">` is in the admin page.
+    - The literal-color check reaches beyond the token file, and the role-coverage and block-order checks were added.
+  - PANTRYPRESS-DESIGN-SYSTEM.md now records:
+    - where the tokens live;
+    - `data-mode` on `<html>`, reserved from component inputs;
+    - the focus ring as an offset `outline`;
+    - fills that hold no focusable control, and notices and toasts on `surface`;
+    - status icons and borders drawn in `-text`;
+    - links underlined in running text;
+    - `hl` only under `hl-ink`;
+    - which type steps are body text;
+    - the deliberate departure from the Studio mockup's names and indigo.
+- **Open, for later prompts.**
+  - **The `line` drift.** Spec 4.1's public `line` is decorative (about 1.3:1), so a public input border drawn in it
+    would fail WCAG 1.4.11. PP7.4 and PP11 settle the public side.
+  - **`hl` as a mark on `bg`.** Light `hl` measures about 2.3:1 on `bg`, so it is used only as a fill. A star or icon
+    drawn in it on the platform home needs a new role or a darker value, with the owner's approval.
+  - **Mode resolution.** It is checked by parsing, not in a browser. PP3.6's Playwright run should read computed
+    styles for each mode, nested and under each system preference.
+  - **How the spec reads `tokens.css`.** It reads the file from disk, relative to `src/web`. It needs another way if the
+    library's tests move to Vitest browser mode.
+- **Verification.**
+  - Tests: `ng test pantrypress-ui` (20 of 20) and `npm test` (all three projects).
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - `ng build pantrypress-ui`: `styles/tokens.css` and its export are in the package.
+  - `ng build pantrypress-admin`, built to a scratch path: the styles bundle is 1.04 kB compressed.
+  - Not run: a live `aspire run` or a browser check of the modes.
 
 ### PP3.3 Admin primitives: actions and inputs
 

@@ -1,6 +1,7 @@
 {
   "$schema": "../../node_modules/ng-packagr/ng-package.schema.json",
   "dest": "../../dist/pantrypress-ui",
+  "assets": [{ "input": "src/styles", "glob": "tokens.css", "output": "styles" }],
   "lib": {
     "entryFile": "src/public-api.ts"
   }

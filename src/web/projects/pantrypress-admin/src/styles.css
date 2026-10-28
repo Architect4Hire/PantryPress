@@ -1,1 +1,10 @@
-/* Global styles. Colors come only from design tokens (design-system.md); none are defined yet. */
+/* Global styles. Colors and sizes come only from @pantrypress/ui tokens, loaded ahead of this file (design-system.md). */
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: var(--base);
+  line-height: var(--leading-2);
+}

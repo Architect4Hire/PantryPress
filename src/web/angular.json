@@ -28,7 +28,10 @@
                 "input": "projects/pantrypress-admin/public"
               }
             ],
-            "styles": ["projects/pantrypress-admin/src/styles.css"]
+            "styles": [
+              "projects/pantrypress-ui/src/styles/tokens.css",
+              "projects/pantrypress-admin/src/styles.css"
+            ]
           },
           "configurations": {
             "production": {

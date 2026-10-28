@@ -1,0 +1,229 @@
+/*
+ * @pantrypress/ui tokens (PP3.2): the platform home's shared foundation (PP-D07, PANTRYPRESS-DESIGN-SYSTEM.md).
+ * Colors live here and nowhere else. Every color is a light and dark pair (--L-*, --D-*); components read only the
+ * active --<name>, chosen by data-mode (light, dark, or auto; no attribute means auto, an unknown value is light). The
+ * blocks below depend on their order: dark and auto come after light. tokens.spec.ts measures the pairs' contrast in
+ * both modes and keeps the order.
+ */
+
+:root {
+  /* Color pairs, light */
+  --L-bg: #faf8f5;
+  --L-surface: #ffffff;
+  --L-ink: #1c2326;
+  --L-muted: #566166;
+  --L-line: #858f93;
+  --L-line-subtle: #e4e0d9;
+  --L-accent: #0d6470;
+  --L-accent-hover: #0a525c;
+  --L-accent-active: #084149;
+  --L-accent-ink: #ffffff;
+  --L-accent-text: #0d6470;
+  --L-hl: #f5891f;
+  --L-hl-ink: #2a1d05;
+  --L-danger: #b42318;
+  --L-danger-ink: #ffffff;
+  --L-danger-text: #b42318;
+  --L-warning: #f5b83d;
+  --L-warning-ink: #2a1d05;
+  --L-warning-text: #8a4600;
+  --L-success: #16783a;
+  --L-success-ink: #ffffff;
+  --L-success-text: #16783a;
+  --L-info: #1f5ea8;
+  --L-info-ink: #ffffff;
+  --L-info-text: #1f5ea8;
+  --L-focus: #c2410c;
+  --L-overlay: rgb(16 24 28 / 0.5);
+  --L-shadow: rgb(16 24 28 / 0.12);
+
+  /* Color pairs, dark */
+  --D-bg: #121718;
+  --D-surface: #1b2225;
+  --D-ink: #e7ecec;
+  --D-muted: #a2adb0;
+  --D-line: #6c787c;
+  --D-line-subtle: #2b3437;
+  --D-accent: #4db6c1;
+  --D-accent-hover: #6cc4cd;
+  --D-accent-active: #8bd1d8;
+  --D-accent-ink: #081c1f;
+  --D-accent-text: #73cbd4;
+  --D-hl: #f5a04a;
+  --D-hl-ink: #2a1d05;
+  --D-danger: #f97066;
+  --D-danger-ink: #2a0a07;
+  --D-danger-text: #fca199;
+  --D-warning: #f5b83d;
+  --D-warning-ink: #2a1d05;
+  --D-warning-text: #f6c66a;
+  --D-success: #4cc47a;
+  --D-success-ink: #062312;
+  --D-success-text: #72d396;
+  --D-info: #6aa6f0;
+  --D-info-ink: #08182e;
+  --D-info-text: #8dbaf3;
+  --D-focus: #ff9d4d;
+  --D-overlay: rgb(0 0 0 / 0.6);
+  --D-shadow: rgb(0 0 0 / 0.4);
+
+  /* Type. System stacks until PPL.6 brings the self-hosted brand fonts; nothing is fetched. */
+  --f-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --f-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --display-weight: 700;
+  --display-track: -0.01em;
+  --base: 1rem;
+  --text-1: 0.875rem;
+  --text-2: var(--base);
+  --text-3: 1.125rem;
+  --text-4: 1.25rem;
+  --text-5: 1.5rem;
+  --text-6: 2rem;
+  --leading-1: 1.25;
+  --leading-2: 1.5;
+  --measure: 42rem;
+
+  /* Space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* Radius */
+  --r-sm: 4px;
+  --r: 8px;
+  --r-full: 9999px;
+
+  /* Motion */
+  --dur-1: 100ms;
+  --dur-2: 200ms;
+  --dur-3: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+}
+
+/* Elevation is declared wherever a mode is, so a shadow takes that mode's --shadow */
+:root,
+[data-mode] {
+  --shadow-1: 0 1px 2px var(--shadow);
+  --shadow-2: 0 2px 8px var(--shadow);
+  --shadow-3: 0 8px 24px var(--shadow);
+}
+
+/* Active colors: light, and auto unless the reader prefers dark */
+:root,
+[data-mode='light'],
+[data-mode='auto'] {
+  color-scheme: light;
+  --bg: var(--L-bg);
+  --surface: var(--L-surface);
+  --ink: var(--L-ink);
+  --muted: var(--L-muted);
+  --line: var(--L-line);
+  --line-subtle: var(--L-line-subtle);
+  --accent: var(--L-accent);
+  --accent-hover: var(--L-accent-hover);
+  --accent-active: var(--L-accent-active);
+  --accent-ink: var(--L-accent-ink);
+  --accent-text: var(--L-accent-text);
+  --hl: var(--L-hl);
+  --hl-ink: var(--L-hl-ink);
+  --danger: var(--L-danger);
+  --danger-ink: var(--L-danger-ink);
+  --danger-text: var(--L-danger-text);
+  --warning: var(--L-warning);
+  --warning-ink: var(--L-warning-ink);
+  --warning-text: var(--L-warning-text);
+  --success: var(--L-success);
+  --success-ink: var(--L-success-ink);
+  --success-text: var(--L-success-text);
+  --info: var(--L-info);
+  --info-ink: var(--L-info-ink);
+  --info-text: var(--L-info-text);
+  --focus: var(--L-focus);
+  --overlay: var(--L-overlay);
+  --shadow: var(--L-shadow);
+}
+
+/* Active colors: dark */
+[data-mode='dark'] {
+  color-scheme: dark;
+  --bg: var(--D-bg);
+  --surface: var(--D-surface);
+  --ink: var(--D-ink);
+  --muted: var(--D-muted);
+  --line: var(--D-line);
+  --line-subtle: var(--D-line-subtle);
+  --accent: var(--D-accent);
+  --accent-hover: var(--D-accent-hover);
+  --accent-active: var(--D-accent-active);
+  --accent-ink: var(--D-accent-ink);
+  --accent-text: var(--D-accent-text);
+  --hl: var(--D-hl);
+  --hl-ink: var(--D-hl-ink);
+  --danger: var(--D-danger);
+  --danger-ink: var(--D-danger-ink);
+  --danger-text: var(--D-danger-text);
+  --warning: var(--D-warning);
+  --warning-ink: var(--D-warning-ink);
+  --warning-text: var(--D-warning-text);
+  --success: var(--D-success);
+  --success-ink: var(--D-success-ink);
+  --success-text: var(--D-success-text);
+  --info: var(--D-info);
+  --info-ink: var(--D-info-ink);
+  --info-text: var(--D-info-text);
+  --focus: var(--D-focus);
+  --overlay: var(--D-overlay);
+  --shadow: var(--D-shadow);
+}
+
+/* Active colors: auto follows the reader's setting, in CSS alone, so a prerendered page needs no script */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode]),
+  [data-mode='auto'] {
+    color-scheme: dark;
+    --bg: var(--D-bg);
+    --surface: var(--D-surface);
+    --ink: var(--D-ink);
+    --muted: var(--D-muted);
+    --line: var(--D-line);
+    --line-subtle: var(--D-line-subtle);
+    --accent: var(--D-accent);
+    --accent-hover: var(--D-accent-hover);
+    --accent-active: var(--D-accent-active);
+    --accent-ink: var(--D-accent-ink);
+    --accent-text: var(--D-accent-text);
+    --hl: var(--D-hl);
+    --hl-ink: var(--D-hl-ink);
+    --danger: var(--D-danger);
+    --danger-ink: var(--D-danger-ink);
+    --danger-text: var(--D-danger-text);
+    --warning: var(--D-warning);
+    --warning-ink: var(--D-warning-ink);
+    --warning-text: var(--D-warning-text);
+    --success: var(--D-success);
+    --success-ink: var(--D-success-ink);
+    --success-text: var(--D-success-text);
+    --info: var(--D-info);
+    --info-ink: var(--D-info-ink);
+    --info-text: var(--D-info-text);
+    --focus: var(--D-focus);
+    --overlay: var(--D-overlay);
+    --shadow: var(--D-shadow);
+  }
+}
+
+/* Instant, not zero, so a component waiting on transitionend still hears it */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0.01ms;
+    --dur-2: 0.01ms;
+    --dur-3: 0.01ms;
+  }
+}
