@@ -34,6 +34,8 @@
   --L-info-ink: #ffffff;
   --L-info-text: #1f5ea8;
   --L-focus: #c2410c;
+  --L-disabled: #ebe8e3;
+  --L-disabled-ink: #858c90;
   --L-overlay: rgb(16 24 28 / 0.5);
   --L-shadow: rgb(16 24 28 / 0.12);
 
@@ -64,6 +66,8 @@
   --D-info-ink: #08182e;
   --D-info-text: #8dbaf3;
   --D-focus: #ff9d4d;
+  --D-disabled: #262e31;
+  --D-disabled-ink: #6f7a7e;
   --D-overlay: rgb(0 0 0 / 0.6);
   --D-shadow: rgb(0 0 0 / 0.4);
 
@@ -146,6 +150,8 @@
   --info-ink: var(--L-info-ink);
   --info-text: var(--L-info-text);
   --focus: var(--L-focus);
+  --disabled: var(--L-disabled);
+  --disabled-ink: var(--L-disabled-ink);
   --overlay: var(--L-overlay);
   --shadow: var(--L-shadow);
 }
@@ -179,6 +185,8 @@
   --info-ink: var(--D-info-ink);
   --info-text: var(--D-info-text);
   --focus: var(--D-focus);
+  --disabled: var(--D-disabled);
+  --disabled-ink: var(--D-disabled-ink);
   --overlay: var(--D-overlay);
   --shadow: var(--D-shadow);
 }
@@ -214,6 +222,8 @@
     --info-ink: var(--D-info-ink);
     --info-text: var(--D-info-text);
     --focus: var(--D-focus);
+    --disabled: var(--D-disabled);
+    --disabled-ink: var(--D-disabled-ink);
     --overlay: var(--D-overlay);
     --shadow: var(--D-shadow);
   }

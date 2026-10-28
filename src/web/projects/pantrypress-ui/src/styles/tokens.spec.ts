@@ -53,8 +53,11 @@ const pairValue = (mode: 'L' | 'D', role: string): string => root.get(`--${mode}
 
 /** Roles drawn with transparency (scrims, shadows); they sit under or around content, never behind text. */
 const translucent = ['overlay', 'shadow'];
-/** Roles no contrast pair measures, and why: decoration has no floor (WCAG 1.4.11), and translucent roles sit behind. */
-const unmeasured = ['line-subtle', ...translucent];
+/**
+ * Roles no contrast pair measures, and why: decoration has no floor (WCAG 1.4.11), a disabled control is exempt
+ * (1.4.3, 1.4.11), and translucent roles sit behind content.
+ */
+const unmeasured = ['line-subtle', 'disabled', 'disabled-ink', ...translucent];
 
 // A literal color anywhere: hex or a color function. In a style sheet, where copy cannot trip it, a named color too.
 const literalColor =

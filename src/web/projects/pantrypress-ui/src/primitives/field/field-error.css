@@ -1,0 +1,24 @@
+:host {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--text-1);
+  font-weight: 600;
+  line-height: var(--leading-2);
+}
+
+.icon {
+  flex: none;
+  margin-block-start: 0.15em;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

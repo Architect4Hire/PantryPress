@@ -18,15 +18,24 @@ module.exports = defineConfig([
           style: 'camelCase',
         },
       ],
+      // PP3.3: a primitive may attach to the browser's own element (button[pp-button], input[pp-text-field]), as
+      // mat-button does, so native semantics and forms keep working.
       '@angular-eslint/component-selector': [
         'error',
         {
-          type: 'element',
+          type: ['element', 'attribute'],
           prefix: 'pp',
           style: 'kebab-case',
         },
       ],
     },
+  },
+  // PP3.3: the primitives render on Node when the platform's public pages are prerendered (PP-D19), so they use no
+  // browser global and stay deterministic.
+  {
+    files: ['**/pantrypress-ui/src/primitives/**/*.ts'],
+    ignores: ['**/*.spec.ts'],
+    rules: ssrSafety,
   },
   // PP-D07: the themes entry point is SSR-safe and never pulls in admin code. Relative imports out of themes/ also fail
   // the ng-packagr build.

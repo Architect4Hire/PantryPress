@@ -1,0 +1,34 @@
+/* Shared by pp-checkbox, pp-switch, and pp-radio-group's options: a control and its words on one row. */
+
+:host {
+  display: block;
+}
+
+.row {
+  display: inline-flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-block-size: 1.5rem;
+  color: var(--ink);
+  font-size: var(--text-2);
+  line-height: var(--leading-2);
+  cursor: pointer;
+}
+
+.row:has(:disabled) {
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}
+
+.hint {
+  margin: 0;
+  padding-inline-start: calc(1.25rem + var(--space-3));
+  color: var(--muted);
+  font-size: var(--text-1);
+  line-height: var(--leading-2);
+}
+
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

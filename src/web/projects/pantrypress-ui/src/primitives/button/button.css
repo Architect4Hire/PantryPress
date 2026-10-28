@@ -1,0 +1,114 @@
+/* Shared by button[pp-button] and button[pp-icon-button]. */
+
+:host {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: 2.5rem;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  font: inherit;
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: var(--leading-1);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard);
+}
+
+:host([data-size='sm']) {
+  min-block-size: 2rem;
+  padding: 0 var(--space-3);
+  font-size: var(--text-1);
+}
+
+:host([data-variant='primary']) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+:host([data-variant='primary']:hover:not(:disabled)) {
+  background: var(--accent-hover);
+}
+
+:host([data-variant='primary']:active:not(:disabled)) {
+  background: var(--accent-active);
+}
+
+:host([data-variant='secondary']) {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+:host([data-variant='secondary']:hover:not(:disabled)) {
+  border-color: var(--ink);
+}
+
+:host([data-variant='secondary']:active:not(:disabled)) {
+  background: var(--bg);
+}
+
+:host([data-variant='quiet']) {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+:host([data-variant='quiet']:hover:not(:disabled)) {
+  text-decoration: underline;
+}
+
+:host([data-variant='danger']) {
+  background: var(--danger);
+  color: var(--danger-ink);
+}
+
+:host([data-variant='danger']:hover:not(:disabled)) {
+  text-decoration: underline;
+}
+
+:host(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+:host(:disabled) {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  color: var(--disabled-ink);
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+:host([aria-busy='true']) {
+  cursor: progress;
+}
+
+.spinner {
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 1em;
+  block-size: 1em;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: var(--r-full);
+  animation: pp-spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@keyframes pp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

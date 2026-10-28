@@ -1,0 +1,35 @@
+.group {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: var(--space-1);
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: var(--leading-1);
+}
+
+.optional {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.group-hint {
+  padding-inline-start: 0;
+}
+
+.radio {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0.125rem 0 0;
+  accent-color: var(--accent);
+  cursor: inherit;
+}

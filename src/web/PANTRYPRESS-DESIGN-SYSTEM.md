@@ -110,13 +110,14 @@ a `surface` panel with a status border or icon, not a status fill. An icon, bord
 
 Admin only, because a blog has no use for them:
 
-| Role                                   | Meaning                                                                                              |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `danger`, `warning`, `success`, `info` | Status fills, each with `-ink` (text on the fill) and `-text` (the color as text on `bg`)            |
-| `line-subtle`                          | Decorative dividers only, never the one thing that shows where a control is, so no contrast floor    |
-| `focus`                                | The focus ring; at least 3:1 against every surface it can sit on                                     |
-| `overlay`                              | The scrim behind a dialog or drawer                                                                  |
-| `accent-hover`, `accent-active`        | Interaction states of the brand fill; other roles add states the same way when a primitive needs one |
+| Role                                   | Meaning                                                                                                         |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `danger`, `warning`, `success`, `info` | Status fills, each with `-ink` (text on the fill) and `-text` (the color as text on `bg`)                       |
+| `line-subtle`                          | Decorative dividers only, never the one thing that shows where a control is, so no contrast floor               |
+| `disabled`, `disabled-ink`             | A disabled control's fill and its words; exempt from contrast (WCAG 1.4.3, 1.4.11), never dimmed with `opacity` |
+| `focus`                                | The focus ring; at least 3:1 against every surface it can sit on                                                |
+| `overlay`                              | The scrim behind a dialog or drawer                                                                             |
+| `accent-hover`, `accent-active`        | Interaction states of the brand fill; other roles add states the same way when a primitive needs one            |
 
 A status is never told by color alone: it carries a word or an icon as well.
 
@@ -137,6 +138,32 @@ Admin families, whose steps PP3.2 sets:
 
 Fonts are self-hosted WOFF2 with explicit loaded weights and `font-display: swap`; no remote font and no font-loading
 script anywhere. A blog's fonts come from the curated registry (THM-006); the platform home's are PantryPress's own.
+
+## Primitives
+
+The admin primitives (PP3.3 on) sit on the browser's own elements wherever one exists, so native behavior comes free:
+form submission, `routerLink`, `autocomplete`, the keyboard, and Angular's reactive forms.
+
+| Primitive                                                            | Use                                              | Notes                                                                                                                                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `button[pp-button]`, `a[pp-button]`                                  | An action with words                             | `variant` (`primary`, `secondary`, `quiet`, `danger`; secondary by default, so a primary is chosen), `size` (`md`, `sm`), `busy`. A `<button>` is `type="button"` unless it says otherwise. |
+| `button[pp-icon-button]`, `a[pp-icon-button]`                        | An action shown only as an icon                  | The `label` is required and becomes its name; the projected `<svg>` is `aria-hidden` and brings its own 20 × 20 size.                                                                       |
+| `pp-field`                                                           | A label, hint, and error around one text control | The hint sits above the control and the error below it. The control takes the field's id and description through `PP_FIELD`, and `aria-invalid` while an error shows.                       |
+| `input[pp-text-field]`, `textarea[pp-textarea]`, `select[pp-select]` | Text and list choices                            | Native attributes pass through. Outside a field the control keeps its own `id` and needs its own name.                                                                                      |
+| `pp-checkbox`, `pp-switch`                                           | Yes or no; on or off at once                     | A label wraps the native checkbox, so the words are part of the target. A switch is `role="switch"` and differs by the thumb's place. Reactive forms or `[(checked)]`.                      |
+| `pp-radio-group`                                                     | One of a few, all shown                          | A `fieldset` and `legend` over native radios sharing a name, so the arrow keys move between them. Typed `options`, compared with `Object.is`.                                               |
+
+- **Busy** keeps a button focusable and announced (`aria-busy`, `aria-disabled`) and drops a press before any of the
+  caller's handlers see it: the guard listens in the capture phase.
+- **Errors** are the caller's words, shown with an icon and a hidden "Error:" so they are never color alone. A field
+  marks itself optional in words; a required one sets the native `required` on its control.
+- **Checked state** is written to the element whenever it changes, as well as bound, so a value set and undone before
+  the view refreshes still shows truly.
+- **Ids** come from a counter, never a random value, so a prerendered page is the same on every build.
+- **Server-safe.** The platform's public pages prerender with these, so `primitives/` passes `eslint.ssr-safety.js`.
+- **Tests.** Each primitive's spec runs axe (`testing/axe.ts`, WCAG 2.x A and AA, 2.2 included) in every state it
+  covers. jsdom draws nothing, so color contrast is `tokens.spec.ts`'s, and both modes as drawn are the showcase's
+  (PP3.6).
 
 ## Accessibility
 
@@ -167,15 +194,16 @@ WCAG 2.2 AA everywhere, in light and dark, is the floor (THM-003, CMP-006).
 
 ## Naming
 
-| What              | Rule                                                                                                      | Example                                        |
-| ----------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Library selectors | `pp-` elements in kebab-case, `pp` attribute directives in camelCase (ESLint)                             | `pp-button`, `ppTooltip`                       |
-| App selectors     | `ppa-` in `pantrypress-admin`, `pps-` in `pantrypress-site` (ESLint)                                      | `ppa-site-switcher`                            |
-| Files             | kebab-case, one component per file, its spec beside it                                                    | `text-field.ts`, `text-field.spec.ts`          |
-| Color tokens      | The role, never the hue, with the `--L-` and `--D-` pairs behind it                                       | `--accent`, `--L-accent`                       |
-| Scale tokens      | Family, then an ascending step                                                                            | `--space-3`, `--shadow-1`                      |
-| Variants          | A typed input, reflected on the host as a `data-*` attribute that the styles select on; never `data-mode` | `variant="primary"` → `data-variant="primary"` |
-| Public options    | The spec's attribute names on `.site`, unchanged                                                          | `data-header="split"`                          |
+| What              | Rule                                                                                                                             | Example                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Library selectors | `pp-` elements in kebab-case, or a `pp-` attribute on the browser's own element; `pp` attribute directives in camelCase (ESLint) | `pp-field`, `button[pp-button]`, `ppTooltip`   |
+| Library classes   | `Pp` before the name, so an export never collides with an app's own component                                                    | `PpButton`, `PpRadioOption`                    |
+| App selectors     | `ppa-` in `pantrypress-admin`, `pps-` in `pantrypress-site` (ESLint)                                                             | `ppa-site-switcher`                            |
+| Files             | kebab-case, one component per file, its spec beside it                                                                           | `text-field.ts`, `text-field.spec.ts`          |
+| Color tokens      | The role, never the hue, with the `--L-` and `--D-` pairs behind it                                                              | `--accent`, `--L-accent`                       |
+| Scale tokens      | Family, then an ascending step                                                                                                   | `--space-3`, `--shadow-1`                      |
+| Variants          | A typed input, reflected on the host as a `data-*` attribute that the styles select on; never `data-mode`                        | `variant="primary"` → `data-variant="primary"` |
+| Public options    | The spec's attribute names on `.site`, unchanged                                                                                 | `data-header="split"`                          |
 
 Tokens carry no `pp-` prefix: the public names are fixed by the spec, the shared names have to match them, and no
 third-party CSS shares the pages.

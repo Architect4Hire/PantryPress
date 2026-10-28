@@ -1,0 +1,63 @@
+/*
+ * A track and a thumb. Off: a line-bordered track with a muted thumb at the start. On: an accent track with the thumb
+ * at the end. The thumb is drawn with a border as well as a fill, so it stays visible in forced colors, where the
+ * browser replaces backgrounds.
+ */
+
+.switch {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 2.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  cursor: inherit;
+  appearance: none;
+  transition: background-color var(--dur-2) var(--ease-standard);
+}
+
+.switch::before {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  box-sizing: border-box;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border: 2px solid var(--muted);
+  border-radius: var(--r-full);
+  background: var(--muted);
+  content: '';
+  transition: transform var(--dur-2) var(--ease-standard);
+}
+
+.switch:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.switch:checked::before {
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
+  transform: translateX(1rem);
+}
+
+:host(:dir(rtl)) .switch:checked::before {
+  transform: translateX(-1rem);
+}
+
+.switch:disabled {
+  border-color: var(--disabled);
+  background: var(--disabled);
+}
+
+.switch:disabled::before {
+  border-color: var(--disabled-ink);
+  background: var(--disabled-ink);
+}
+
+.hint {
+  padding-inline-start: calc(2.5rem + var(--space-3));
+}

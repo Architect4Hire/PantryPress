@@ -1,0 +1,24 @@
+:host {
+  display: grid;
+  gap: var(--space-1);
+  max-inline-size: var(--measure);
+}
+
+.label {
+  color: var(--ink);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: var(--leading-1);
+}
+
+.optional {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-1);
+  line-height: var(--leading-2);
+}

@@ -1,0 +1,11 @@
+/* The projected icon brings its own width and height (20 by 20); a projected element takes none of these styles. */
+
+:host {
+  inline-size: 2.5rem;
+  padding: 0;
+}
+
+:host([data-size='sm']) {
+  inline-size: 2rem;
+  padding: 0;
+}

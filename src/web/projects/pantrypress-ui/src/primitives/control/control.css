@@ -1,0 +1,48 @@
+/* Shared by the native text controls: input[pp-text-field], textarea[pp-textarea], select[pp-select]. */
+
+:host {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 2.5rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-2);
+  line-height: var(--leading-2);
+  transition: border-color var(--dur-1) var(--ease-standard);
+}
+
+:host::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+:host(:hover:not(:disabled, [readonly])) {
+  border-color: var(--ink);
+}
+
+:host(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Invalid: a heavier border in the danger text color, drawn inside so nothing moves; the field's words say why. */
+:host([aria-invalid='true']) {
+  border-color: var(--danger-text);
+  box-shadow: inset 0 0 0 1px var(--danger-text);
+}
+
+:host([readonly]) {
+  background: var(--bg);
+}
+
+:host(:disabled) {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}
