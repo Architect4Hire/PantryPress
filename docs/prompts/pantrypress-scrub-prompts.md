@@ -3018,7 +3018,7 @@ BEHAVIOR: Plan, wait for approval, implement with unit and axe tests.
   - Builds: `ng build pantrypress-ui`, and `ng build pantrypress-admin` to a scratch path.
   - Not run: a browser, `aspire run`, or a Playwright flow. There is no screen yet; PP3.6's showcase is the first.
 
-### PP3.4 Admin primitives: layout and feedback
+### PP3.4 Admin primitives: layout and feedback - done
 
 ```text
 SCOPE: Add card, page header, tabs, toolbar, dialog, drawer, toast region, notice, empty state, progress, and
@@ -3026,6 +3026,86 @@ status pill.
 CONSTRAINT: add-admin-component.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP3.4 delivery note (done 2026-10-28):*
+
+- **What shipped.** Eleven primitives in `@pantrypress/ui`, exported with a `Pp` prefix:
+  - `pp-card` and `pp-page-header`;
+  - `pp-tabs` and `pp-tab`, in the ARIA tabs pattern;
+  - `pp-toolbar`, with roving focus;
+  - `pp-dialog` and `pp-drawer`, on the native `<dialog>` with `showModal()`;
+  - `pp-toast-region` and the `PpToaster` service;
+  - `pp-notice`, `pp-empty-state`, `pp-progress` (on the native `<progress>`), and `pp-status-pill`.
+
+  There are no new tokens. Owner-approved choices:
+  - Toasts are `surface` panels.
+  - A success or note with no action leaves after 8 seconds, held while hovered or focused. Anything else waits.
+  - The toast timer is the library's one timer, with a reasoned per-line lint opt-out.
+  - The dialog's focus order on opening.
+- **Tests.** 125 library specs, up from 72.
+  - Every primitive in each state it has, with axe in each.
+  - The keyboard:
+    - tabs and toolbar, right to left and with modifiers;
+    - the toolbar's single tab stop as controls come, go, and enable;
+    - its text fields keeping their own arrow keys.
+  - Dialogs:
+    - focus on opening and its return;
+    - Escape;
+    - the backdrop rules;
+    - a stale `close`;
+    - removal while open.
+  - Toasts:
+    - stay, hold, and eviction rules under fake timers;
+    - focus when a toast goes;
+    - timer cleanup.
+  - Speech moving into an open dialog.
+  - A server render of every primitive.
+
+  Nine checks were shown failing on a deliberate break.
+- **Differs from the approved plan.**
+  - **The first-focus marker is `ppInitialFocus`.** The template lint refuses `autofocus`, which still works where
+    present.
+  - **Speaking, after `design-review`.** Everything the library says goes through one polite announcer, the shell's or
+    the open dialog's, because a modal makes the page inert and so unheard. The toast list is not live, so toasts no
+    longer read out their buttons. A note or success notice that announces is said through the announcer; a warning or
+    error is an alert.
+  - **Toasts, after `design-review`.**
+    - The three-toast limit counts only those that leave by themselves, so one that waits is never dropped.
+    - Hover and focus hold separately.
+    - Focus moves on when a focused toast goes.
+    - The region is a "Notifications" landmark.
+  - **The toolbar, after `design-review`.**
+    - It roves only between buttons and links.
+    - It re-checks its tab stop after every render.
+  - **Dialogs, after `design-review`.**
+    - An alert dialog is described by its body and never closes on the backdrop.
+    - A backdrop close needs the press to start there.
+    - The body scrolls by itself.
+    - First focus skips controls that cannot take it.
+  - **Tabs and the toolbar ignore modified keys.**
+  - **Progress fixes.** A max of zero or less shows the bar as indeterminate. Reduced motion holds the bar part-way,
+    never full.
+  - **`tokens.spec.ts` measures `accent` on `line-subtle`.** That is the progress fill on its track.
+  - **Server renders have a spec file of their own.** A server render puts its DOM classes on the global object.
+- **Open, for later prompts.**
+  - **PP3.6's browser run:**
+    - what screen readers actually say for toasts, notices, and speech inside a dialog;
+    - the inert page, trapped focus, Escape's `cancel`, and `::backdrop` reading `--overlay`;
+    - the dialog body's scrolling;
+    - the progress pseudo-elements and the tab list's overflow;
+    - `:dir(rtl)` on the drawer;
+    - both modes as drawn.
+  - **PP3.9: scroll padding.** The shell sets scroll padding for its fixed areas, so no toast or header covers a
+    focused control (2.4.11).
+  - **Unsaved changes.** Escape and Close have no veto yet. A form that must guard unsaved changes needs one added when
+    the first such dialog arrives.
+  - **Detection limits.** Right-to-left detection reads `dir`, not CSS `direction`. A `pp-tab` nested in a wrapper
+    becomes an orphan panel; the doc says each is a direct child.
+- **Verification.**
+  - Tests: `ng test pantrypress-ui` (125 of 125) and `npm test` (all three projects).
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Builds: `ng build pantrypress-ui`, and `ng build pantrypress-admin` to a scratch path.
+  - Not run: a browser, `aspire run`, or a screen reader.
 
 ### PP3.5 Admin primitives: data
 

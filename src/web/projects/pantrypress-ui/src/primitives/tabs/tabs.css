@@ -1,0 +1,48 @@
+.list {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-block-end: 1px solid var(--line-subtle);
+}
+
+.tab {
+  position: relative;
+  flex: none;
+  min-block-size: 2.5rem;
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+/* Selected: ink words and an accent bar, so it differs by more than color alone. */
+.tab[aria-selected='true'] {
+  color: var(--ink);
+}
+
+.tab[aria-selected='true']::after {
+  position: absolute;
+  inset-inline: var(--space-2);
+  inset-block-end: 0;
+  block-size: 3px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  content: '';
+}
+
+/* The ring is drawn inside, because the scrolling list would clip one outside; it still sits on the page. */
+.tab:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}

@@ -136,6 +136,8 @@ const pairs: { fg: string; bg: string; min: number }[] = [
   ...surfaces.flatMap((bg) => textOnSurfaces.map((fg) => ({ fg, bg, min: 4.5 }))),
   ...surfaces.flatMap((bg) => uiOnSurfaces.map((fg) => ({ fg, bg, min: 3 }))),
   ...inkOnFills.map(([fg, bg]) => ({ fg, bg, min: 4.5 })),
+  // A progress bar's fill carries the amount on its track (PP3.4), so the track holds a floor for that one pair.
+  { fg: 'accent', bg: 'line-subtle', min: 3 },
 ];
 
 describe('contrastRatio', () => {

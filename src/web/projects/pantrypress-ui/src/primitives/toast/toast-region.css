@@ -1,0 +1,21 @@
+:host {
+  position: fixed;
+  z-index: 1000;
+  inset-block-end: var(--space-4);
+  inset-inline: var(--space-4);
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.region {
+  inline-size: min(100%, 24rem);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

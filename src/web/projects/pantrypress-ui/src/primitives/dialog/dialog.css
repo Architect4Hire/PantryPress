@@ -1,0 +1,17 @@
+:host {
+  --dialog-size: 32rem;
+}
+
+:host([data-size='sm']) {
+  --dialog-size: 24rem;
+}
+
+:host([data-size='lg']) {
+  --dialog-size: 48rem;
+}
+
+.dialog {
+  inline-size: min(calc(100% - 2 * var(--space-4)), var(--dialog-size));
+  max-block-size: calc(100% - 2 * var(--space-6));
+  border-radius: var(--r);
+}

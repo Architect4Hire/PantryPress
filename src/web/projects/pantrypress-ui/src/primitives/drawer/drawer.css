@@ -1,0 +1,31 @@
+.drawer {
+  inset-block: 0;
+  inset-inline: auto 0;
+  inline-size: min(100%, 28rem);
+  max-inline-size: 100%;
+  block-size: 100%;
+  max-block-size: 100%;
+  margin: 0;
+  border-block: 0;
+  border-inline-end: 0;
+}
+
+.drawer[open] {
+  animation: pp-drawer-in var(--dur-3) var(--ease-enter);
+}
+
+:host(:dir(rtl)) .drawer[open] {
+  animation-name: pp-drawer-in-rtl;
+}
+
+@keyframes pp-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pp-drawer-in-rtl {
+  from {
+    transform: translateX(-100%);
+  }
+}

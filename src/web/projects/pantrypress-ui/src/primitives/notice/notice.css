@@ -1,0 +1,45 @@
+:host {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-inline-start: 4px solid var(--tone);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-2);
+  line-height: var(--leading-2);
+}
+
+:host([data-tone='info']) {
+  --tone: var(--info-text);
+}
+
+:host([data-tone='success']) {
+  --tone: var(--success-text);
+}
+
+:host([data-tone='warning']) {
+  --tone: var(--warning-text);
+}
+
+:host([data-tone='danger']) {
+  --tone: var(--danger-text);
+}
+
+.icon {
+  margin-block-start: 0.15em;
+  color: var(--tone);
+}
+
+.content {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.heading {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+}

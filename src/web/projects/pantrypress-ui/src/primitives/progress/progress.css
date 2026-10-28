@@ -1,0 +1,80 @@
+:host {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: var(--text-1);
+  line-height: var(--leading-2);
+}
+
+.value {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The track is decoration; the accent fill is what carries the amount, at 3:1 or more on bg and surface. */
+.bar {
+  inline-size: 100%;
+  block-size: 0.5rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--line-subtle);
+  appearance: none;
+}
+
+.bar::-webkit-progress-bar {
+  border-radius: var(--r-full);
+  background: var(--line-subtle);
+}
+
+.bar::-webkit-progress-value {
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.bar::-moz-progress-bar {
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.bar:indeterminate {
+  background: linear-gradient(
+    90deg,
+    var(--line-subtle) 0 30%,
+    var(--accent) 30% 60%,
+    var(--line-subtle) 60%
+  );
+  background-size: 300% 100%;
+  animation: pp-progress-going 1.4s linear infinite;
+}
+
+.bar:indeterminate::-webkit-progress-bar {
+  background: transparent;
+}
+
+.bar:indeterminate::-moz-progress-bar {
+  background: transparent;
+}
+
+/* Still, but still a part and not the whole, so it never reads as done. */
+@media (prefers-reduced-motion: reduce) {
+  .bar:indeterminate {
+    background-position: 50% 0;
+    animation: none;
+  }
+}
+
+@keyframes pp-progress-going {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
