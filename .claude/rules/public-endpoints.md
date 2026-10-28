@@ -5,8 +5,19 @@ Lives in `PantryPress.Site`. Use `add-public-endpoint`.
 - Site comes from the Host header only, through `SiteHost` (PSEC-004). Payloads never carry a site id.
 - Unknown host: neutral platform 404, the same problem document (`not-found`, `no-store`) an unknown path on a real site
   gets, whatever the request's `Accept` asks for, so a reader cannot tell a real host from a guess. A pending host, an IP literal, and a malformed host or port
-  get it too; the last two are never looked up (PP2.12). Suspended or offline site: correct status (503 with
-  `Retry-After`, 410 for deleted).
+  get it too; the last two are never looked up (PP2.12).
+- A site that is not open to readers gets its status answer from every public controller, ahead of its own work
+  (SITE-008, SEO-007; PP2.13): `SiteStatusFilter` is registered globally, so no endpoint can forget it. Being set up is 503
+  `site-coming-soon` with `Retry-After: 30`; suspended and offline are one answer, 503 `site-unavailable` with
+  `Retry-After: 3600`, so neither an operator's action nor a failed payment shows; deleted is 410 `site-gone`. Each is the
+  neutral problem document, `no-store`, with nothing of the site's in it. Read-only is answered exactly like live. An
+  unknown path keeps the neutral 404 whatever the site's status. The status comes before any redirect a host would owe.
+- `GET /api/public/v1/site` is the site context (PP2.13): name, tagline, locale, canonical host, and whether the request
+  used it, cached `public, max-age=60`; never a site id, slug, time zone, status, setting, or member. It reports the
+  canonical host and does not redirect: the page's 301 is the SSR server's (PP7.13a). It varies by Host alone, so every
+  cache of it - the edge, the SSR server's, page data - keys on the Host or the site id (PP7.12, PP9.4).
+- Every route sits under `api/public/v1` (`PublicSurfaceConvention`; the host refuses to start otherwise), and the
+  `public-v1` OpenAPI document is served in Development only, on a site's host like any other request.
 - The site is resolved once per request, before any endpoint, and read from `IPublicSiteContext`; once the host map
   holds a host, resolving it makes no SQL query. No Identity, authentication, antiforgery, session, or cookie is
   registered on this host (PP2.12).

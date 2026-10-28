@@ -22,6 +22,8 @@ internal static class ApiProblems
         ErrorKind.Conflict => StatusCodes.Status409Conflict,
         ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
         ErrorKind.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+        ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
+        ErrorKind.Gone => StatusCodes.Status410Gone,
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 

@@ -49,9 +49,11 @@ Applies to admin API, public site API, and publishing API.
 - Dates are UTC ISO 8601; the site time zone is applied only for display and scheduling.
 - Enums serialize as kebab-case strings.
 - Breaking changes need a new version. Additive changes are fine.
-- Every route belongs to a declared API surface (route prefix plus OpenAPI document) in `ApiSurfaces`, and the
-  host refuses to start when a route sits outside one: unversioned, an undeclared version, or an action whose
-  absolute route escapes the prefix. A new version adds a surface; it never edits one.
+- Every route belongs to a declared API surface (route prefix plus OpenAPI document) - in `ApiSurfaces` on ApiService,
+  in `PublicSurface` on the public site (PP2.13) - and the host refuses to start when a route sits outside one:
+  unversioned, an undeclared version, or an action whose absolute route escapes the prefix. A new version adds a
+  surface; it never edits one. The public site serves controllers only (`PublicControllers.EnsureControllersOnly`), and
+  binds no request input until PP12 brings the site-id binding check there with its first endpoint that takes some.
 - OpenAPI is generated for every surface, `internal-v1` included (Development only); the publishing API document is
   published (API-009). The gateway's four session routes declare their shapes as endpoint metadata but have no
   document of their own yet (PP2 writes the admin client).

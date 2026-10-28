@@ -23,8 +23,9 @@ Detail: `docs/requirements/pantrypress-customization-spec.md`.
   nor the holder shows.
 - The reserved list is platform reference data: `ReservedSlugs` in Sites' Business, versioned, and seeded into the
   `ReservedSlugs` table, so a change is a reviewed migration. It reserves every host PantryPress answers on or holds
-  DNS records under (`app` above all, whose `__Host-` cookies a tenant site there would share; a test reads the
-  gateway's hosts and the Terraform). The database refuses a reserved slug on any site write, and refuses reserving a
+  DNS records under (`app` and `www` above all: since PP-D19 they 301 to the apex that holds the session, and a tenant
+  site at either would pose as the platform; a test reads the gateway's hosts and the Terraform). The platform home on
+  the apex has no label of its own, so no slug can name it. The database refuses a reserved slug on any site write, and refuses reserving a
   slug a site holds, so taking an address from a site is decided on purpose, never by a list edit.
 - `SiteHost` (PP2.9) maps every host to one site with one canonical host. It is part of the tenant root (`tenancy.md`):
   hosts are stored lower-case without port or trailing dot, unique platform-wide, and never change site or spelling;

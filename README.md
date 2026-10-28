@@ -32,7 +32,7 @@ Every site gets `{name}.pantrypress.app`. Paid plans can add a custom domain.
 
 ```text
 Readers ─► Azure Front Door (cache, TLS, WAF) ─► pantrypress-site (Angular SSR) ─► PantryPress.Site API ─► Redis / Blob page data
-Bloggers ─► app.pantrypress.app ─► PantryPress.Gateway (BFF) ─► PantryPress.ApiService ─► Domain ─► Azure SQL
+Bloggers ─► pantrypress.app ──────► PantryPress.Gateway (BFF) ─► PantryPress.ApiService ─► Domain ─► Azure SQL
                                                                    ▲
                                          CreatorPantry (optional) ─┘ publishing API, per-site keys
 PantryPress.Worker: page-data builds, media derivatives, purges, sitemaps, feeds, search, imports, webhooks
@@ -88,8 +88,9 @@ Once PP0.8 is done:
 aspire run
 ```
 
-The Aspire dashboard shows every resource. The admin app runs at `app.localhost` and sites at
-`{slug}.localhost`.
+The Aspire dashboard shows every resource. The platform home (the landing page, sign-in, and the dashboard
+under `/dashboard`) runs at `localhost` through the gateway, and sites at `{slug}.localhost` (ADR 0019; until
+PPL.1 moves it, the gateway still answers at `app.localhost`).
 
 ## Building with Claude Code
 

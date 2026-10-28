@@ -71,7 +71,7 @@ flowchart LR
     subgraph PP[PantryPress]
         direction TB
         pub[Public sites<br/>slug.pantrypress.app<br/>or custom domain]
-        admin[Admin app<br/>app.pantrypress.app]
+        admin[Platform home<br/>pantrypress.app<br/>landing, sign-in, /dashboard]
         papi[Publishing API<br/>/api/publishing/v1]
     end
 
@@ -92,7 +92,8 @@ flowchart LR
 | Party | Enters through | Purpose |
 | --- | --- | --- |
 | Reader | Front Door to the SSR site and `/api/public/*` | Read posts and recipes; rate, comment, subscribe, contact |
-| Blogger | `app.pantrypress.app` via the Gateway BFF | Author, design, publish, moderate, export |
+| Prospective blogger | The landing page at `pantrypress.app` (ADR 0019) | Learn what PantryPress does, see pricing, sign up |
+| Blogger | `pantrypress.app/dashboard` via the Gateway BFF | Author, design, publish, moderate, export |
 | Platform operator | Admin app operator console (`PlatformAdmin`) | Support, abuse takedown, plan overrides |
 | CreatorPantry (optional) | `/api/publishing/v1` with a per-site key | Push drafts and publish; read status and live URL |
 | Stripe | Out via gateway; signed webhooks in | Prices, checkout, portal, tax, dunning |
@@ -150,7 +151,7 @@ runs in the Worker through the transactional outbox.
 flowchart TB
     subgraph Edge[Azure Front Door Standard, shared profile]
         afdPub[Wildcard *.pantrypress.app<br/>+ custom domains<br/>cache, TLS, WAF custom rules]
-        afdApp[app.pantrypress.app]
+        afdApp[pantrypress.app apex<br/>www. and app. 301 to it]
         afdApi[Publishing API route<br/>host TBD, see O-01]
     end
 
@@ -330,14 +331,15 @@ sequenceDiagram
   the other site's host, `Host` versus `X-Forwarded-Host`, uppercase, trailing dot, and the other site's
   custom domain.
 
-### 5.3 Hosts and domains (ADR 0013, DOM)
+### 5.3 Hosts and domains (ADR 0013, ADR 0019, DOM)
 
 | Host | Serves |
 | --- | --- |
 | `{slug}.pantrypress.app` | A blog; wildcard DNS and certificate on Front Door |
 | Custom domain (opt-in, paid) | A blog; Front Door managed certificate; becomes canonical, and the subdomain 301s to it |
-| `app.pantrypress.app` | Admin SPA and BFF |
-| `{slug}.localhost`, `app.localhost` | Local development under Aspire (SITE-009) |
+| `pantrypress.app` (the apex) | The platform home through the gateway (BFF): the prerendered landing page at `/` and `/pricing`, legal pages, sign-in and sign-up, and the dashboard under `/dashboard` (ADR 0019). Its documents are never edge-cached |
+| `app.pantrypress.app`, `www.pantrypress.app` | 301 to the apex at Front Door; reserved slugs |
+| `{slug}.localhost`, `localhost` | Local development under Aspire: sites, and the platform home through the gateway (SITE-009) |
 
 Apply to add `pantrypress.app` to the Public Suffix List, because tenant sites run third-party ad scripts on
 sibling subdomains.
@@ -730,7 +732,7 @@ wording drift.
 
 | # | Sev | Conflict or gap | Where | Suggested resolution |
 | --- | --- | --- | --- | --- |
-| O-01 | Medium | **The publishing API has no edge host or route.** `gateway.md` says it "is exposed on its own Front Door route". ADR 0013 and PP9.2 name only the blog wildcard and `app.pantrypress.app`. No host such as `api.pantrypress.app` appears anywhere. | gateway.md vs ADR 0013, PP9.2 | Add the host to ADR 0013 (or ADR 0019) and a route and WAF policy to PP9.2 |
+| O-01 | Medium | **The publishing API has no edge host or route.** `gateway.md` says it "is exposed on its own Front Door route". ADR 0013 and PP9.2 name only the blog wildcard and the admin host (now the apex, ADR 0019). No host such as `api.pantrypress.app` appears anywhere. | gateway.md vs ADR 0013, PP9.2 | Add the host to ADR 0013 (or ADR 0019) and a route and WAF policy to PP9.2 |
 | O-02 | Medium | **Stripe webhook ingress is unplaced.** PP14.5 adds the endpoint without naming the service that hosts it or its route. Requirements 3.2 and the PP-D01 tree put webhooks in the Worker, which has no HTTP ingress. | PP14.5, requirements 3.2 | Host the receiver on ApiService behind the O-01 route; the Worker processes events from the outbox |
 | O-03 | Medium | **Admin SPA hosting.** Requirements 5.1 lists a separate "admin web host" Container App; `gateway.md` says the Gateway serves the SPA's static files. | requirements 5.1 vs gateway.md | Gateway hosting: one less app, same-origin by default |
 | O-04 | Medium | **Public media has no Front Door route.** `media-public` is "via Front Door only", but PP9.2 defines no origin for blob media. | requirements 5.1 vs PP9.2 | Add a media origin group and route to PP9.2 |

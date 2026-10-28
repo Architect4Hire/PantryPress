@@ -1,4 +1,3 @@
-using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using Aspire.Hosting.Testing;
@@ -7,7 +6,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Session;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PantryPress.Domain.Managers.Caching;
@@ -39,7 +37,8 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
 {
     private static readonly DateTimeOffset AddedAt = new(2026, 10, 28, 9, 0, 0, TimeSpan.Zero);
 
-    private readonly CommandCounter _queries = new();
+    // One counter for the class, as in SiteContextTests: a new interceptor per test builds EF Core a new service provider.
+    private static readonly CommandCounter Queries = new();
     private readonly CacheCounter _cacheCalls = new();
     private TwoSiteHarness _harness = null!;
     private TwoSiteWorld _world = null!;
@@ -53,7 +52,7 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
             withSite: true,
             siteServices: services =>
             {
-                services.ConfigureDbContext<PantryPressDbContext>(options => options.AddInterceptors(_queries));
+                services.ConfigureDbContext<PantryPressDbContext>(options => options.AddInterceptors(Queries));
                 services.Replace(ServiceDescriptor.Singleton<IPlatformCache>(sp =>
                     new CountingCache(new RedisPlatformCache(sp.GetRequiredService<IConnectionMultiplexer>()), _cacheCalls)));
             });
@@ -179,13 +178,13 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
     public async Task An_ip_literal_or_bare_name_is_refused_before_the_cache_or_the_database(string host)
     {
         await ProbeAsync(_world.A.Host);
-        _queries.Reset();
+        Queries.Reset();
         _cacheCalls.Reset();
 
         using var response = await _harness.ReadAsAsync(host);
 
         await AssertNotFoundAsync(response);
-        Assert.Equal(0, _queries.Count);
+        Assert.Equal(0, Queries.Count);
         Assert.Equal(0, _cacheCalls.Count);
     }
 
@@ -198,7 +197,7 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
         {
         }
 
-        _queries.Reset();
+        Queries.Reset();
         for (var i = 0; i < 3; i++)
         {
             Assert.Equal(_world.A.Id.Value, (await ProbeAsync(MixedCase(_world.A.Host) + ":443")).SiteId);
@@ -206,19 +205,19 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
             await AssertNotFoundAsync(refused);
         }
 
-        Assert.Equal(0, _queries.Count);
+        Assert.Equal(0, Queries.Count);
     }
 
     [Fact]
     public async Task A_cold_host_is_read_once_and_then_from_the_map()
     {
-        _queries.Reset();
+        Queries.Reset();
         await ProbeAsync(_world.B.Host);
-        var cold = _queries.Count;
+        var cold = Queries.Count;
         await ProbeAsync(_world.B.Host);
 
         Assert.Equal(1, cold);
-        Assert.Equal(1, _queries.Count);
+        Assert.Equal(1, Queries.Count);
     }
 
     [Fact]
@@ -372,7 +371,12 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
 
         // The lookup reads the map and the database before the host changes hands...
         var seen = await cache.ReadAsync(key);
-        var old = SiteHostMap.Write(new SiteHostMatch(_world.A.Id, SiteStatus.Live, false, _world.A.Host));
+        var old = SiteHostMap.Write(new SiteHostMatch(
+            _world.A.Id,
+            SiteStatus.Live,
+            false,
+            _world.A.Host,
+            new PublicSiteIdentity("Sunday Supper", "Weeknight dinners", "en-US")));
 
         // ...the host moves to B and the map is refreshed...
         await _harness.ChangeAsync(db => db.Set<SiteHost>().Where(h => h.Host == host).ExecuteDelete());
@@ -429,7 +433,7 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
     [Fact]
     public async Task Nothing_on_this_host_signs_anyone_in_or_sets_a_cookie()
     {
-        string[] paths = [SiteProbes.Path, "/api/public/v1/nothing-here", "/", "/health", "/alive"];
+        string[] paths = [SiteProbes.Path, "/api/public/v1/site", "/api/public/v1/nothing-here", "/", "/health", "/alive"];
         foreach (var path in paths)
         {
             using var known = await _harness.ReadAsAsync(_world.A.Host, path);
@@ -518,45 +522,6 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
 
     private static string MixedCase(string host) =>
         string.Concat(host.Select((c, i) => i % 2 == 0 ? char.ToUpperInvariant(c) : c));
-
-    private sealed class CommandCounter : DbCommandInterceptor
-    {
-        private int _count;
-
-        public int Count => Volatile.Read(ref _count);
-
-        public void Reset() => Interlocked.Exchange(ref _count, 0);
-
-        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
-            DbCommand command,
-            CommandEventData eventData,
-            InterceptionResult<DbDataReader> result,
-            CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _count);
-            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
-        }
-
-        public override ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
-            DbCommand command,
-            CommandEventData eventData,
-            InterceptionResult<object> result,
-            CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _count);
-            return base.ScalarExecutingAsync(command, eventData, result, cancellationToken);
-        }
-
-        public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
-            DbCommand command,
-            CommandEventData eventData,
-            InterceptionResult<int> result,
-            CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _count);
-            return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
-        }
-    }
 
     // A clock that moves on by a fixed step each time it is read, as a lookup that stalls between its read and its fill.
     private sealed class SteppingClock(TimeSpan step) : IClock

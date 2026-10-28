@@ -22,6 +22,6 @@ internal sealed class PublicSiteResolution(SiteHostMapDataLayer map, ISiteContex
         }
 
         siteContextWriter.Enter(match.SiteId);
-        return new PublicSite(match.SiteId, host, match.CanonicalHost, match.IsCanonical, match.Status);
+        return new PublicSite(match.SiteId, host, match.CanonicalHost, match.IsCanonical, match.Status, match.Identity);
     }
 }

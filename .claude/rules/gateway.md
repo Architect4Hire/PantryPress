@@ -1,10 +1,21 @@
 # Gateway (YARP BFF)
 
-`PantryPress.Gateway` serves `app.pantrypress.app`: the admin SPA's static files and the admin API surface
-(`/api/v1/...`) proxied to `PantryPress.ApiService`.
+`PantryPress.Gateway` serves the platform home on the zone's apex, `pantrypress.app` (PP-D19, ADR 0019): the
+`pantrypress-admin` app's files - the prerendered landing page at `/` and `/pricing`, the legal pages, the sign-in and
+sign-up screens, and the dashboard under `/dashboard/…` - and the admin API surface (`/api/v1/...`) proxied to
+`PantryPress.ApiService`. `app.pantrypress.app` and `www.pantrypress.app` are 301s to the apex at Front Door, never
+gateway hosts. **Until PPL.1 lands, the code still answers on `app.pantrypress.app` and `app.localhost`.**
 
-- In local Development the gateway is the browser's entry point at `app.localhost`; a catch-all route in
-  `appsettings.Development.json` forwards the SPA to the Aspire-hosted admin dev server (PP0.7).
+- In local Development the gateway is the browser's entry point at `localhost` (the local zone's apex, on the
+  gateway's own port; sites are `{slug}.localhost` on the Site resource's); a catch-all route in
+  `appsettings.Development.json` forwards the SPA to the Aspire-hosted admin dev server (PP0.7). Dev is
+  `dev.pantrypress.app`.
+- **A signed-in visitor never sees marketing (PPL.3).** A `GET` of `/` or `/pricing` carrying a complete session ticket
+  is answered 302 to `/dashboard` before any document is read. The gateway decides it from its own cookie alone and asks
+  ApiService nothing; the dashboard's guard confirms the session. A half-finished ticket is not a session here either.
+- **Documents are never shared-cached.** Every HTML answer on the apex is `Cache-Control: no-cache`, because `/` answers a
+  signed-in visitor differently; only fingerprinted static assets are long-lived, and the Front Door route for the apex
+  caches nothing else (PP9.2). Prerendered pages carry no price, plan figure, or account data.
 - Routes are declared in configuration and versioned (`/api/v1/...`). Every other path under `/api` gets a
   problem-details 404 from the gateway itself (PP1.5), so nothing falls through to the SPA: the publishing API
   is not routed through the gateway (it has its own Front Door route), the public site API answers on site
@@ -24,7 +35,9 @@
   `Edge:TrustedProxies:TrustNobody`. A trusted peer may also name the host, but only one from `Gateway:Hosts`; the
   public tier does not grant even that, because there the host is the tenant.
 - The admin surface is HTTPS. A plain-HTTP request is answered 307 to the same address over TLS, and every answer
-  outside Development carries HSTS for a year with `includeSubDomains` and no `preload`. Health probes are exempt
+  outside Development carries HSTS for a year with `includeSubDomains` and no `preload`. Sent from the apex, that
+  covers every host under the zone - every blog subdomain and `dev.` included - so every web host under the zone must
+  serve HTTPS (ADR 0019); custom domains are outside the zone and untouched. Health probes are exempt
   from the redirect, and the redirect is registered only where the host can tell what scheme the browser used -
   Development, or a deployment that named its proxy - because a configured HTTPS port without a trusted proxy
   redirects the edge back to the address it just came from, for ever.

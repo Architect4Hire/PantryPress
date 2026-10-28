@@ -14,7 +14,8 @@
 - Use `add-aspire-resource` for any new resource. Dependents `WaitFor` what they need; everything waits for
   the migration service.
 - Connection strings and secrets flow through Aspire references and parameters. No hard-coded endpoints.
-- Local hosts: `app.localhost` and `{slug}.localhost` (SITE-009).
+- Local hosts: `localhost` for the platform home through the gateway (the landing page, sign-in, and `/dashboard`;
+  PP-D19, moved from `app.localhost` in PPL.1) and `{slug}.localhost` for sites (SITE-009).
 - ServiceDefaults provides OpenTelemetry, health checks (`/health`, `/alive`), service discovery, resilience,
   and the edge hardening every host shares (`EdgeHardening/`: security response headers, trusted proxies and the
   forwarding-header strip, body size limits, the HTTPS redirect). Every service calls `AddServiceDefaults()`;

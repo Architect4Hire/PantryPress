@@ -210,7 +210,7 @@ SCRUB delivery), written fresh for PantryPress. Projects:
 src/
 ├── PantryPress.AppHost/          # Aspire application model
 ├── PantryPress.ServiceDefaults/  # telemetry, health, resilience
-├── PantryPress.Gateway/          # YARP BFF for the admin app (app.pantrypress.app)
+├── PantryPress.Gateway/          # YARP BFF on pantrypress.app: landing, sign-in, /dashboard (PP-D19)
 ├── PantryPress.ApiService/       # authenticated admin API and the publishing API
 ├── PantryPress.Site/             # anonymous public site API (page data, comments, ratings, signups …)
 ├── PantryPress.Domain/           # module-first: Modules/<Context>/ plus Managers/ shared kernel
@@ -299,7 +299,9 @@ AI-assisted creation is CreatorPantry's job.
 
 **PP-D13 Domains, cookies, and the edge (owner: Front Door Standard).**
 - `*.pantrypress.app` is a wildcard DNS record pointing at Front Door Standard with a wildcard certificate.
-  Every site always has its subdomain. The admin app lives at `app.pantrypress.app`.
+  Every site always has its subdomain. The platform home - the landing page, sign-in and sign-up, and the
+  dashboard under `/dashboard` - lives on the apex, `pantrypress.app`; `app.` and `www.` redirect to it
+  (PP-D19, ADR 0019, which supersedes the earlier `app.pantrypress.app`).
 - **Custom domains are opt-in** for paid plans, using Front Door custom domains with managed certificates,
   verified by TXT record. The subdomain redirects to the custom domain while it is attached.
 - The BFF session cookie is `__Host-`, host-only, `Secure`, `HttpOnly`, and `SameSite=Lax` or stricter,
@@ -358,7 +360,7 @@ settings (PP-D17), so accessibility and the performance budget hold on every pag
 ```text
               Readers (anonymous)                                   Bloggers
                      │                                                  │
-     {name}.pantrypress.app / custom domain                    app.pantrypress.app
+     {name}.pantrypress.app / custom domain                    pantrypress.app (PP-D19)
                      │                                                  │
      ┌───────────────▼─────────────── Front Door Standard (shared profile) ──────────────▼──────────┐
      │  wildcard TLS · cache · WAF custom rules · purge                                             │

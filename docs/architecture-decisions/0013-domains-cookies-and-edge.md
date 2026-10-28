@@ -1,6 +1,8 @@
 # 0013 — Domains, cookies, and the edge
 
-- **Status:** Accepted, with two open items
+- **Status:** Accepted, with two open items. **Superseded in part by
+  [0019](0019-platform-home-on-the-bare-domain.md)** (2026-10-28): the admin app is no longer at `app.pantrypress.app`.
+  It is under `/dashboard` on `pantrypress.app` itself, and `app.` redirects there. Everything else here stands.
 - **Date:** 2026-10-22
 - **Decided by:** Owner (Front Door Standard); remainder confirmed at PP0.1
 - **Decision ID:** PP-D13

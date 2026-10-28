@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
@@ -28,6 +29,11 @@ builder.Services.AddPublicSiteContext();
 
 // Problem details for every refusal, with the public tier's codes and plain titles.
 builder.Services.AddSiteProblems();
+
+// The public endpoints (PP2.13): controllers only, every one under the public surface and behind the status answers
+// (SITE-008, SEO-007).
+builder.Services.AddPublicControllers();
+builder.Services.AddSiteOpenApi();
 
 // The edge (PSEC-002; PP1.8). The public site is the one service tenant browsers reach, so it claims HTTPS for a
 // year outside Development; the content-security policy here is a strict placeholder until it is generated per site
@@ -73,6 +79,19 @@ app.MapDefaultEndpoints();
 // After the strip, so the Host the connection carried is the only one read; a Host that names no active site ends here
 // with the neutral 404 an unknown path gets.
 app.UseSiteHostResolution();
+
+// The OpenAPI document, in Development only, and on a resolved site's host like everything else.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
+
+app.MapControllers();
+
+// MVC builds its action descriptors lazily, on the first request that needs them, and PublicSurfaceConvention runs with
+// them. Touching them here makes a route outside the public surface fail the start instead of the first reader.
+_ = app.Services.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors;
+app.EnsureControllersOnly();
 
 app.Run();
 

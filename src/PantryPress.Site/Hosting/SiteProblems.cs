@@ -1,11 +1,14 @@
 using System.Diagnostics;
+using System.Globalization;
+using Microsoft.AspNetCore.Mvc;
+using PantryPress.Domain.Managers.Results;
 
 namespace PantryPress.Site.Hosting;
 
 /// <summary>
 /// RFC 9457 problem details for every failure the public tier answers (api-contract.md): a stable <c>code</c> and a
-/// plain-language <c>title</c> from the status, since the only failures so far are the framework's and host resolution's
-/// neutral 404. Endpoint codes arrive with the endpoints (PP2.13, PP12).
+/// plain-language <c>title</c>: from the status for the framework's failures and host resolution's neutral 404, and from
+/// the facade's error for a site that is not open to readers (PP2.13) and, later, an endpoint's own refusals (PP12).
 /// </summary>
 /// <remarks>
 /// A refusal is written here in full, whatever the request's <c>Accept</c> says: the framework's own status-code pages
@@ -17,6 +20,8 @@ internal static class SiteProblems
     public const string CodeKey = "code";
     public const string NotFoundCode = "not-found";
     public const string NotFoundTitle = "We couldn't find that.";
+
+    private const string ProblemContentType = "application/problem+json";
 
     public static IServiceCollection AddSiteProblems(this IServiceCollection services) =>
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
@@ -52,19 +57,27 @@ internal static class SiteProblems
     }
 
     /// <summary>The problem document for <paramref name="status"/>, never cached.</summary>
-    public static Task WriteAsync(HttpContext context, int status)
+    public static Task WriteAsync(HttpContext context, int status) =>
+        WriteAsync(context, status, CodeFor(status), TitleFor(status));
+
+    /// <summary>
+    /// A facade's refusal as an MVC result: the same problem document, written the same way, with <c>Retry-After</c> when
+    /// the error says how long (SEO-007).
+    /// </summary>
+    public static IActionResult FromError(Error error) => new ErrorResult(error ?? throw new ArgumentNullException(nameof(error)));
+
+    /// <summary>The status for each kind of facade error, as ApiService answers it.</summary>
+    public static int StatusFor(ErrorKind kind) => kind switch
     {
-        context.Response.Headers.CacheControl = "no-store";
-        return Results.Problem(
-                statusCode: status,
-                title: TitleFor(status),
-                extensions: new Dictionary<string, object?>
-                {
-                    [CodeKey] = CodeFor(status),
-                    ["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier,
-                })
-            .ExecuteAsync(context);
-    }
+        ErrorKind.Validation or ErrorKind.Rejected => StatusCodes.Status400BadRequest,
+        ErrorKind.NotFound => StatusCodes.Status404NotFound,
+        ErrorKind.Conflict => StatusCodes.Status409Conflict,
+        ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+        ErrorKind.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+        ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
+        ErrorKind.Gone => StatusCodes.Status410Gone,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "An error kind with no status."),
+    };
 
     public static string CodeFor(int status) => status switch
     {
@@ -74,7 +87,7 @@ internal static class SiteProblems
         StatusCodes.Status413PayloadTooLarge => "request-too-large",
         StatusCodes.Status415UnsupportedMediaType => "unsupported-media-type",
         StatusCodes.Status429TooManyRequests => "too-many-requests",
-        >= 500 => "server-error",
+        >= 500 => "unexpected-error",
         _ => "request-failed",
     };
 
@@ -89,4 +102,37 @@ internal static class SiteProblems
         >= 500 => "Something went wrong on our side. Please try again in a moment.",
         _ => "We couldn't handle that request.",
     };
+
+    // Written here as JSON rather than through the problem details service (PP2.13): for a controller's answer to a reader
+    // who does not ask for JSON, that service hands the problem to MVC's writer, which rebuilds it without its code and
+    // title. The problem's own defaults - its type above all - are the framework's, as before.
+    private static Task WriteAsync(HttpContext context, int status, string code, string title)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        var problem = TypedResults.Problem(
+                statusCode: status,
+                title: title,
+                extensions: new Dictionary<string, object?>
+                {
+                    [CodeKey] = code,
+                    ["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier,
+                })
+            .ProblemDetails;
+        return Results.Json(problem, contentType: ProblemContentType, statusCode: status).ExecuteAsync(context);
+    }
+
+    private sealed class ErrorResult(Error error) : IActionResult
+    {
+        public Task ExecuteResultAsync(ActionContext context)
+        {
+            var http = context.HttpContext;
+            if (error.RetryAfter is { } wait)
+            {
+                http.Response.Headers.RetryAfter =
+                    Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+            }
+
+            return WriteAsync(http, StatusFor(error.Kind), error.Code, error.Title);
+        }
+    }
 }

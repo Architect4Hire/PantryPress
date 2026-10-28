@@ -36,8 +36,9 @@ internal sealed class SiteHostRepository(PantryPressDbContext db)
     }
 
     /// <summary>
-    /// What this stored-form host names when it is active (PP2.12): its site, the site's status, and the site's canonical
-    /// host; or null. A pending host names nothing, exactly like one no site holds. One query, keyed by the host.
+    /// What this stored-form host names when it is active (PP2.12): its site, the site's status, the site's canonical host,
+    /// and its public name, tagline, and locale (PP2.13), withheld when the site is not open to readers; or null. A pending host names nothing, exactly like one no site
+    /// holds. One query, keyed by the host.
     /// </summary>
     public async Task<SiteHostMatch?> FindActiveAsync(string host, CancellationToken cancellationToken)
     {
@@ -49,6 +50,9 @@ internal sealed class SiteHostRepository(PantryPressDbContext db)
                 {
                     h.SiteId,
                     s.Status,
+                    s.Name,
+                    s.Tagline,
+                    s.Locale,
                     h.IsCanonical,
                     Canonical = db.Set<SiteHost>()
                         .Where(c => c.SiteId == h.SiteId && c.IsCanonical)
@@ -58,7 +62,14 @@ internal sealed class SiteHostRepository(PantryPressDbContext db)
             .Take(1)
             .ToListAsync(cancellationToken);
         return found is [var row]
-            ? new SiteHostMatch(row.SiteId, row.Status, row.IsCanonical, row.Canonical ?? host)
+            ? new SiteHostMatch(
+                row.SiteId,
+                row.Status,
+                row.IsCanonical || row.Canonical is null,
+                row.Canonical ?? host,
+                PublicSiteStatus.RefusalFor(row.Status) is null
+                    ? new PublicSiteIdentity(row.Name, row.Tagline, row.Locale)
+                    : PublicSiteIdentity.Withheld)
             : null;
     }
 

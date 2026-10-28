@@ -7,7 +7,8 @@ SEO-ready site at `{name}.pantrypress.app` or an opt-in custom domain.
 This file is the constitution. Detail lives in `.claude/rules/`, procedures in `.claude/skills/`, reviewers
 in `.claude/agents/`. The functional source of truth is `docs/requirements/pantrypress-requirements.md`;
 site design detail is in `docs/requirements/pantrypress-customization-spec.md`; the build plan is
-`docs/prompts/pantrypress-scrub-prompts.md`. Decisions are recorded in
+`docs/prompts/pantrypress-scrub-prompts.md`, with the platform's own landing page in
+`docs/prompts/pantrypress-landing-page-scrub-prompts.md` (PPL.*). Decisions are recorded in
 `docs/architecture-decisions/pantrypress.md` (created by PP0.1). If documents conflict, stop and reconcile
 them before writing code.
 
@@ -48,7 +49,7 @@ Standard, Stripe, Azure Communication Services Email.
 src/
 ├── PantryPress.AppHost/          # Aspire application model
 ├── PantryPress.ServiceDefaults/  # telemetry, health, resilience, edge hardening
-├── PantryPress.Gateway/          # YARP BFF for the admin app (app.pantrypress.app)
+├── PantryPress.Gateway/          # YARP BFF on pantrypress.app: landing, sign-in, /dashboard (PP-D19)
 ├── PantryPress.ApiService/       # authenticated admin API and the publishing API
 ├── PantryPress.Site/             # anonymous public site API (page data, reader endpoints)
 ├── PantryPress.Domain/           # Modules/<Context>/ plus Managers/ shared kernel
@@ -57,7 +58,7 @@ src/
 ├── PantryPress.Tests/
 └── web/
     ├── projects/pantrypress-ui/    # @pantrypress/ui and @pantrypress/ui/themes
-    ├── projects/pantrypress-admin/ # blogger dashboard and editor (client-rendered)
+    ├── projects/pantrypress-admin/ # the platform home: prerendered landing, sign-in, /dashboard (client-rendered)
     └── projects/pantrypress-site/  # public blog, Angular SSR on every request
 ```
 
@@ -124,7 +125,8 @@ npm run lint && npm test
 npm run build:site && npm run budget        # SSR build plus the RND-007 first-party budget check
 ```
 
-Local hosts: the admin app at `app.localhost`, sites at `{slug}.localhost` (SITE-009).
+Local hosts: the platform home (landing, sign-in, `/dashboard`) at `localhost` through the gateway, sites at
+`{slug}.localhost` (SITE-009, PP-D19; the code moves from `app.localhost` in PPL.1).
 
 Skills (`.claude/skills/`): `add-endpoint`, `add-site-entity`, `add-public-endpoint`,
 `add-recipe-feature`, `add-editor-block`, `add-media-feature`, `add-background-job`,

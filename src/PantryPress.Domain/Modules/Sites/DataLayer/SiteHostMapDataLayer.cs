@@ -9,7 +9,8 @@ namespace PantryPress.Domain.Modules.Sites.DataLayer;
 
 /// <summary>
 /// The host map (PP2.12): what a host names, from the platform cache when it holds the answer and from <c>SiteHosts</c>
-/// when it does not, and the refresh every write to a site's hosts or status owes it (tenancy.md, "Tenant root").
+/// when it does not, and the refresh every write to a site's hosts, status, name, tagline, or locale owes it (tenancy.md,
+/// "Tenant root").
 /// </summary>
 /// <remarks>
 /// The cache is an optimization, never the authority. When it cannot be reached a lookup reads the database and caches
@@ -90,7 +91,7 @@ internal sealed partial class SiteHostMapDataLayer(
 
     /// <summary>
     /// Drops what the map holds for every host of <paramref name="site"/>, which resolution has already authorized: what a
-    /// change of the site's status owes, since every host's entry carries it.
+    /// change of the site's status, name, tagline, or locale owes, since every host's entry carries them.
     /// </summary>
     public async Task RefreshSiteAsync(SiteId site, CancellationToken cancellationToken) =>
         await RefreshAsync(await hosts.ListHostsAsync(site, cancellationToken));

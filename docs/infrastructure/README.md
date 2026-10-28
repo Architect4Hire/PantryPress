@@ -108,7 +108,7 @@ only things it adds to them are its own subnet, its own Front Door endpoints, an
 
 |                     | dev                                                     | prod                                              |
 | ------------------- | ------------------------------------------------------- | ------------------------------------------------- |
-| Hosts               | `{slug}.dev.pantrypress.app`, `app.dev.pantrypress.app` | `{slug}.pantrypress.app`, `app.pantrypress.app`   |
+| Hosts               | `{slug}.dev.pantrypress.app`, `dev.pantrypress.app` (ADR 0019) | `{slug}.pantrypress.app`, `pantrypress.app` (ADR 0019) |
 | ASP.NET environment | `Staging` (Production behavior, a different name)       | `Production`                                      |
 | Gateway             | 0.25 vCPU, 0–1 replica                                  | 0.5 vCPU, exactly 1 replica                       |
 | ApiService          | 0.25 vCPU, 0–1, internal ingress                        | 0.5 vCPU, 1–3, internal ingress                   |

@@ -97,7 +97,8 @@ internal sealed class SiteFactory(
             }
 
             siteContext.Enter(site);
-            return Task.FromResult<PublicSite?>(new PublicSite(site, host, host, true, SiteStatus.Live));
+            return Task.FromResult<PublicSite?>(
+                new PublicSite(site, host, host, true, SiteStatus.Live, new PublicSiteIdentity("Test Kitchen", string.Empty, "en-US")));
         }
     }
 }

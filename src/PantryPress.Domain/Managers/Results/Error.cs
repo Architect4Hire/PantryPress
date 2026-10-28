@@ -19,6 +19,12 @@ public enum ErrorKind
 
     /// <summary>Too many attempts; the caller should wait before trying again.</summary>
     TooManyAttempts,
+
+    /// <summary>What was asked for is there but cannot be answered for now (a site not open yet, or closed for a while).</summary>
+    Unavailable,
+
+    /// <summary>What was asked for is gone for good (a deleted site).</summary>
+    Gone,
 }
 
 /// <summary>
@@ -31,8 +37,9 @@ public sealed record Error(ErrorKind Kind, string Code, string Title)
     public IReadOnlyDictionary<string, string[]> Fields { get; init; } = new Dictionary<string, string[]>();
 
     /// <summary>
-    /// How long to wait before trying again, for <see cref="ErrorKind.TooManyAttempts"/>: hosts send it as
-    /// <c>Retry-After</c>, so the plain title has a machine-readable half (PP1.12).
+    /// How long to wait before trying again, for <see cref="ErrorKind.TooManyAttempts"/> and
+    /// <see cref="ErrorKind.Unavailable"/>: hosts send it as <c>Retry-After</c>, so the plain title has a machine-readable
+    /// half (PP1.12, SEO-007).
     /// </summary>
     public TimeSpan? RetryAfter { get; init; }
 

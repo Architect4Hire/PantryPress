@@ -4,12 +4,14 @@ using PantryPress.ApiService.Http;
 using PantryPress.Domain.Managers.Results;
 using PantryPress.Gateway.Hosting;
 using PantryPress.ServiceDefaults.EdgeHardening;
+using PantryPress.Site.Hosting;
 
 namespace PantryPress.Tests.Api;
 
-// PP1.12 (audit finding): problem codes are declared in five places - the facades' errors, the API's status vocabulary,
-// the idempotency step, the gateway's mirror and its own refusals, and the shared edge - and nothing checked them as a
-// whole. A code is a stable, machine-readable name (api-contract.md): kebab-case, and one meaning per code.
+// PP1.12 (audit finding): problem codes are declared in six places - the facades' errors, the API's status vocabulary,
+// the idempotency step, the gateway's mirror and its own refusals, the shared edge, and the public site's (PP2.13) - and
+// nothing checked them as a whole. A code is a stable, machine-readable name (api-contract.md): kebab-case, and one
+// meaning per code.
 public sealed partial class ProblemCodeCatalogueTests
 {
     private static readonly Assembly[] Declaring =
@@ -18,6 +20,7 @@ public sealed partial class ProblemCodeCatalogueTests
         typeof(ApiProblems).Assembly,
         typeof(GatewayApi).Assembly,
         typeof(RequestLimits).Assembly,
+        typeof(SiteProblems).Assembly,
     ];
 
     private static readonly int[] FrameworkStatuses = [400, 401, 403, 404, 405, 413, 415, 429, 500, 502, 504];
@@ -47,7 +50,9 @@ public sealed partial class ProblemCodeCatalogueTests
     public void A_facade_error_never_borrows_a_framework_status_code()
     {
         // "not-found" from a facade and "not-found" from an unknown route would mean different things to the admin app.
-        var framework = FrameworkStatuses.Select(ApiProblems.CodeFor).ToHashSet(StringComparer.Ordinal);
+        var framework = FrameworkStatuses.Select(ApiProblems.CodeFor)
+            .Concat(FrameworkStatuses.Select(SiteProblems.CodeFor))
+            .ToHashSet(StringComparer.Ordinal);
 
         Assert.DoesNotContain(FacadeErrors(), e => framework.Contains(e.Error.Code));
     }
@@ -78,6 +83,7 @@ public sealed partial class ProblemCodeCatalogueTests
         foreach (var status in FrameworkStatuses)
         {
             yield return ($"ApiProblems.CodeFor({status})", ApiProblems.CodeFor(status));
+            yield return ($"SiteProblems.CodeFor({status})", SiteProblems.CodeFor(status));
         }
     }
 
@@ -93,6 +99,16 @@ public sealed partial class ProblemCodeCatalogueTests
                     yield return ($"{type.Name}.{field.Name}", error);
                 }
             }
+        }
+    }
+
+    [Fact]
+    public void A_status_means_the_same_code_on_the_api_and_the_public_site()
+    {
+        // Two hosts answering one failure with two codes would be two names for one meaning.
+        foreach (var status in FrameworkStatuses.Where(s => s is 400 or 404 or 405 or 413 or 415 or 429 or >= 500))
+        {
+            Assert.Equal(ApiProblems.CodeFor(status), SiteProblems.CodeFor(status));
         }
     }
 

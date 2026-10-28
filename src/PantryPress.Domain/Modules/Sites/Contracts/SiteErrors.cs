@@ -78,4 +78,36 @@ public static class SiteErrors
         ErrorKind.Conflict,
         "too-many-invitations",
         "This site has as many open invitations as it can. Wait for some to be accepted or to expire, then try again.");
+
+    // The public answers for a site that is not open to readers (SITE-008, SEO-007; PP2.13). Each is one of the neutral
+    // problem documents the public tier writes, never the site's name or anything else about it, and a status that is a
+    // private matter - an operator's suspension, a failed payment - shares its answer with another, so a reader cannot
+    // tell which it was.
+
+    /// <summary>A site being set up: there is nothing to read yet, and soon there will be.</summary>
+    public static readonly Error SiteComingSoon = new(
+        ErrorKind.Unavailable,
+        "site-coming-soon",
+        "This site is getting ready. Please check back soon.")
+    {
+        RetryAfter = TimeSpan.FromSeconds(30),
+    };
+
+    /// <summary>
+    /// A site closed for now: suspended by an operator, or offline after a failed payment. One answer for both, since why a
+    /// site is closed is between its owner and the platform.
+    /// </summary>
+    public static readonly Error SiteUnavailable = new(
+        ErrorKind.Unavailable,
+        "site-unavailable",
+        "This site isn't available right now. Please check back later.")
+    {
+        RetryAfter = TimeSpan.FromHours(1),
+    };
+
+    /// <summary>A site its owner deleted. Its address is never given to another site (SITE-002).</summary>
+    public static readonly Error SiteGone = new(
+        ErrorKind.Gone,
+        "site-gone",
+        "This site is no longer here.");
 }

@@ -54,7 +54,7 @@ shared with CreatorPantry, `pantrypress` for PantryPress's own). Nothing here ch
 
 | Resource                                                                            | What it gives every site                                               | Per-site partition                                               |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Front Door Standard profile (shared), PantryPress endpoints and routes              | TLS, caching and WAF for `*.pantrypress.app` and `app.pantrypress.app` | Cache key includes the host; purge by host and path              |
+| Front Door Standard profile (shared), PantryPress endpoints and routes              | TLS, caching and WAF for `*.pantrypress.app` and the `pantrypress.app` apex (ADR 0019) | Cache key includes the host; purge by host and path              |
 | DNS zone `pantrypress.app` with a wildcard CNAME                                    | Every subdomain resolves to Front Door                                 | None needed                                                      |
 | Wildcard certificate on Front Door                                                  | HTTPS on every subdomain from the first request                        | None needed                                                      |
 | Container Apps: Gateway, ApiService, Site, SSR server, Worker, MigrationService job | All application code                                                   | `ISiteContext`, set per request or per job                       |
@@ -277,7 +277,7 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 | Reserved slugs and slug policy                      | PP2.8                   | Done                                            |
 | `SiteHost` and canonical host                       | PP2.9                   | Done                                            |
 | Create-site endpoint                                | PP2.10                  | Done (site starts `Live`, G-01)                 |
-| Public host resolution and status answers           | PP2.12, PP2.13          | Resolution done (PP2.12); status answers PP2.13 |
+| Public host resolution and status answers           | PP2.12, PP2.13          | Done                                            |
 | Page-data build, pointer switch, warm-up            | PP7.11, PP7.12          | Not started                                     |
 | Legal, About and Start here templates               | PP8.5, PP8.5a           | Not started                                     |
 | Wildcard DNS, certificate and routes                | PP9.2                   | Not started (Terraform `platform` stack exists) |
@@ -305,7 +305,7 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 
 | Item                                  | Default assumed here                        | Closes at |
 | ------------------------------------- | ------------------------------------------- | --------- |
-| Public answer while `Provisioning`    | "Coming soon", `503` with `Retry-After: 30` | PP2.13    |
+| Public answer while `Provisioning`    | "Coming soon", `503` with `Retry-After: 30` | Closed as assumed (PP2.13) |
 | Default preset for a new site         | Market, light mode                          | PP10.6    |
 | Site created before email is verified | Allowed; publishing is not (ACCT-001)       | PP2.10    |
 | D-10 trial or free Starter            | 14-day trial, no card (ADR 0010, Proposed)  | PP14      |

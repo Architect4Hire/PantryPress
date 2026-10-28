@@ -13,13 +13,35 @@ namespace PantryPress.Domain.Modules.Sites.Contracts;
 /// </param>
 /// <param name="IsCanonical">Whether <paramref name="Host"/> is that host; when it is not, a page answers 301 to it.</param>
 /// <param name="Status">Where the site is in its life, which decides its public answer (SITE-008; PP2.13).</param>
-public sealed record PublicSite(SiteId SiteId, string Host, string CanonicalHost, bool IsCanonical, SiteStatus Status);
+/// <param name="Identity">
+/// What the site calls itself in public, carried in the host map so reading it makes no query; <see cref="PublicSiteIdentity.Withheld"/>
+/// for a site that is not open to readers, whose name is never shown and so is never cached.
+/// </param>
+public sealed record PublicSite(
+    SiteId SiteId,
+    string Host,
+    string CanonicalHost,
+    bool IsCanonical,
+    SiteStatus Status,
+    PublicSiteIdentity Identity);
+
+/// <summary>
+/// The part of a site that is public whatever the site publishes: its name, tagline, and language (SITE-001; PP2.13).
+/// Plain text the blogger wrote, encoded wherever it is shown. Nothing private - settings, members, the time zone - is here.
+/// </summary>
+/// <param name="Tagline">Empty hides it.</param>
+/// <param name="Locale">A BCP 47 language tag, such as <c>en-US</c>.</param>
+public sealed record PublicSiteIdentity(string Name, string Tagline, string Locale)
+{
+    /// <summary>A closed site's identity: nothing, so no stale or misread status could ever show its name.</summary>
+    public static PublicSiteIdentity Withheld { get; } = new(string.Empty, string.Empty, string.Empty);
+}
 
 /// <summary>
 /// Resolves a public request's site from its Host header and nothing else (tenancy.md rule 5; PP2.12). The answer comes
 /// from the host map in the cache once it is warm, so a warm request makes no SQL query; a miss reads <c>SiteHosts</c> once
-/// and fills it. Every write to a site's hosts and every change of its status refreshes the map (tenancy.md, "Tenant
-/// root"), so a host that changes hands resolves to its new site at once.
+/// and fills it. Every write to a site's hosts and every change of its status, name, tagline, or locale refreshes the map
+/// (tenancy.md, "Tenant root"), so a host that changes hands resolves to its new site at once.
 /// </summary>
 public interface IPublicSiteResolution
 {

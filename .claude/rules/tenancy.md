@@ -49,7 +49,9 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    cache or the database is asked, and enters the site only when one of its *active* hosts is exactly that host; a
    pending host, an unknown one, and a refused one are one answer, the same problem 404 an unknown path on a real site
    gets. It enters the site whatever its status - deleted, suspended, and offline included - so the status answers
-   (SITE-008, PP2.13) are owed before any public endpoint reads site-owned data. The Site host refuses to start if a
+   (SITE-008, SEO-007) are owed before any public endpoint reads site-owned data. Since PP2.13 they are
+   `SiteStatusFilter`, a global MVC resource filter on the Site host that asks `IPublicSitesFacade.CheckStatus`, so every
+   public controller answers a closed site's status before it binds or reads anything (`public-endpoints.md`). The Site host refuses to start if a
    trusted proxy may rewrite the Host (`ForwardHost`, `AllowedHosts`), and only the Sites module and the Site host name the
    resolver or its registration; only the Site host's resolution middleware sets the `IPublicSiteContext` endpoints read,
    and it must agree with `ISiteContext` (both by boundary test).
@@ -129,13 +131,14 @@ holds for everything else, including every other table that refers to a site. Be
 - The resolution caches are the exception to rule 8: they are keyed by the normalized slug or host, because no site id is
   known yet, and are invalidated when a slug or host changes hands (SITE-004, DOM-001), since a stale entry would send
   one site's traffic to another. Membership itself is cached per request only (`auth.md`). The host map (PP2.12) is
-  `platform:site-host:{host}`, one entry per stored-form host, holding the site, its status, and its canonical host, or
-  that the host names nothing. A write refreshes it after it commits, through `SiteHostMapDataLayer`: `RefreshAsync`
-  with every host it added, removed, or changed, and `RefreshSiteAsync` for a change of the site's status, since every
-  host's entry carries it. Site creation does so for its subdomain, so an address asked for before it was taken answers at
+  `platform:site-host:{host}`, one entry per stored-form host, holding the site, its status, its canonical host, and its
+  public name, tagline, and locale (PP2.13), or that the host names nothing. A write refreshes it after it commits,
+  through `SiteHostMapDataLayer`: `RefreshAsync` with every host it added, removed, or changed, and `RefreshSiteAsync`
+  for a change of the site's status, name, tagline, or locale, since every host's entry carries them. Site creation does so for its subdomain, so an address asked for before it was taken answers at
   once (tenant-provisioning G-02). A refresh that cannot reach the cache is logged and skipped, so an entry lives at most
   10 minutes (a host that names a site) or 60 seconds (one that names nothing); making the refresh survive a crash
-  through the outbox is owed by the first prompt that removes a host or changes a site's status (PP14, PP17, PP19).
+  through the outbox is owed by the first prompt that removes a host, changes a site's status, or renames a site (PP8,
+  PP10, PP14, PP17, PP19).
 - `SiteMembers`' trigger guards losing a site's last active Owner, not having one. The facade that creates a site writes
   its first Owner in the same transaction (PP2.10); any path that takes a site out of `Deleted` must first find an active
   Owner and a canonical host (PP2.9) with a locking read; account erasure (PP19.11a) marks a site its account solely owns
@@ -199,10 +202,11 @@ What a cache owes comes with the first cache: the PP7.12 adapter owes a check th
 every key written as B is under B's prefix, and that clearing B leaves A. The public site joined the harness with the
 host map (PP2.12): `CreateAsync(withSite: true)` starts it over the shared database and the test AppHost's Redis, and
 `ReadAsAsync(host)` sends any Host through its whole pipeline to a probe route that answers what resolution decided. A
-change to a host, a canonical host, or a site's status owes, over it: the new answer at once after its refresh, the
+change to a host, a canonical host, a site's status, or its name, tagline, or locale owes, over it: the new answer at once after its refresh, the
 other site's entry unchanged, and a lookup that raced it refused. A public path owes the host-header tricks
 `SiteHostTests` sends: the other site's host, `X-Forwarded-Host` and its kin, case, a trailing dot, a port, `www.` before
-either site's host, the other site's custom domain, `app.<zone>`, an `xn--` look-alike, and IP literals.
+either site's host, the other site's custom domain, `app.<zone>`, the bare `<zone>` itself (the platform home since
+PP-D19, never a tenant), an `xn--` look-alike, and IP literals.
 
 ## Review
 

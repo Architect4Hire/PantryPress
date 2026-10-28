@@ -9,6 +9,17 @@ PP-D07, PP-D17, THM-001 to THM-013. One library, two entry points (DECIDE defaul
   contract in the customization spec section 4: `--L-*` and `--D-*` color pairs, shared `--f-display`,
   `--f-body`, `--display-weight`, `--display-track`, `--base`, `--hscale`, `--r`, `--img-r`, `--measure`.
 
+## The platform's public page (PP-D19, PPL.6)
+
+- The landing page and legal pages on `pantrypress.app` use `@pantrypress/ui` (the admin entry point), never
+  `@pantrypress/ui/themes`: they are PantryPress's own brand, not a tenant theme.
+- Brand: the CreatorPantry family look, built as PantryPress's own copy (nothing imported from `@creator-pantry/ui`,
+  ADR 0007): the robot-chef logo, Fredoka for display and DM Sans for reading, **self-hosted** with explicit loaded
+  weights, and the logo's teal and orange leading the palette. The robot is family branding: no copy says or implies
+  that it, or anything else, generates content (PP-D12).
+- One body size across the page; headings step up from it. Light and dark themes; the focus ring is at least 3:1
+  against every surface it can sit on, in both.
+
 ## `@pantrypress/ui` (admin)
 
 - Forms, editor chrome, tables, dialogs, toasts, dashboards. Light and dark modes.

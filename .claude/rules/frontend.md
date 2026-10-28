@@ -1,6 +1,24 @@
 # Front end (Angular 22)
 
-Workspace `web/`: `pantrypress-ui` (library), `pantrypress-admin` (SPA), `pantrypress-site` (SSR).
+Workspace `web/`: `pantrypress-ui` (library), `pantrypress-admin` (the platform home on `pantrypress.app`),
+`pantrypress-site` (SSR).
+
+## The platform home (PP-D19, ADR 0019)
+
+- `pantrypress-admin` builds every page on the apex. Its public routes - `/`, `/pricing`, and the legal pages - are
+  prerendered at build into static HTML that reads complete without JavaScript; `/sign-in`, `/sign-up`,
+  `/verify-email`, `/reset-password`, and everything under `/dashboard` are client-rendered. Only the build prerenders:
+  no Node server runs for the apex.
+- A prerendered route reads no session, account, site, or price. Pricing, and anything else the server publishes, is
+  fetched in the browser after the first paint and renders nothing when it cannot be read.
+- The landing page lives in `features/landing/` and follows the "public page" shape in
+  `src/web/PANTRYPRESS-DESIGN-SYSTEM.md` (PPL.6). Its build is `docs/prompts/pantrypress-landing-page-scrub-prompts.md`
+  (PPL.*), whose honesty rules bind every claim it makes: a capability is shown as available only when it ships, and
+  as "Coming soon" with its prompt named until then.
+- The dashboard's routes live under `/dashboard`; a new top-level path on the apex is a public page, and is added to
+  the closed list the gateway's signed-in redirect and the prerender configuration both read.
+
+## Everywhere
 
 - Standalone components, signals for state, `OnPush` everywhere, typed reactive forms.
 - The admin app talks only to the BFF through a typed API client generated or written from the contracts.

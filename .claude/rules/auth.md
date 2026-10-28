@@ -14,8 +14,13 @@
 
 - The admin SPA never holds tokens. `PantryPress.Gateway` (YARP) holds the session.
 - Session cookie: `__Host-pp-session`, host-only, `Secure`, `HttpOnly`, `SameSite=Lax` or stricter (PP-D13,
-  PSEC-003). Tenant sites run third-party ad scripts on sibling subdomains, so no cookie may be scoped to
+  PSEC-003). Tenant sites run third-party ad scripts on subdomains of the zone, so no cookie may be scoped to
   `.pantrypress.app`.
+- **Where the session lives (PP-D19):** on the zone's apex, `pantrypress.app`, which serves the landing page, the
+  sign-in and sign-up screens, and the dashboard under `/dashboard` from one origin. A host-only cookie there is never
+  sent to `{slug}.pantrypress.app`. Sign-in, sign-up, email verification, and password reset are routes on that same
+  origin, never another host, because a host-only cookie set anywhere else would not reach the dashboard. There is no
+  cross-host sign-in handoff. Account and invitation email links open that origin (`Accounts:AppBaseUrl`).
 - Antiforgery on every state-changing admin request.
 - The gateway strips inbound identity headers and adds its own.
 - **What the ticket holds (PP1.6):** an account id and that account's Identity security stamp - never a token. The

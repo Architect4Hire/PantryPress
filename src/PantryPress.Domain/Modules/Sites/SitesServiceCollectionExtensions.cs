@@ -75,8 +75,9 @@ public static class SitesServiceCollectionExtensions
 
     /// <summary>
     /// What the public tier needs from the Sites module (PP2.12): a request's site from its Host header, through the host
-    /// map, and nothing else - no membership, no accounts, no writes. The host registers <c>PantryPressDbContext</c> and
-    /// supplies the cache's connection.
+    /// map, and what a reader is answered for it - its status and public context (PP2.13) - and nothing else: no
+    /// membership, no accounts, no writes. The host registers <c>PantryPressDbContext</c> and supplies the cache's
+    /// connection.
     /// </summary>
     public static IServiceCollection AddSitePublicResolution(this IServiceCollection services)
     {
@@ -85,6 +86,7 @@ public static class SitesServiceCollectionExtensions
         services.TryAddScoped<SiteHostRepository>();
         services.TryAddScoped<SiteHostMapDataLayer>();
         services.AddScoped<IPublicSiteResolution, PublicSiteResolution>();
+        services.AddScoped<IPublicSitesFacade, PublicSitesFacade>();
         return services;
     }
 

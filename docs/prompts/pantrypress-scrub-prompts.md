@@ -64,6 +64,9 @@ BEHAVIOR:     inspect, plan, wait for approval, implement, test, and report
 - Plan first and wait for approval whenever the prompt says so.
 - Mark a prompt `- done` only after its stated verification passes, and add a delivery note when what shipped
   differs from what was asked.
+- PantryPress's own landing page is a companion document, `docs/prompts/pantrypress-landing-page-scrub-prompts.md`
+  (PPL.1 to PPL.22). Its PPL.1 to PPL.3 move the gateway to the platform home on `pantrypress.app` (PP-D19, ADR 0019)
+  and run before PP3.8; its "When each prompt runs" table places the rest among these phases.
 
 ## Credentials and external prerequisites
 
@@ -2639,7 +2642,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts pa
 outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1693 of 1694
 (1540 before PP2.11b's note; the one failure is the race test above).
 
-### PP2.13 Public site context and status
+### PP2.13 Public site context and status - done
 
 ```text
 SCOPE: Add GET site context on PantryPress.Site returning public identity and status with SITE-008 and SEO-007
@@ -2648,6 +2651,118 @@ CONSTRAINT: SITE-008, SEO-007; add-public-endpoint.
 RESTRICTION: No private settings or member data in the response.
 BEHAVIOR: Plan, wait for approval, implement with a test per status.
 ```
+
+*PP2.13 delivery note (done 2026-10-28):*
+
+- **What shipped.**
+  - `GET /api/public/v1/site`, the Site host's first route. A site open to readers answers 200 with its name, tagline,
+    locale, canonical host, and whether the request used it, cached `public, max-age=60`. Nothing private: no site id,
+    slug, time zone, status, setting, or member.
+  - The status answers, owner-approved (DECIDE defaults, said out loud):
+
+    | Status | Answer | Code | `Retry-After` |
+    | --- | --- | --- | --- |
+    | Live, ReadOnly | 200, identical | - | - |
+    | Provisioning | 503 | `site-coming-soon` | 30 |
+    | Suspended, Offline | 503, identical | `site-unavailable` | 3600 |
+    | Deleted | 410 | `site-gone` | - |
+
+    Each refusal is the neutral problem document, `no-store`, with nothing of the site's in it. An unknown path keeps the
+    neutral 404 whatever the site's status.
+  - Across the seam:
+    - Sites Business: `PublicSiteStatus`, the status rule.
+    - Sites Contracts: `IPublicSitesFacade`, `PublicSiteDetail`, `PublicSiteIdentity`, and three `SiteErrors`. `ErrorKind`
+      gains `Unavailable` (503, with `Retry-After`) and `Gone` (410).
+    - Sites Facades: `PublicSitesFacade`. It does no I/O and refuses a site the request did not resolve.
+    - The host map entry is format version 2 and carries the identity, percent-encoded, so a warm request makes no
+      query. A closed site's entry carries none (`PublicSiteIdentity.Withheld`). A version 1 entry reads as a miss.
+  - The Site host:
+    - MVC's core only. `SiteStatusFilter` is a global resource filter, so every public controller answers a closed
+      site's status before it binds or reads anything.
+    - `PublicSurfaceConvention` refuses a route outside `api/public/v1` and, until PP12, any bound request input.
+      `EnsureControllersOnly` refuses a minimal endpoint. Both are checked at start.
+    - Kebab-case enums. Every route declares 404, 410, 503, and 500. The `public-v1` OpenAPI document is served in
+      Development only, behind host resolution.
+- **Decided by default (in the approved plan).**
+  - No 301 from this API: it reports the canonical host, and the page's 301 is PP7.13a's. This moves the PP2.12 note's
+    "301 from `PublicSite`". A closed site's status comes before any redirect.
+  - The 200's 60 seconds may show a closed site's name for up to a minute until PP9.5 purges on a status change.
+    Refusals are never cached, so a restore is immediate.
+- **Differs from the plan.**
+  - `canonicalHost`, not `canonicalUrl`: the scheme and port are the edge's, and a local `{slug}.localhost` run's differ.
+  - The response record is `PublicSiteDetail`, after the module's nouns (`SiteDetail`), not `SiteContextResponse`.
+- **Tests (85 new; 1779 in all).**
+  - Unit:
+    - the status rule for every status;
+    - the facade's answers and its site check;
+    - the host map entry: any text and every value the columns allow round-trip, and damaged or old entries are misses;
+    - the surface check: routes, bound input, and the cancellation token;
+    - kebab-case enums.
+  - Over SQL and Redis with the Site in memory:
+    - a test per status, with its code, `Retry-After`, caching, and the problem document's fields;
+    - live and read-only identical, suspended and offline indistinguishable;
+    - a deleted site with no canonical host left;
+    - a status change and a restore seen at once;
+    - a rename seen at once after its refresh, and not without it;
+    - a host that changes hands answering its new site, with no trace of the old one;
+    - a closed site's name absent from its cache entry;
+    - every host-header and forwarding trick, and a query or header naming a site;
+    - a custom domain, its subdomain, and a closed site's alias;
+    - a non-JSON `Accept` on a closed site;
+    - an unknown path on a closed site;
+    - no SQL warm, one query cold, and a row the create validator would refuse still served from the map;
+    - 405 for writes, the document in Development only, and no cookie on the route.
+  - The problem-code catalogue now reads the Site host and checks that a status has one code on both hosts.
+  - **Checked by planting:**
+    - Skipping the facade's status check leaves the integration answers right, because the global filter refuses. Only
+      the facade's own unit tests fail.
+    - Answering Offline as "coming soon" fails four tests, the indistinguishable pair among them.
+- **Reviewers.** `public-site-reviewer`, `site-isolation-auditor`, and `api-contract-checker` found no blocker.
+  - **Fixed:**
+    - A non-JSON `Accept` on a closed site came back as a generic 503 with no code. For a controller's answer, the problem
+      details service handed the document to MVC's writer, which rebuilt it. `SiteProblems` now writes the JSON itself.
+    - The Site host's 5xx code was `server-error`, where ApiService and the gateway say `unexpected-error`. It is aligned
+      now (pre-release), and the catalogue reads the Site host.
+    - A row the create validator would refuse - an empty name, a line break, a locale out of shape - was read from SQL on
+      every request, because the entry's reader refused it. The reader now checks only format and column lengths.
+    - A closed site's name sat in the shared cache. It is withheld now.
+    - A deleted site with no canonical host left reported `isCanonical: false` for the host standing in as canonical.
+    - The Site host had no guard against binding a site id. It now binds nothing until PP12 brings ApiService's
+      `SiteIdBindingConvention` with its first input.
+    - A minimal endpoint would have escaped the status answers. The host now refuses one at start.
+    - Missing pieces: kebab-case enums, declared 500s, the rename and host-hand-over tests, and the refresh duty for a
+      rename in `tenancy.md`.
+    - Each test class now shares one SQL counter. A new interceptor per test built EF Core a new internal service
+      provider each time, and past twenty EF Core refuses (`ManyServiceProvidersCreatedWarning`). That is what failed
+      `IdentityModelTests` in the first full run, and probably PP2.9's intermittent failure of it.
+  - **Recorded, not changed:**
+    - The name and tagline are the site record's. Once the theme snapshot carries the brand (PP11.4), a page takes its
+      branding from the snapshot alone.
+    - The SSR server does not call this route per page, since a page makes one page-data fetch. PP7.13's page data
+      carries this context.
+    - The 200 varies by Host alone, so every cache of it must key on Host or the site id (PP7.12, PP7.13a, PP9.4).
+    - During a rolling deploy, old and new Site replicas read each other's entry as a miss. That costs SQL until the
+      rollout ends and never crosses sites.
+    - `HEAD` is 405.
+- **Left for later.**
+  - PP7.13 and PP7.13a: carry this context in page data, answer the page's 301, and send the reader's host as the real
+    `Host` header (the PP7.13 text says "forwarded Host"; only the connection's Host is read).
+  - PP8, PP10, and PP11: a change of a site's name, tagline, or locale calls `RefreshSiteAsync` (`tenancy.md`).
+  - PP12: bring `SiteIdBindingConvention` and plain-language binding errors to the Site host with the first input, then
+    lift the refusal. Refuse reader writes on a ReadOnly site.
+  - PP14: the trial-expired answer (SEO-007, BILL-006) is its own decision, not `site-coming-soon` by default.
+  - PP7 (G-01): a `Live` site with no page data answers "coming soon".
+  - PP9.5: purge the edge on a status change.
+  - PSEC-001: a rate limit on this read. It is served from Redis with no SQL once warm.
+- **Not verified.** Nothing ran against Azure. No migration.
+  - **The intermittent race test.** `SiteMembersTwoSiteTests.Owners_stepping_down_at_once_through_the_unit_of_work_leave_one`
+    (PP2.11b) failed in the first and third full runs, the same way as recorded at PP2.12. The second run also failed at
+    least 20 persistence schema tests (its listing was cut off there), which passed alone (84 of 84); that run shared
+    the machine with another session's work.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1778 of 1779
+(1694 before this prompt; the one failure is the race test above).
 
 ### PP2.14 Tenancy audit
 
@@ -2664,7 +2779,8 @@ BEHAVIOR: Return findings and checkpoint evidence.
 
 ```text
 SCOPE: Write src/web/PANTRYPRESS-DESIGN-SYSTEM.md: principles, token architecture, the two entry points
-(@pantrypress/ui for admin, @pantrypress/ui/themes for public themes), accessibility rules, and naming.
+(@pantrypress/ui for admin and the platform's own public pages, @pantrypress/ui/themes for public themes),
+accessibility rules, and naming. Leave a "The public page" heading for PPL.6 to fill (PP-D19).
 CONSTRAINT: PP-D07; design-system.md.
 RESTRICTION: Document only.
 BEHAVIOR: Show the draft, wait for approval, write.
@@ -2726,15 +2842,19 @@ BEHAVIOR: Plan, wait for approval, implement.
 ### PP3.8 BFF auth client and guards
 
 ```text
-SCOPE: Add the BFF session client, route guards, and sign-in, sign-up, and verify-email screens.
-CONSTRAINT: ACCT-001, ACCT-002; Template H.
+SCOPE: Add the BFF session client, route guards, and the sign-in, sign-up, and verify-email screens at
+/sign-in, /sign-up, and /verify-email on the platform home, with a guard that sends an anonymous visitor at
+/dashboard/… to /sign-in and a signed-in one from those screens to /dashboard.
+CONSTRAINT: ACCT-001, ACCT-002; PP-D19 (ADR 0019); the route table PPL.2 writes; Template H.
+RESTRICTION: Runs after PPL.1 to PPL.3. Sign-up honours the PPL.13 gate (BIZ-009). No screen on another host.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
 
 ### PP3.9 Admin shell and site switcher
 
 ```text
-SCOPE: Add the admin shell (navigation, header, account menu) and a site switcher that sets the route's site.
+SCOPE: Add the admin shell (navigation, header, account menu) under /dashboard and a site switcher that sets the
+route's site (PP-D19).
 CONSTRAINT: SITE-010; Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
@@ -3562,8 +3682,9 @@ name.
 
 ```text
 SCOPE: Write the IaC for PantryPress's own pantrypress.app Azure DNS zone, the wildcard CNAME to the Front Door
-endpoint, and the app host record, for the non-production environment.
-CONSTRAINT: PP-D13, SITE-003; docs/infrastructure plan and runbook; OPS-001.
+endpoint, the apex alias record for the platform home, and the www and app records Front Door redirects to the
+apex, for the non-production environment.
+CONSTRAINT: PP-D13, PP-D19, SITE-003; docs/infrastructure plan and runbook; OPS-001.
 RESTRICTION: No production apply. No credential literals.
 BEHAVIOR: Plan, wait for approval, generate, validate with terraform plan, and report.
 ```
@@ -3571,17 +3692,19 @@ BEHAVIOR: Plan, wait for approval, generate, validate with terraform plan, and r
 Starting point (2026-10-24): `docs/infrastructure/terraform/pantrypress/dns.tf`. The zone is per environment.
 Dev defaults to the child zone `dev.pantrypress.app`, delegated by NS records; prod uses `pantrypress.app`. A
 separate registrable domain for dev is the alternative, and keeps dev's blogs cross-site from its admin app as in
-prod. Reserve the `dev` slug.
+prod. Reserve the `dev` slug. Since PP-D19 the zone's apex is this stack's (the platform home), not a marketing
+site's: `dns.tf`'s comment saying otherwise is replaced, and an apex takes an alias record, never a CNAME.
 
 ### PP9.2 Front Door endpoints, routes, and wildcard TLS
 
 ```text
 SCOPE: Add IaC for PantryPress's endpoints and routes on the shared Front Door Standard profile: a wildcard
-custom domain *.pantrypress.app (managed or Key Vault certificate per current support), app.pantrypress.app for
-the admin gateway, two origin groups for blogs (pantrypress-site for page routes; PantryPress.Site for
+custom domain *.pantrypress.app (managed or Key Vault certificate per current support), the apex pantrypress.app
+for the gateway (the platform home, PP-D19) caching only fingerprinted static assets and never a document,
+www.pantrypress.app and app.pantrypress.app as 301 redirects to the apex keeping path and query, two origin groups for blogs (pantrypress-site for page routes; PantryPress.Site for
 /api/public/*, sitemaps, robots.txt, feeds, ads.txt, and the search index), a PantryPress WAF policy, and
 Container Apps ingress IP restrictions allowing only the AzureFrontDoor.Backend service tag.
-CONSTRAINT: PP-D13, PP-D16, PSEC-001; docs/infrastructure plan and runbook.
+CONSTRAINT: PP-D13, PP-D16, PP-D19, PSEC-001; docs/infrastructure plan and runbook.
 RESTRICTION: Standard tier only (PP-D13); no Premium-only features such as Private Link or managed rule sets.
 Never modify CreatorPantry's endpoints or routes. Origins accept traffic only from Front Door (service-tag IP
 restriction plus X-Azure-FDID check). No production apply.
@@ -3643,8 +3766,10 @@ BEHAVIOR: Plan, wait for approval, implement with tests per integration combinat
 
 ```text
 SCOPE: Ensure the gateway session cookie is __Host- prefixed, host-only, Secure, HttpOnly, and SameSite Lax
-or stricter, and that no PantryPress host can set or read it.
-CONSTRAINT: PSEC-003, PP-D13; gateway.md and auth.md.
+or stricter, and that no PantryPress host can set or read it. Since PP-D19 the cookie lives on the apex: prove
+in Chromium, Firefox, and WebKit that it is kept and sent there with pantrypress.app treated as a public suffix,
+and never sent to a blog subdomain, before the Public Suffix List entry is submitted.
+CONSTRAINT: PSEC-003, PP-D13, PP-D19 (ADR 0019); gateway.md and auth.md.
 RESTRICTION: Do not break existing sign-in. Verify antiforgery still works.
 BEHAVIOR: Plan, wait for approval, implement with cookie-tossing tests from a sibling subdomain.
 ```
@@ -4206,6 +4331,11 @@ CONSTRAINT: BILL-003, PP-D09; billing.md.
 RESTRICTION: Prices live in Stripe; limits live in configuration; neither is hard-coded in features.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+The landing page's pricing reads this catalogue through PPL.15's anonymous route, so the catalogue carries what a
+plan card needs (key, name, monthly and annual price, the limits, an optional trial length, and which plan is
+recommended) and can be published or withheld by configuration. `docs/features/plans/` holds the recommended
+tiers and figures (D-09, D-10); they become configuration here, never code.
 
 ### PP14.2 Entitlements facade
 
@@ -4795,8 +4925,10 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
 ### PP19.13 Platform legal pages
 
 ```text
-SCOPE: Publish platform Terms, Acceptable Use, Privacy Policy, DPA, sub-processor list, and DMCA agent page.
-CONSTRAINT: CMP-001, CMP-002.
+SCOPE: Publish platform Terms, Acceptable Use, Privacy Policy, DPA, sub-processor list, and DMCA agent page as
+markdown in docs/legal/, rendered on the platform home by PPL.19's legal pages (/terms, /privacy,
+/acceptable-use, /dmca, and the rest), so the landing page's footer links stop saying "(coming soon)".
+CONSTRAINT: CMP-001, CMP-002; PP-D19; PPL.19.
 RESTRICTION: Drafts are flagged for legal review before launch.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
@@ -4821,8 +4953,9 @@ BEHAVIOR: Plan, wait for approval, run, and report timings.
 ### PP19.16 Launch gate
 
 ```text
-SCOPE: Audit the whole PantryPress release against every requirement ID. Report only.
-CONSTRAINT: Template L.
+SCOPE: Audit the whole PantryPress release against every requirement ID, the landing page's PPL-* included.
+Report only.
+CONSTRAINT: Template L; docs/prompts/pantrypress-landing-page-scrub-prompts.md.
 UTILIZATION: All reviewers.
 BEHAVIOR: Return blockers first, then findings, traceability, and "not verified." Wait for approval before fixes.
 ```
