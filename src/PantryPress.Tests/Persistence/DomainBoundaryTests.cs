@@ -175,7 +175,7 @@ public sealed class DomainBoundaryTests
 
     // PP2.4: a request's site is set by the code that resolved it and by nothing else (tenancy.md rules 2, 4, and 7). Each
     // resolver is listed by its exact file, with its reason, so a new facade beside them cannot enter a site unnoticed. The
-    // public tier's host resolution (PP2.12) joins this list when it arrives. The writer
+    // writer
     // interface and the class behind it are both named here, so neither a cast nor a direct resolve gets past.
     private const string SiteContextWriterReference = @"\bISiteContextWriter\b|(?<!\w)SiteContext\b";
 
@@ -193,9 +193,73 @@ public sealed class DomainBoundaryTests
         // The site sealed inside an invitation's link, which the caller is not yet a member of (PP2.11).
         Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SiteInvitationAcceptance.cs"),
 
+        // A public request's site, from its Host through the host map, and nothing else (PP2.12).
+        Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "PublicSiteResolution.cs"),
+
         // The Worker's resolver: an outbox delivery's scope works on the site its message was staged under (PP2.11).
         Path.Combine("PantryPress.Domain", "Managers", "Outbox", "OutboxHandlerRegistration.cs"),
     ];
+
+    // PP2.12 (isolation audit): the public tier's resolver enters a site from a Host with no membership behind it, which is
+    // right only on the anonymous public host. So only the Sites module and the Site host name it or its registration, and
+    // only the Site host's resolution middleware names the holder its endpoints read the site from.
+    private const string PublicResolutionReference = @"\bIPublicSiteResolution\b|\bAddSitePublicResolution\b";
+
+    private const string PublicSiteHolderReference = @"(?<![\w])PublicSiteContext\b";
+
+    [Fact]
+    public void Only_the_public_site_resolves_a_site_from_a_host()
+    {
+        AssertOnlyNamedIn(
+            PublicResolutionReference,
+            [Path.Combine("PantryPress.Domain", "Modules", "Sites"), "PantryPress.Site"],
+            "resolves a site from a Host, which only the public site may do");
+        AssertOnlyNamedIn(
+            PublicSiteHolderReference,
+            [Path.Combine("PantryPress.Site", "Hosting", "PublicSiteHosts.cs")],
+            "sets the public site its endpoints read, which only host resolution may do");
+    }
+
+    [Theory]
+    [InlineData("services.AddSitePublicResolution();", true)]
+    [InlineData("IPublicSiteResolution resolution", true)]
+    [InlineData("IPublicSiteContext site", false)]
+    public void The_public_resolution_scan_sees_a_caller(string code, bool names) =>
+        Assert.Equal(names, Regex.IsMatch(code, PublicResolutionReference));
+
+    [Theory]
+    [InlineData("sp.GetRequiredService<PublicSiteContext>().Enter(site)", true)]
+    [InlineData("IPublicSiteContext site", false)]
+    public void The_public_holder_scan_sees_a_setter(string code, bool names) =>
+        Assert.Equal(names, Regex.IsMatch(code, PublicSiteHolderReference));
+
+    private static void AssertOnlyNamedIn(string pattern, string[] allowedPaths, string what)
+    {
+        var source = DomainSource.Project.Parent!;
+        var allowed = allowedPaths.Select(r => Path.Combine(source.FullName, r)).ToList();
+        Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed but is not there."));
+
+        var scanned = 0;
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+            {
+                if (allowed.Any(a => file.FullName.Equals(a, StringComparison.OrdinalIgnoreCase))
+                    || allowed.Concat(generated).Any(a => file.FullName.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                scanned++;
+                Assert.False(
+                    Regex.IsMatch(File.ReadAllText(file.FullName), pattern),
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} {what}.");
+            }
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+    }
 
     // PP2.11 (isolation audit): an outbox delivery's scope enters the site its delivery names, so whatever makes a delivery
     // chooses a site. Only the Worker's processor may, from the row it leased - whose site the writer's own request had
@@ -414,10 +478,10 @@ public sealed class DomainBoundaryTests
         return found;
     }
 
-    // PP2.6: a cache key is a SiteCacheKey or a PlatformCacheKey, never a string someone built (tenancy.md rule 8). Nothing
-    // caches yet, so no source file or project names a cache: not by type, namespace, registration, or package, and not
-    // through a project-level alias. The first cache adapter (PP7.12) joins CacheAdapters by its exact file, takes only
-    // those key types, and says why. The AppHost declares the Redis resource and caches nothing, so it is exempt.
+    // PP2.6: a cache key is a SiteCacheKey or a PlatformCacheKey, never a string someone built (tenancy.md rule 8). No source
+    // file or project names a cache - not by type, namespace, registration, or package, and not through a project-level
+    // alias - except an adapter listed in CacheAdapters by its exact file, which takes only those key types and says why,
+    // and the projects in CacheProjects. The AppHost declares the Redis resource and caches nothing, so it is exempt.
     private const string RawCacheReference =
         @"\b(?:StackExchange\.Redis|Microsoft\.Extensions\.Caching|Microsoft\.AspNetCore\.OutputCaching|System\.Runtime\.Caching)\b"
         + @"|\b(?:I?DistributedCache|I?MemoryCache|MemoryCacheOptions|HybridCache|I?ConnectionMultiplexer|IDatabase(?:Async)?|IServer|ISubscriber|IBatch|RedisKey|RedisValue|RedisCache|IOutputCacheStore|OutputCache(?:Attribute)?)\b"
@@ -426,13 +490,32 @@ public sealed class DomainBoundaryTests
     private const string RawCacheProjectReference =
         @"Include=""(?:StackExchange\.Redis|Microsoft\.Extensions\.Caching|Aspire\.StackExchange\.Redis|Aspire\.Microsoft\.Extensions\.Caching|Microsoft\.AspNetCore\.OutputCaching|System\.Runtime\.Caching)[^""]*""";
 
-    private static readonly string[] CacheAdapters = [];
+    private static readonly string[] CacheAdapters =
+    [
+        // The platform cache (PP2.12): the one adapter, which takes only a PlatformCacheKey. The public tier's host map is
+        // its first user; site entries under a SiteCacheKey join it with page data (PP7.12).
+        Path.Combine("PantryPress.Domain", "Managers", "Caching", "RedisPlatformCache.cs"),
+
+        // The connection the adapter is given: the Aspire Redis client, registered for the hosts that cache. It reads and
+        // writes nothing.
+        Path.Combine("PantryPress.ServiceDefaults", "Caching", "CacheConnection.cs"),
+    ];
+
+    // The one cache package each of those projects may carry, for the adapter and the connection above alone; any other
+    // cache package in them still fails the scan.
+    private static readonly Dictionary<string, string> CachePackages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [Path.Combine("PantryPress.Domain", "PantryPress.Domain.csproj")] = "StackExchange.Redis",
+        [Path.Combine("PantryPress.ServiceDefaults", "PantryPress.ServiceDefaults.csproj")] = "Aspire.StackExchange.Redis",
+    };
 
     [Fact]
     public void Nothing_reaches_a_cache_except_through_a_site_or_platform_key()
     {
         var source = DomainSource.Project.Parent!;
         var adapters = CacheAdapters.Select(a => Path.Combine(source.FullName, a)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var packages = CachePackages.ToDictionary(p => Path.Combine(source.FullName, p.Key), p => p.Value, StringComparer.OrdinalIgnoreCase);
+        Assert.All(adapters.Concat(packages.Keys), a => Assert.True(File.Exists(a), $"{a} is listed for the cache but is not there."));
 
         var scanned = 0;
         foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name is not ("PantryPress.Tests" or "PantryPress.AppHost")))
@@ -446,8 +529,16 @@ public sealed class DomainBoundaryTests
             {
                 scanned++;
                 var pattern = file.Extension == ".cs" ? RawCacheReference : RawCacheProjectReference;
+                var text = File.ReadAllText(file.FullName);
+                if (packages.TryGetValue(file.FullName, out var package))
+                {
+                    var allowed = $"<PackageReference Include=\"{package}\"";
+                    Assert.Contains(allowed, text, StringComparison.Ordinal);
+                    text = text.Replace(allowed, string.Empty, StringComparison.Ordinal);
+                }
+
                 Assert.False(
-                    Regex.IsMatch(File.ReadAllText(file.FullName), pattern),
+                    Regex.IsMatch(text, pattern),
                     $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches a cache directly; cache through a key-typed adapter.");
             }
         }

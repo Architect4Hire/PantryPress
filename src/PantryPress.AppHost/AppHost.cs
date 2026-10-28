@@ -66,14 +66,24 @@ var gatewaySecretParameter = builder.AddParameter(
     secret: true,
     persist: true);
 
-// Long-running projects report readiness through /health (ServiceDefaults).
+// Long-running projects report readiness through /health (ServiceDefaults). The API refreshes the public tier's host map
+// in Redis when it creates a site (PP2.12), so it holds a Redis reference too.
 var apiService = builder.AddProject<Projects.PantryPress_ApiService>("apiservice")
     .WithReference(db)
+    .WithReference(redis)
     .WithEnvironment("Gateway__SharedSecret", gatewaySecretParameter)
     .WithHttpHealthCheck("/health")
+    .WaitFor(redis)
     .WaitForCompletion(migrations);
-builder.AddProject<Projects.PantryPress_Site>("site")
+
+// The anonymous public site API (ARCH-003; PP2.12). It resolves each request's site from its Host through the host map in
+// Redis, reading the database only on a miss, so it needs both. Browsers resolve every name under localhost to loopback, so a
+// site created locally answers at {slug}.localhost on this resource's port (SITE-009).
+var site = builder.AddProject<Projects.PantryPress_Site>("site")
+    .WithReference(db)
+    .WithReference(redis)
     .WithHttpHealthCheck("/health")
+    .WaitFor(redis)
     .WaitForCompletion(migrations);
 // The Worker delivers the transactional outbox - account email included (PP1.10b) - and sweeps expired rows (PP1.10), so
 // it needs the database; like the API, it starts only once the migrations are in.
@@ -193,6 +203,16 @@ if (isLocalDevelopment)
     // volumes, so they keep nothing between runs; the data they show lives in the persistent containers.
     sql.WithDbGate(dbgate => dbgate.WithParentRelationship(sql));
     redis.WithRedisInsight(insight => insight.WithParentRelationship(redis));
+
+    // The public site has no address of its own: every request names a site by its Host, and a bare localhost names none,
+    // so its own address answers the neutral 404. The dashboard says where a site answers instead (SITE-009).
+    site.WithUrls(context =>
+    {
+        foreach (var url in context.Urls.Where(u => u.Endpoint is not null))
+        {
+            url.DisplayText = $"Sites answer at {{slug}}.localhost ({url.Endpoint!.EndpointName})";
+        }
+    });
 }
 
 builder.Build().Run();

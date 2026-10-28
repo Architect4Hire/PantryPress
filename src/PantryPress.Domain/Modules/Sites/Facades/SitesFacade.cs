@@ -19,6 +19,7 @@ internal sealed class SitesFacade(
     IValidator<ListSitesQuery> listValidator,
     IValidator<SlugAvailabilityQuery> availabilityValidator,
     SitesDataLayer data,
+    SiteHostMapDataLayer hostMap,
     ISiteMembershipFacade memberships,
     IAccountPublishingEligibility confirmedEmail,
     ISiteContext siteContext,
@@ -101,13 +102,20 @@ internal sealed class SitesFacade(
         // site that was never saved; nothing after this reads or writes through it, and the refusal is its answer.
         siteContextWriter.Enter(id);
         audit.Record(SiteAudit.SiteCreated(account, id), SiteScope.Current);
-        return await data.SaveNewSiteAsync(id, slug, host, limit, cancellationToken) switch
+        switch (await data.SaveNewSiteAsync(id, slug, host, limit, cancellationToken))
         {
-            NewSiteOutcome.Saved => SitesDataLayer.Detail(site, SiteRole.Owner, host),
-            NewSiteOutcome.Unavailable => SiteErrors.SlugUnavailable,
-            NewSiteOutcome.OverLimit => AccountErrors.EmailNotVerified,
-            var outcome => throw new InvalidOperationException($"Unexpected outcome {outcome}."),
-        };
+            case NewSiteOutcome.Saved:
+                // Someone may have asked for the address before it was taken, and the public tier remembers that it named
+                // nothing; forgetting it now means the new site answers at once (tenant-provisioning G-02; PP2.12).
+                await hostMap.RefreshAsync([host]);
+                return SitesDataLayer.Detail(site, SiteRole.Owner, host);
+            case NewSiteOutcome.Unavailable:
+                return SiteErrors.SlugUnavailable;
+            case NewSiteOutcome.OverLimit:
+                return AccountErrors.EmailNotVerified;
+            case var outcome:
+                throw new InvalidOperationException($"Unexpected outcome {outcome}.");
+        }
     }
 
     // The limit on sites for an account whose email address is not confirmed, or null once it is. An account the Accounts

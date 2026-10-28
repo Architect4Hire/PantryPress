@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Audit;
+using PantryPress.Domain.Managers.Caching;
 using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Tenancy;
@@ -27,13 +28,15 @@ public static class SitesServiceCollectionExtensions
     /// members (PP2.11b), with their addresses from Accounts' directory of addresses, which the host registers with Accounts. <see cref="SitesOptions"/> is bound from the
     /// <c>Sites</c> section of the host's configuration and checked when a host starts, so every host that calls this
     /// sets <c>Sites:SubdomainZone</c>. The host also registers <c>PantryPressDbContext</c>, the clock, and data protection
-    /// with the application name the Worker shares, since the API checks the invitation links the Worker makes.
+    /// with the application name the Worker shares, since the API checks the invitation links the Worker makes. Creating a
+    /// site refreshes the public tier's host map (PP2.12), so the host also supplies the cache's connection.
     /// </summary>
     public static IServiceCollection AddSites(this IServiceCollection services)
     {
         services.AddSiteContext();
         services.AddAuditLog();
         services.AddOutbox();
+        services.AddPlatformCache();
         services.AddOptions<SitesOptions>()
             .BindConfiguration(SitesOptions.SectionName)
             .Validate(o => o.HasValidZone(), "Sites:SubdomainZone must be a host's zone in stored form, such as pantrypress.app.")
@@ -44,7 +47,8 @@ public static class SitesServiceCollectionExtensions
 
         services.AddScoped<SiteRepository>();
         services.AddScoped<SiteMemberRepository>();
-        services.AddScoped<SiteHostRepository>();
+        services.TryAddScoped<SiteHostRepository>();
+        services.TryAddScoped<SiteHostMapDataLayer>();
         services.AddScoped<SitesUnitOfWork>();
         services.AddScoped<SiteMembershipDataLayer>();
         services.AddScoped<SitesDataLayer>();
@@ -66,6 +70,21 @@ public static class SitesServiceCollectionExtensions
         services.AddScoped<IValidator<ListSiteMembersQuery>, ListSiteMembersQueryValidator>();
         services.AddScoped<IValidator<ChangeMemberRoleRequest>, ChangeMemberRoleRequestValidator>();
         services.AddScoped<ISiteMembersFacade, SiteMembersFacade>();
+        return services;
+    }
+
+    /// <summary>
+    /// What the public tier needs from the Sites module (PP2.12): a request's site from its Host header, through the host
+    /// map, and nothing else - no membership, no accounts, no writes. The host registers <c>PantryPressDbContext</c> and
+    /// supplies the cache's connection.
+    /// </summary>
+    public static IServiceCollection AddSitePublicResolution(this IServiceCollection services)
+    {
+        services.AddSiteContext();
+        services.AddPlatformCache();
+        services.TryAddScoped<SiteHostRepository>();
+        services.TryAddScoped<SiteHostMapDataLayer>();
+        services.AddScoped<IPublicSiteResolution, PublicSiteResolution>();
         return services;
     }
 

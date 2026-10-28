@@ -11,6 +11,8 @@ using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.MigrationService;
 using PantryPress.Tests.Api;
 using PantryPress.Tests.Persistence;
+using PantryPress.Tests.Site;
+using StackExchange.Redis;
 
 namespace PantryPress.Tests.TwoSite;
 
@@ -52,12 +54,22 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
 
     private readonly ServiceProvider _services;
     private readonly ApiServiceFactory? _api;
+    private readonly SiteFactory? _site;
 
-    private TwoSiteHarness(ServiceProvider services, ApiServiceFactory? api)
+    private TwoSiteHarness(ServiceProvider services, ApiServiceFactory? api, SiteFactory? site, string cacheConnection)
     {
         _services = services;
         _api = api;
+        _site = site;
+        CacheConnection = cacheConnection;
     }
+
+    /// <summary>The test AppHost's Redis, which the harness, ApiService, and the public site share.</summary>
+    public string CacheConnection { get; }
+
+    /// <summary>The public site's own services, for what only its host registers.</summary>
+    public IServiceProvider SiteServices =>
+        (_site ?? throw new InvalidOperationException("This harness was made without the public site.")).Services;
 
     public IServiceProvider Services => _services;
 
@@ -70,15 +82,23 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     /// <param name="configure">More context configuration, such as a planted test model.</param>
     /// <param name="apiSettings">ApiService settings over the harness's own, such as a site limit under test.</param>
     /// <param name="apiServices">More ApiService services, such as the Worker's half of an outbox message under test.</param>
+    /// <param name="withSite">
+    /// Also start the public site over that database and the test AppHost's Redis, with its probe route (PP2.12).
+    /// </param>
+    /// <param name="siteServices">More public-site services, such as a counter of the queries it makes.</param>
     public static async Task<TwoSiteHarness> CreateAsync(
         MigratedDatabase database,
         bool withApi = false,
         Action<DbContextOptionsBuilder>? configure = null,
         IReadOnlyDictionary<string, string?>? apiSettings = null,
-        Action<IServiceCollection>? apiServices = null)
+        Action<IServiceCollection>? apiServices = null,
+        bool withSite = false,
+        Action<IServiceCollection>? siteServices = null)
     {
         var connectionString = await database.App.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, CancellationToken.None)
             ?? throw new InvalidOperationException("The test AppHost has no pantrypress connection string.");
+        var cacheConnection = await database.App.GetConnectionStringAsync("redis", CancellationToken.None)
+            ?? throw new InvalidOperationException("The test AppHost has no redis connection string.");
 
         ApiServiceFactory? api = null;
         if (withApi)
@@ -88,6 +108,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
             var settings = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:pantrypress"] = connectionString,
+                ["ConnectionStrings:redis"] = cacheConnection,
                 ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
                 ["RateLimits:SignedInAccountPerMinute"] = "100000",
                 ["RateLimits:SitesPerAccountPerMinute"] = "100000",
@@ -120,14 +141,24 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Sites:SubdomainZone"] = SubdomainZone })
             .Build());
         services.AddApplicationClock();
+        services.AddLogging();
         services.AddAccountsIdentitySchema();
         services.AddPantryPressDbContext((_, options) =>
         {
             options.UseSqlServer(connectionString, MigrationServiceExtensions.UseMigrationsAssembly);
             configure?.Invoke(options);
         });
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheConnection));
         services.AddSites();
-        return new TwoSiteHarness(services.BuildServiceProvider(validateScopes: true), api);
+
+        SiteFactory? site = null;
+        if (withSite)
+        {
+            site = SiteFactory.Over(connectionString, cacheConnection, siteServices);
+            _ = site.Server;
+        }
+
+        return new TwoSiteHarness(services.BuildServiceProvider(validateScopes: true), api, site, cacheConnection);
     }
 
     public static AccountId NewAccount() => new(Guid.NewGuid());
@@ -182,6 +213,19 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     public HttpClient ClientFor(AccountId account) =>
         (_api ?? throw new InvalidOperationException("This harness was made without ApiService.")).CreateClientFor(account.Value);
 
+    /// <summary>
+    /// What the public site resolves <paramref name="host"/> to, through its whole pipeline (PP2.12): the probe's answer,
+    /// or the refusal. The Host header is sent exactly as given.
+    /// </summary>
+    public async Task<HttpResponseMessage> ReadAsAsync(string host, string path = SiteProbes.Path, Action<HttpRequestMessage>? configure = null)
+    {
+        var client = (_site ?? throw new InvalidOperationException("This harness was made without the public site.")).CreateReader();
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Host = host;
+        configure?.Invoke(request);
+        return await client.SendAsync(request);
+    }
+
     /// <summary>Changes rows directly, past every facade, as a test's setup does: the tenant root, working on no site.</summary>
     public async Task ChangeAsync(Action<PantryPressDbContext> change)
     {
@@ -205,6 +249,11 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         if (_api is not null)
         {
             await _api.DisposeAsync();
+        }
+
+        if (_site is not null)
+        {
+            await _site.DisposeAsync();
         }
 
         await _services.DisposeAsync();

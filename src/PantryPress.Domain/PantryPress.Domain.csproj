@@ -9,6 +9,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.13" />
     <PackageReference Include="NodaTime" Version="3.3.6" />
+    <!-- PP2.12: the platform cache. Only Managers/Caching/RedisPlatformCache.cs may name it (DomainBoundaryTests). -->
+    <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
   </ItemGroup>
 
   <ItemGroup>

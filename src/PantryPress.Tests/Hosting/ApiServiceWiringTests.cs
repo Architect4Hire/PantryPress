@@ -68,6 +68,31 @@ public sealed class ApiServiceWiringTests
     }
 
     [Fact]
+    public async Task The_public_site_reads_the_database_and_redis_and_nothing_of_the_gateways()
+    {
+        // PP2.12: the site resolves each request's host through the host map in Redis, reading SiteHosts on a miss; the API
+        // refreshes the map when it creates a site. Both wait for Redis; the site takes no gateway secret and no zone,
+        // because it never creates a site or trusts a gateway.
+        await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>();
+        var siteResource = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "site");
+        var apiResource = (IResourceWithEnvironment)appHost.Resources.Single(r => r.Name == "apiservice");
+
+        var site = await GetEnvironmentAsync(siteResource, appHost.ExecutionContext);
+        var api = await GetEnvironmentAsync(apiResource, appHost.ExecutionContext);
+
+        Assert.Contains("ConnectionStrings__pantrypress", site.Keys);
+        Assert.Contains("ConnectionStrings__redis", site.Keys);
+        Assert.Contains("ConnectionStrings__redis", api.Keys);
+        Assert.DoesNotContain("Gateway__SharedSecret", site.Keys);
+        Assert.DoesNotContain("Sites__SubdomainZone", site.Keys);
+        Assert.Contains(siteResource.Annotations.OfType<WaitAnnotation>(), w => w.Resource.Name == "redis");
+        Assert.Contains(apiResource.Annotations.OfType<WaitAnnotation>(), w => w.Resource.Name == "redis");
+        Assert.Contains(
+            siteResource.Annotations.OfType<WaitAnnotation>(),
+            w => w.Resource.Name == "migrationservice" && w.WaitType == WaitType.WaitForCompletion);
+    }
+
+    [Fact]
     public async Task Gateway_has_the_https_endpoint_the_email_links_use()
     {
         await using var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>();

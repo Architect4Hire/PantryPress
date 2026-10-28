@@ -13,8 +13,9 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
 2. A global query filter on `SiteId` applies to every `ISiteOwned` entity. It reads the current site from
    `ISiteContext`, which is set once per request: one scoped context, entered through `ISiteContextWriter`, where
    entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
-   the membership decision, site creation, and accepting an invitation, three files in the Sites module's facades, and
-   the Worker's outbox delivery in the kernel's outbox folder (PP2.11) - and a boundary test names each by its file and
+   the membership decision, site creation, accepting an invitation, and the public tier's host resolution (PP2.12), four
+   files in the Sites module's facades, and the Worker's outbox delivery in the kernel's outbox folder (PP2.11) - and a
+   boundary test names each by its file and
    keeps every other file from naming it. The filter (PP2.5) is a model
    convention named `site`, so it reaches every `ISiteOwned` root however the type joined the model; an owned type or one
    under a base that is not site-owned is refused when the model is built. It reads the site per query, so the context may
@@ -42,7 +43,16 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    invitation is read through its filter; a refusal after that ends the request in that site, with nothing filed under it. A question about another site the caller holds (copying to a second site) asks
    `FindAsync`, which enters nothing, because a second site in one request throws.
 5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
-   Unknown hosts get the neutral platform 404.
+   Unknown hosts get the neutral platform 404. Since PP2.12 `PublicSiteResolution` is that resolver: the Site host asks it
+   for every request but a health probe, after the forwarding headers are stripped, with the `Host` header as it
+   arrived. It splits off the port, refuses an IP literal in any spelling and anything `SiteHostNames` refuses before the
+   cache or the database is asked, and enters the site only when one of its *active* hosts is exactly that host; a
+   pending host, an unknown one, and a refused one are one answer, the same problem 404 an unknown path on a real site
+   gets. It enters the site whatever its status - deleted, suspended, and offline included - so the status answers
+   (SITE-008, PP2.13) are owed before any public endpoint reads site-owned data. The Site host refuses to start if a
+   trusted proxy may rewrite the Host (`ForwardHost`, `AllowedHosts`), and only the Sites module and the Site host name the
+   resolver or its registration; only the Site host's resolution middleware sets the `IPublicSiteContext` endpoints read,
+   and it must agree with `ISiteContext` (both by boundary test).
 6. **Publishing API** requests resolve the site from the publishing key.
 6a. **An invitation's link** resolves the site from its token (PP2.11): the site and the invitation, sealed with the data
    protection key ring ApiService and the Worker share, under a purpose of its own. Like a publishing key it is the
@@ -63,7 +73,15 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    entries, or one area of them. What belongs to no site - the resolution caches, per-address and global rate-limit
    counters - is a `PlatformCacheKey`, `platform:{area}:{part}:…`, so even a slug spelled like a site id stays a part.
    Nothing names a raw cache API - by type, namespace, registration, package, or project alias - except a declared
-   adapter, listed by its exact file, that takes only those two key types; a boundary test enforces it. Blob prefixes,
+   adapter, listed by its exact file, that takes only those two key types; a boundary test enforces it. The first is the
+   platform cache (PP2.12): `IPlatformCache` over `RedisPlatformCache`, which takes only a `PlatformCacheKey`, on the
+   connection `ServiceDefaults/Caching/CacheConnection.cs` registers; site keys join it with page data (PP7.12). Its
+   entries are versioned: invalidating moves the version, and a fill writes only while the version is the one its read
+   saw, so a lookup that raced a write never puts the old answer back. Once an entry has a version the hash keeps it a day
+   from every write, and only the value expires with its own lifetime, as a hash field (Redis 7.4 or later); a lookup that
+   took longer than `SiteHostMap.MaxFillDelay` (5 seconds) between its read and its fill caches nothing, for a version
+   the cache lost. The cache is never waited for: unreachable, every call fails at once, a command gives up after 500 ms,
+   and its caller carries on without it. Blob prefixes,
    purge tags, search indexes, and site rate-limit partitions build on the same rule when they arrive.
 9. `IgnoreQueryFilters()` is allowed only in `Modules/Platform/` operator code, with a comment explaining why,
    and is flagged by the invariant hook elsewhere. Cross-site erasure is operator code too (ADR 0003). The comment
@@ -110,7 +128,14 @@ holds for everything else, including every other table that refers to a site. Be
   created (PP2.10), the one place a `SiteId` value is made, and never accepted from a client.
 - The resolution caches are the exception to rule 8: they are keyed by the normalized slug or host, because no site id is
   known yet, and are invalidated when a slug or host changes hands (SITE-004, DOM-001), since a stale entry would send
-  one site's traffic to another. Membership itself is cached per request only (`auth.md`).
+  one site's traffic to another. Membership itself is cached per request only (`auth.md`). The host map (PP2.12) is
+  `platform:site-host:{host}`, one entry per stored-form host, holding the site, its status, and its canonical host, or
+  that the host names nothing. A write refreshes it after it commits, through `SiteHostMapDataLayer`: `RefreshAsync`
+  with every host it added, removed, or changed, and `RefreshSiteAsync` for a change of the site's status, since every
+  host's entry carries it. Site creation does so for its subdomain, so an address asked for before it was taken answers at
+  once (tenant-provisioning G-02). A refresh that cannot reach the cache is logged and skipped, so an entry lives at most
+  10 minutes (a host that names a site) or 60 seconds (one that names nothing); making the refresh survive a crash
+  through the outbox is owed by the first prompt that removes a host or changes a site's status (PP14, PP17, PP19).
 - `SiteMembers`' trigger guards losing a site's last active Owner, not having one. The facade that creates a site writes
   its first Owner in the same transaction (PP2.10); any path that takes a site out of `Deleted` must first find an active
   Owner and a canonical host (PP2.9) with a locking read; account erasure (PP19.11a) marks a site its account solely owns
@@ -171,9 +196,13 @@ PP2.10 and PP2.11 owe these for the tenant root, over ApiService:
 - availability never names the holder.
 
 What a cache owes comes with the first cache: the PP7.12 adapter owes a check that a read as B misses A's entry, that
-every key written as B is under B's prefix, and that clearing B leaves A. The resolution caches (PP2.12) owe a check
-that a host or slug that changes hands resolves to its new site at once. Host-header tricks join the harness with the
-first public path (PP2.12).
+every key written as B is under B's prefix, and that clearing B leaves A. The public site joined the harness with the
+host map (PP2.12): `CreateAsync(withSite: true)` starts it over the shared database and the test AppHost's Redis, and
+`ReadAsAsync(host)` sends any Host through its whole pipeline to a probe route that answers what resolution decided. A
+change to a host, a canonical host, or a site's status owes, over it: the new answer at once after its refresh, the
+other site's entry unchanged, and a lookup that raced it refused. A public path owes the host-header tricks
+`SiteHostTests` sends: the other site's host, `X-Forwarded-Host` and its kin, case, a trailing dot, a port, `www.` before
+either site's host, the other site's custom domain, `app.<zone>`, an `xn--` look-alike, and IP literals.
 
 ## Review
 

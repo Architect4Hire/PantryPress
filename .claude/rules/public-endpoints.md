@@ -3,8 +3,13 @@
 Lives in `PantryPress.Site`. Use `add-public-endpoint`.
 
 - Site comes from the Host header only, through `SiteHost` (PSEC-004). Payloads never carry a site id.
-- Unknown host: neutral platform 404. Suspended or offline site: correct status (503 with `Retry-After`,
-  410 for deleted).
+- Unknown host: neutral platform 404, the same problem document (`not-found`, `no-store`) an unknown path on a real site
+  gets, whatever the request's `Accept` asks for, so a reader cannot tell a real host from a guess. A pending host, an IP literal, and a malformed host or port
+  get it too; the last two are never looked up (PP2.12). Suspended or offline site: correct status (503 with
+  `Retry-After`, 410 for deleted).
+- The site is resolved once per request, before any endpoint, and read from `IPublicSiteContext`; once the host map
+  holds a host, resolving it makes no SQL query. No Identity, authentication, antiforgery, session, or cookie is
+  registered on this host (PP2.12).
 - Reads serve page data (Redis, then blob, plus an in-process LRU). No SQL on page-data reads (ARCH-013).
 - Writes (ratings, comments, signups, contact, analytics beacon) are small JSON endpoints that:
   - validate and size-limit input, treat it as untrusted, and HTML-encode on output;
@@ -21,7 +26,9 @@ Lives in `PantryPress.Site`. Use `add-public-endpoint`.
 - Request bodies are capped at 64 KiB: everything a reader sends is small by rule. The public tier trusts no
   forwarding header from anyone - a site is resolved from the Host header alone, and proving a request came through
   Front Door rather than straight at the origin is PP9.3's. Even once a proxy is named, it may not say what host was
-  asked for: `TrustedProxyOptions.ForwardHost` stays off here, because that header would otherwise choose the tenant.
+  asked for: `TrustedProxyOptions.ForwardHost` stays off here, because that header would otherwise choose the tenant, and
+  the host refuses to start if configuration turns it on or names `AllowedHosts` (PP2.12). So Front Door must pass the
+  reader's Host through to the origin unchanged, and the Container Apps ingress must accept tenant hosts (PP9.3, PP19).
 - HSTS from the public tier never claims `includeSubDomains`: DOM-001 allows a custom domain at its apex, and a year
   of it from `example.com` would pin hosts PantryPress neither serves nor was given permission to speak for.
 - The content-security policy served here is a placeholder. The generated per-site one belongs with the HTML, which

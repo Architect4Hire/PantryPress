@@ -1,5 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Primitives;
+using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.Tests.Site;
@@ -32,11 +37,13 @@ public sealed class SiteEdgeHardeningTests
     [Fact]
     public async Task A_probe_answers_without_the_browser_headers()
     {
-        // Both probes short-circuit the moment they are routed, ahead of every middleware the host adds. Nothing a
-        // browser needs is missing, because no browser asks: Container Apps does, over the container's own port.
+        // Both probes short-circuit the moment they are routed, ahead of every middleware the host adds - host
+        // resolution included, since Container Apps addresses a container by whatever name it likes. Nothing a browser
+        // needs is missing, because no browser asks. The liveness probe, because readiness asks the database, which this
+        // edge-only host does not have (PP2.12).
         await using var site = new SiteFactory("Development");
 
-        using var response = await site.CreateReader().GetAsync("/health");
+        using var response = await site.CreateReader().GetAsync("/alive");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Null(Header(response, SecurityHeaders.ContentTypeOptions));
@@ -118,11 +125,13 @@ public sealed class SiteEdgeHardeningTests
     [InlineData("baker.localhost")]
     [InlineData("COOK.localhost")]
     [InlineData("cook.localhost.")]
+    [InlineData("nobody.localhost")]
+    [InlineData("127.0.0.1")]
     public async Task Every_tenant_host_is_answered_the_same_way(string host)
     {
         // Nothing here is per-site yet, and that is the point: the headers are process-wide constants, so no
-        // tenant's configuration can reach another's response, and no host spelling is treated specially
-        // (PSEC-004; the full two-site harness arrives with SiteHost at PP2).
+        // tenant's configuration can reach another's response, and no host spelling is treated specially - an unknown
+        // host's refusal included (PSEC-004). Which site a host reaches is SiteHostTests', over the two-site harness.
         await using var site = new SiteFactory("Development");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/recipes/sourdough");
@@ -132,6 +141,57 @@ public sealed class SiteEdgeHardeningTests
         Assert.Equal("nosniff", Header(response, SecurityHeaders.ContentTypeOptions));
         Assert.Equal(ContentSecurityPolicies.Site, Header(response, SecurityHeaders.ContentSecurityPolicy));
         Assert.Equal(ReferrerPolicies.Public, Header(response, SecurityHeaders.ReferrerPolicy));
+    }
+
+    [Theory]
+    [InlineData("Edge:TrustedProxies:ForwardHost", "true")]
+    [InlineData("Edge:TrustedProxies:AllowedHosts:0", "cook.localhost")]
+    public async Task The_public_site_refuses_to_let_a_proxy_name_the_host(string setting, string value)
+    {
+        // PSEC-004 (PP2.12): here the Host is the tenant, so a proxy that may rewrite it may choose whose site a reader
+        // sees. However a deployment copies the gateway's settings, the host will not start with that grant, with or
+        // without a trusted peer named beside it.
+        await using var site = new SiteFactory(
+            "Production",
+            new Dictionary<string, string?>
+            {
+                [setting] = value,
+                ["Edge:TrustedProxies:KnownNetworks:0"] = "10.0.0.0/8",
+            });
+
+        var refused = await Assert.ThrowsAnyAsync<Exception>(() => Task.FromResult(site.Server));
+
+        Assert.Contains("ForwardHost must stay off", refused.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task A_request_without_exactly_one_host_is_refused_without_a_lookup(int count)
+    {
+        // Kestrel refuses two Host headers itself; this holds the line behind it, so no host is guessed from a pair.
+        var lookups = 0;
+        await using var site = new SiteFactory(
+            "Development",
+            configureServices: services => services.Replace(
+                ServiceDescriptor.Scoped<IPublicSiteResolution>(_ => new CountingResolution(() => lookups++))));
+        var context = await site.Server.SendAsync(c =>
+        {
+            c.Request.Path = "/recipes/sourdough";
+            c.Request.Headers.Host = count == 0 ? default : new StringValues([SiteFactory.TenantOrigin.Host, SiteFactory.OtherTenantOrigin.Host]);
+        });
+
+        Assert.Equal(StatusCodes.Status404NotFound, context.Response.StatusCode);
+        Assert.Equal(0, lookups);
+    }
+
+    private sealed class CountingResolution(Action counted) : IPublicSiteResolution
+    {
+        public Task<PublicSite?> ResolveAsync(string? hostHeader, CancellationToken cancellationToken)
+        {
+            counted();
+            return Task.FromResult<PublicSite?>(null);
+        }
     }
 
     [Fact]

@@ -2500,7 +2500,7 @@ rows unchanged (the shared account's above all).
 Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1540 of 1540
 (1467 before this prompt).
 
-### PP2.12 PantryPress.Site host and host resolution
+### PP2.12 PantryPress.Site host and host resolution - done
 
 ```text
 SCOPE: Configure PantryPress.Site as the anonymous public site API, add it to the AppHost, and resolve Host to
@@ -2511,6 +2511,133 @@ warm. Reject IP-literal hosts.
 UTILIZATION: public-site-reviewer.
 BEHAVIOR: Plan, wait for approval, implement with known, unknown, mixed-case, port, www, and two-site tests.
 ```
+
+*PP2.12 delivery note (done 2026-10-28):*
+
+- **What shipped.**
+  - `PantryPress.Site` is the anonymous public site API:
+    - It references the database and Redis in the AppHost and waits for both, plus the migration service.
+    - Every request except a health probe has its site resolved from the `Host` header. This runs after the
+      forwarding-header strip.
+    - A Host that names no active site gets the platform's neutral problem 404 (`not-found`, `no-store`). An unknown path
+      on a real site gets the same document, whatever `Accept` asks for.
+    - Locally a site answers at `{slug}.localhost` on the Site resource's port (SITE-009). The dashboard link says so.
+  - Across the seam, in the Sites module:
+    - Contracts: `IPublicSiteResolution` and `PublicSite`.
+    - Business:
+      - `PublicHostNames` splits off the port (1 to 65535, plain digits). It refuses IP literals in every spelling before
+        any lookup, and stores the rest in `SiteHostNames`' form.
+      - `SiteHostMap` is the cache entry, with its lifetimes and its fill delay.
+    - Data layer: `SiteHostMapDataLayer` reads the map, fills it from SQL on a miss, and refreshes it.
+    - Facade: `PublicSiteResolution` enters `ISiteContext`. It is the fourth facade resolver on the boundary list.
+    - Repository: `SiteHostRepository.FindActiveAsync` (one query, keyed by host, active hosts only) and `ListHostsAsync`.
+    - `SitesFacade` refreshes the new subdomain after a site is created (tenant-provisioning G-02, step 6).
+    - Registration: `AddSitePublicResolution`.
+  - The first cache adapter, brought forward from PP7.12:
+    - `IPlatformCache` over `RedisPlatformCache` in `Managers/Caching`. It is the one file that names StackExchange.Redis,
+      and it takes only a `PlatformCacheKey`.
+    - `CacheConnection` in ServiceDefaults registers the Aspire Redis client. It fails fast, gives each command 500 ms,
+      and adds no readiness check.
+  - The host map:
+    - Keys are `platform:site-host:{host}`. A host that names a site is cached for 10 minutes, one that names nothing for
+      60 seconds.
+    - Each entry carries a version. A fill writes only while the version is still the one its read saw.
+    - The version outlives the value by a day, because the value expires as its own hash field.
+    - A lookup that took more than 5 seconds from read to fill caches nothing.
+  - The Site host's own pieces:
+    - `IPublicSiteContext` must agree with `ISiteContext`.
+    - `SiteProblems` writes every refusal and fault in full.
+    - The host refuses to start if `Edge:TrustedProxies:ForwardHost` or `AllowedHosts` is set.
+    - No Identity, authentication, antiforgery, session, or cookie.
+  - ApiService connects to Redis for the refresh and carries on without it.
+- **Decided by default (in the approved plan).**
+  - No 301 to the canonical host from this API. Resolution reports the canonical host and whether the request used it;
+    PP2.13 and PP7.13a answer with the redirect.
+  - A Redis outage falls back to SQL and caches nothing.
+  - No in-process cache in front of Redis, which would break "a host that changes hands resolves to its new site at once".
+- **Tests (154 new; 1694 in all).**
+  - Unit:
+    - Host reading: ports, every IP spelling, look-alikes, lengths.
+    - The map entry: round trip for every status, and every malformed entry read as a miss.
+  - Platform cache, over the test AppHost's Redis:
+    - a miss, a fill, and lifetimes;
+    - a fill refused after one and after two invalidations;
+    - the version kept after a short fill expires;
+    - every call fails fast when Redis is unreachable.
+  - Host resolution and two-site, over SQL and Redis with ApiService and the Site in memory:
+    - each site's host resolves that site and enters it;
+    - case, a trailing dot, and a port;
+    - an unknown host is indistinguishable from an unknown path, under three `Accept` values;
+    - IP literals and bare names are refused with zero SQL and zero cache calls;
+    - a warm host makes no SQL, and a cold host makes exactly one query;
+    - every forwarding header and every host-header trick, both now in `TwoSiteChecks`;
+    - a custom domain, its `www` variant, and the old subdomain, each with its canonical host;
+    - a pending host is answered like an unknown one;
+    - a host changing hands, a canonical host moving, and a status change are each seen at once, with the other site's
+      entry byte-identical;
+    - without its refresh a write is not seen;
+    - a lookup racing a write is refused, and a slow lookup caches nothing;
+    - G-02: request, create, request again;
+    - a site created with zone `localhost` answers at `{slug}.localhost` on any port;
+    - every key is under `platform:site-host:`;
+    - no `Set-Cookie`, and no sign-in services;
+    - a known host still resolves with Redis unreachable.
+  - Edge:
+    - the `ForwardHost` and `AllowedHosts` refusals;
+    - zero or two Host headers are refused without a lookup.
+  - Wiring: the AppHost's references and waits.
+  - Boundary:
+    - the resolver list;
+    - the cache adapter and package lists (one package per project);
+    - only the Sites module and the Site host name the public resolver, and only the resolution middleware sets the
+      public site.
+  - **Checked by planting:**
+    - Dropping the refresh after creation fails G-02.
+    - Dropping the version condition fails three cache tests and the race test.
+    - Letting a fill's lifetime cover the version fails the short-fill test.
+- **Reviewers.** `site-isolation-auditor` and `public-site-reviewer` found no blocker. Both raised the same major issue.
+  - **Fixed:**
+    - Configuration could turn `ForwardHost` on and let a proxy choose the tenant. The host now refuses to start.
+    - A fill shortened the version's life, so a very slow lookup could match a restarted count. The version now outlives
+      the value, and the fill-delay guard was added.
+    - A hung Redis was waited on for 5 s per command. Commands now give up after 500 ms.
+    - A non-JSON `Accept` got a plain-text 404 without `no-store`. Every refusal is now written in full.
+    - The public site holder and the resolver are now kept to their files by boundary tests.
+    - The host-header tricks moved into the harness.
+    - Missing tests: two Host headers, a `{slug}.localhost` site end to end, and the `ForwardHost` refusal.
+    - Rule text on resolvers, status, and the cache.
+  - **Recorded, not changed:**
+    - Resolution enters a site whatever its status. The status answers are PP2.13's, owed before any endpoint reads
+      site-owned data.
+    - The request target and HTTP/2 `:authority` are Kestrel's to reconcile with Host; TestServer cannot show it.
+    - `PublicSiteResolution` returns `PublicSite?`, not `Result<T>`, like `ISiteMembershipFacade.FindAsync`.
+    - Health probes are mapped in Development only, so a deployed probe gets the neutral 404. This was already so, and
+      is PP19's.
+    - Redis eviction under memory pressure can drop a version early. The fill-delay guard covers that window.
+- **Left for later.**
+  - PP2.13: the status answers (SITE-008: 503 with `Retry-After`, 410) and the 301 to the canonical host, from
+    `PublicSite`.
+  - The first prompt that removes a host or changes a site's status (PP14, PP17, PP19): call `RefreshAsync` or
+    `RefreshSiteAsync`, and make the refresh survive a crash through the outbox.
+  - PSEC-001: a cap on uncached lookups under a flood of random hosts.
+  - PP9.3 and PP19:
+    - Front Door must pass the reader's Host through to the origin.
+    - The Container Apps ingress must accept tenant hosts.
+    - Deployed health probes.
+  - PP9.5: tenant-provisioning step 7, the edge purge of a new host.
+- **Not verified.**
+  - Nothing ran against Azure. Azure Managed Redis needs 7.4 or later for the per-field expiry; the local image is 8.6.
+  - No migration.
+  - **The intermittent race test.** `SiteMembersTwoSiteTests.Owners_stepping_down_at_once_through_the_unit_of_work_leave_one`
+    (PP2.11b) failed in both full runs and passed in each of three runs of its class alone. It fails on the untouched commit before this prompt too: a full run of `8bfd0b4` in a separate worktree failed it the
+    same way, beside PP2.9's intermittent `IdentityModelTests` and an admin-app start timeout. Under a full run the race
+    can deadlock, and the harness's context has no retrying strategy, so SQL Server's deadlock surfaces as EF Core's
+    `InvalidOperationException` rather than the `DbUpdateException` or `RetryLimitExceededException` the unit of work
+    maps; production's context retries (`EnrichSqlServerDbContext`). Not changed here: it belongs with PP2.11b.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
+outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1693 of 1694
+(1540 before PP2.11b's note; the one failure is the race test above).
 
 ### PP2.13 Public site context and status
 

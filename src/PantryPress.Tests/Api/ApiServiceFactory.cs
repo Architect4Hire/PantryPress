@@ -72,6 +72,10 @@ internal sealed class ApiServiceFactory(
 
         // The API refuses to start without the zone new sites' addresses sit under (PP2.10); a test may set another.
         builder.UseSetting("Sites:SubdomainZone", SubdomainZone);
+
+        // Creating a site refreshes the public tier's host map (PP2.12). A test that reads the map passes the real cache;
+        // the rest carry on without one, as the API does when Redis is down.
+        builder.UseSetting("ConnectionStrings:redis", Site.SiteFactory.UnreachableCache);
         foreach (var (key, value) in settings)
         {
             builder.UseSetting(key, value);

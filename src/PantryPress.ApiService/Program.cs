@@ -7,6 +7,7 @@ using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Sites;
+using PantryPress.ServiceDefaults.Caching;
 using PantryPress.ServiceDefaults.EdgeHardening;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,10 @@ builder.Services.AddDataProtection().SetApplicationName("PantryPress");
 // (PP1.10). The API only writes: it never registers the dispatcher, and it sends no email of its own - account email is
 // staged there too and sent by the Worker (PP1.10b), so this host needs no email gateway and no link origin.
 builder.Services.AddOutbox();
+
+// Creating a site refreshes the public tier's host map in Redis, so the new address answers at once (PP2.12). The API
+// carries on without Redis: the map's entries expire on their own.
+builder.AddCacheConnection();
 
 builder.Services.AddAccounts();
 builder.Services.AddSites();
