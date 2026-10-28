@@ -16,8 +16,8 @@ namespace PantryPress.Tests.TwoSite;
 
 // Inside the namespace, so the types win over the PantryPress.Tests.Site namespace (the public site host's tests).
 using PantryPress.Domain.Modules.Sites;
+using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.DataLayer;
-using PantryPress.Domain.Modules.Sites.Repositories;
 
 // PP2.10: creating, listing, and reading sites, and checking an address, over ApiService against the migrated schema,
 // in the two-site world (tenancy.md, "Two-site test": what PP2.10 owes the tenant root). A list returns only the caller's
@@ -432,6 +432,80 @@ public sealed class SitesApiTwoSiteTests(MigratedDatabase database) : IAsyncLife
         Assert.Equal(NewSiteOutcome.Unavailable, await StageAndSaveAsync(new SiteId(Guid.NewGuid()), slug, $"{slug}.pantrypress.app"));
     }
 
+    // PP2.14: under an owned-site limit the save opens its own transaction inside the retry strategy. A commit that fails
+    // and rolls back is retried from the top, and the retry must save the site again - never commit an empty transaction
+    // and call the lost site saved, which a stored idempotent answer would then repeat for a day.
+    [Fact]
+    public async Task A_commit_that_failed_under_a_limit_is_saved_again_on_the_retry()
+    {
+        var commits = new PlantedCommitFault();
+        await using var retrying = await TwoSiteHarness.CreateAsync(database, configure: commits.Configure);
+        var world = await _harness.SeedAsync("retried");
+        var id = new SiteId(Guid.NewGuid());
+        var slug = Fresh("retried");
+        var owner = TwoSiteHarness.NewAccount();
+
+        var outcome = NewSiteOutcome.Unavailable;
+        await TwoSiteChecks.AssertTenantRootUnchangedAsync(_harness.Services, world.B.Id, async () =>
+            outcome = await StageAndSaveAsync(id, slug, $"{slug}.pantrypress.app", owner: owner, limit: new OwnedSiteLimit(owner, 1), harness: retrying));
+        Assert.Equal(NewSiteOutcome.Saved, outcome);
+
+        Assert.Equal(2, commits.Attempts);
+        await using var scope = _harness.Scope();
+        var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
+        Assert.True(await db.Set<Site>().AnyAsync(s => s.Id == id && s.Slug == slug));
+        Assert.True(await db.Set<SiteMember>().AnyAsync(m => m.SiteId == id && m.AccountId == owner && m.Role == SiteRole.Owner));
+        Assert.True(await db.Set<SiteHost>().AnyAsync(h => h.SiteId == id && h.IsCanonical));
+    }
+
+    // PP2.14: every request to a route that names a site is counted per account before the site policy looks the caller
+    // up, so probing other sites' addresses - each a refused lookup the route's own allowance never sees - is bounded too.
+    [Fact]
+    public async Task Site_lookups_are_counted_per_account_before_the_policy_refuses_them()
+    {
+        await using var harness = await TwoSiteHarness.CreateAsync(
+            database,
+            withApi: true,
+            apiSettings: new Dictionary<string, string?> { ["RateLimits:SiteLookupsPerAccountPerMinute"] = "3" });
+        var world = await harness.SeedAsync("lookups");
+        using var prober = harness.ClientFor(TwoSiteHarness.NewAccount());
+        using var bystander = harness.ClientFor(TwoSiteHarness.NewAccount());
+
+        var answers = new List<HttpStatusCode>();
+        foreach (var slug in new[] { world.A.Slug, world.B.Slug, Fresh("none"), world.A.Slug })
+        {
+            using var response = await prober.GetAsync($"{Sites}/{slug}");
+            answers.Add(response.StatusCode);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                Assert.NotNull(response.Headers.RetryAfter);
+                Assert.Equal("too-many-requests", await response.CodeAsync());
+            }
+        }
+
+        Assert.Equal([HttpStatusCode.NotFound, HttpStatusCode.NotFound, HttpStatusCode.NotFound, HttpStatusCode.TooManyRequests], answers);
+
+        // The refusal is the same for an address no site holds: the window is the account's alone, so a 429 says nothing
+        // about whether a site lives there.
+        using var none = await prober.GetAsync($"{Sites}/{Fresh("none")}");
+        Assert.Equal(HttpStatusCode.TooManyRequests, none.StatusCode);
+        Assert.Equal("too-many-requests", await none.CodeAsync());
+        Assert.NotNull(none.Headers.RetryAfter);
+
+        // A caller that accepts only a page still gets the problem document, never a bodiless refusal.
+        using var asPage = new HttpRequestMessage(HttpMethod.Get, $"{Sites}/{world.A.Slug}");
+        asPage.Headers.Accept.ParseAdd("text/html");
+        using var refusedPage = await prober.SendAsync(asPage);
+        Assert.Equal(HttpStatusCode.TooManyRequests, refusedPage.StatusCode);
+        Assert.Equal("too-many-requests", await refusedPage.CodeAsync());
+
+        // Another account has its own window, and a route that names no site is not counted here.
+        using var other = await bystander.GetAsync($"{Sites}/{world.A.Slug}");
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+        using var list = await prober.GetAsync(Sites);
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+    }
+
     [Fact]
     public async Task Every_route_needs_a_signed_in_caller()
     {
@@ -489,15 +563,22 @@ public sealed class SitesApiTwoSiteTests(MigratedDatabase database) : IAsyncLife
     }
 
     // Stages a whole new site past the facade's check, as a second request that passed it at the same moment would.
-    private async Task<NewSiteOutcome> StageAndSaveAsync(SiteId id, string slug, string host, string name = "Racer")
+    private async Task<NewSiteOutcome> StageAndSaveAsync(
+        SiteId id,
+        string slug,
+        string host,
+        string name = "Racer",
+        AccountId? owner = null,
+        OwnedSiteLimit? limit = null,
+        TwoSiteHarness? harness = null)
     {
-        await using var scope = _harness.Scope();
+        await using var scope = (harness ?? _harness).Scope();
         var data = scope.ServiceProvider.GetRequiredService<SitesDataLayer>();
         var now = new DateTimeOffset(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
         data.StageNewSite(
             new Site { Id = id, Slug = slug, Name = name, Status = SiteStatus.Live, TimeZone = "UTC", Locale = "en-US", CreatedAt = now },
-            new SiteMember { SiteId = id, AccountId = TwoSiteHarness.NewAccount(), Role = SiteRole.Owner, CreatedAt = now },
+            new SiteMember { SiteId = id, AccountId = owner ?? TwoSiteHarness.NewAccount(), Role = SiteRole.Owner, CreatedAt = now },
             new SiteHost { Id = new SiteHostId(Guid.NewGuid()), SiteId = id, Host = host, Kind = SiteHostKind.Subdomain, IsCanonical = true, CreatedAt = now });
-        return await data.SaveNewSiteAsync(id, slug, host, limit: null, CancellationToken.None);
+        return await data.SaveNewSiteAsync(id, slug, host, limit, CancellationToken.None);
     }
 }

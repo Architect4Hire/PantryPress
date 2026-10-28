@@ -168,9 +168,11 @@ validation, one commits, the other gets 409 `slug-unavailable`.
 - A save that loses the race re-asks whether the slug, its host, or a reserved row now blocks it, rather than
   reading SQL Server error numbers. A save that meets its own already-committed site counts as saved.
 
-At this point the public host already resolves, through `SiteHost`, to a site in `Provisioning`. The public
-tier answers it with the neutral "coming soon" page and `503` plus a short `Retry-After`, never a 404, so a
-search engine or an early visitor does not record the host as missing.
+Once PP9.5a lands, the public host at this point already resolves, through `SiteHost`, to a site in `Provisioning`.
+The public tier answers it with the neutral "coming soon" page and `503` plus a short `Retry-After`, never a 404, so a
+search engine or an early visitor does not record the host as missing. **As built until then (PP2.10, PP2.14):** the
+site is created `Live`, so `GET /api/public/v1/site` answers it 200 with its name at once; PP7.13 and PP7.13a answer a
+`Live` site with no page data yet with the same coming-soon 503 (G-01).
 
 ---
 
@@ -278,6 +280,8 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 | `SiteHost` and canonical host                       | PP2.9                   | Done                                            |
 | Create-site endpoint                                | PP2.10                  | Done (site starts `Live`, G-01)                 |
 | Public host resolution and status answers           | PP2.12, PP2.13          | Done                                            |
+| The reader's host behind Front Door (edge secret)   | PP7.13, PP9.3           | Not started (decided at PP2.14)                 |
+| Provisioning job, `Provisioning` to `Live`, 60 s    | PP9.5a                  | Not started (numbered at PP2.14)                |
 | Page-data build, pointer switch, warm-up            | PP7.11, PP7.12          | Not started                                     |
 | Legal, About and Start here templates               | PP8.5, PP8.5a           | Not started                                     |
 | Wildcard DNS, certificate and routes                | PP9.2                   | Not started (Terraform `platform` stack exists) |
@@ -295,7 +299,7 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 
 | #    | Gap                                                                                                                                                                                                                                  | Suggested resolution                                                                                                                                                                                                                      |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G-01 | **No prompt owns the provisioning job.** PP2.10 creates the site rows; nothing moves a site from `Provisioning` to `Live`, seeds starter content, or builds its first page data. Those pieces arrive in PP7, PP8 and PP9, after PP2. | PP2.10 creates the site directly `Live` with no page data (the public tier answers "coming soon" when no pointer exists). Add a prompt after PP9.5 that introduces `sites.provision` (section 6) and switches creation to `Provisioning`. |
+| G-01 | **No prompt owns the provisioning job.** PP2.10 creates the site rows; nothing moves a site from `Provisioning` to `Live`, seeds starter content, or builds its first page data. Those pieces arrive in PP7, PP8 and PP9, after PP2. | PP2.10 creates the site directly `Live` with no page data (the public tier answers "coming soon" when no pointer exists). **Owned by PP9.5a** (numbered at PP2.14), which introduces `sites.provision` (section 6), switches creation to `Provisioning`, and proves SITE-003's 60 seconds. |
 | G-02 | **Negative caching of a new host.** Neither PP2.12 nor PP9.4 says what happens to a cached "unknown host" answer when that host is later claimed.                                                                                    | Step 6 done in PP2.12: creating a site refreshes its host in the map, and a cached "names nothing" lives 60 seconds at most; tested by requesting the host, creating the site, and requesting again. Step 7, the edge purge, stays with PP9.5. |
 | G-03 | **Front Door custom domain ceiling.** The `platform` Terraform notes 100 custom domains per Standard profile. DOM-001 allows Pro one custom domain per site, and the first-year target is 2,000 sites.                               | Record a trigger in the decisions register (alongside D-13): a second profile, or Premium, before custom domains pass about 80. PP17.1 checks a platform-wide count, not just the plan's allowance.                                       |
 | G-04 | **IaC tool.** OPS-001 and architecture section 11 say `azd`-generated Bicep; the repo has Terraform under `docs/infrastructure/terraform/`.                                                                                          | Close D-16 and OPS-001 with Terraform, and move the folder to `infra/` when PP9.1 lands.                                                                                                                                                  |
@@ -317,5 +321,5 @@ Every status change purges the site's hosts at the edge through the outbox, the 
 2. Should an account be allowed to create its site in the same step as sign-up (one form), or always after
    signing in? One form is quicker; two steps keep the account and site seams separate and let the spam
    challenge and velocity limits act before a slug is taken.
-3. How long is a slug held after a site is deleted? SITE-004 says 12 months after a rename; deletion is not
-   covered.
+3. ~~How long is a slug held after a site is deleted?~~ Answered at PP2.10: never reissued. A slug any site has held -
+   a deleted one included - stays unavailable, and so does a host still in `SiteHosts` (decision log, 2026-10-27).

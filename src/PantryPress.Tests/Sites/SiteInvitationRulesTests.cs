@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Email;
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Validation;
+using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Sites;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Domain.Modules.Sites.DataLayer;
@@ -33,6 +35,35 @@ public sealed class SiteInvitationRulesTests
         Assert.False(SiteInvitationRules.IsOpen(SiteInvitationStatus.Revoked, expires, Now));
     }
 
+    // PP2.14: accepting is a rule of its own, not fields a facade sets.
+    [Fact]
+    public void Only_an_open_invitation_is_accepted_and_accepting_records_who_and_when()
+    {
+        var account = new AccountId(Guid.NewGuid());
+        var open = Invitation(SiteInvitationStatus.Pending, Now.AddDays(7));
+
+        SiteInvitationRules.Accept(open, account, Now);
+
+        Assert.Equal((SiteInvitationStatus.Accepted, account, Now), (open.Status, open.AcceptedBy, open.AcceptedAt));
+        Assert.Throws<InvalidOperationException>(() => SiteInvitationRules.Accept(open, account, Now));
+        Assert.Throws<InvalidOperationException>(
+            () => SiteInvitationRules.Accept(Invitation(SiteInvitationStatus.Pending, Now), account, Now));
+        Assert.Throws<InvalidOperationException>(
+            () => SiteInvitationRules.Accept(Invitation(SiteInvitationStatus.Revoked, Now.AddDays(7)), account, Now));
+    }
+
+    private static SiteInvitation Invitation(SiteInvitationStatus status, DateTimeOffset expiresAt) => new()
+    {
+        Id = new SiteInvitationId(Guid.NewGuid()),
+        Email = "cook@example.com",
+        NormalizedEmail = "COOK@EXAMPLE.COM",
+        Role = SiteRole.Author,
+        Status = status,
+        InvitedBy = new AccountId(Guid.NewGuid()),
+        CreatedAt = Now.AddDays(-1),
+        ExpiresAt = expiresAt,
+    };
+
     [Fact]
     public void An_invitation_lasts_its_lifetime_and_its_email_says_so_in_whole_days()
     {
@@ -57,13 +88,13 @@ public sealed class SiteInvitationRulesTests
         Assert.Equal((id, "pat@example.com"), (email.Id, email.To));
         Assert.DoesNotContain("Pie", email.Subject, StringComparison.Ordinal);
         Assert.Contains($"\"Pie & <Co>\" on PantryPress, as {inWords}", email.TextBody, StringComparison.Ordinal);
-        Assert.Contains("https://app.pantrypress.app/join#token=a%2Bb%2Fc%3D", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("https://app.pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D", email.TextBody, StringComparison.Ordinal);
         Assert.Contains("works for 7 days and only once", email.TextBody, StringComparison.Ordinal);
 
         // The blogger's name is encoded in the HTML part, never markup.
         Assert.Contains("Pie &amp; &lt;Co&gt;", email.HtmlBody, StringComparison.Ordinal);
         Assert.DoesNotContain("<Co>", email.HtmlBody, StringComparison.Ordinal);
-        Assert.Contains("href=\"https://app.pantrypress.app/join#token=a%2Bb%2Fc%3D\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://app.pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D\"", email.HtmlBody, StringComparison.Ordinal);
     }
 
     [Fact]

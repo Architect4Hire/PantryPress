@@ -20,7 +20,7 @@ Read first: `.claude/rules/public-endpoints.md`, `tenancy.md`, `rendering.md`.
 ## Checklist
 
 - [ ] Two-site test with host-header tricks (other host, X-Forwarded-Host, case, trailing dot, custom
-      domain).
+      domain, and X-PP-Reader-Host naming the other site without the edge secret; tenancy.md).
 - [ ] Abuse tests: oversized body, missing challenge, too fast, too many links.
 - [ ] No SQL reachable on read paths (test or analyzer).
 - [ ] `public-site-reviewer` run.

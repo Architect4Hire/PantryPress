@@ -32,7 +32,7 @@ public sealed class SitesWorkerRegistrationTests
 
         var error = Assert.Throws<OptionsValidationException>(
             () => services.GetRequiredService<IOptions<SiteInvitationEmailOptions>>().Value);
-        Assert.Contains("Sites:AppBaseUrl", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Accounts:AppBaseUrl", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

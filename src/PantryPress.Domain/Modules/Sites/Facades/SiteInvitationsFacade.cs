@@ -57,7 +57,9 @@ internal sealed class SiteInvitationsFacade(
         // PP14: ask the entitlements facade whether the site may have another member (ARCH-010), here.
         var now = clock.UtcNow;
         var normalizedEmail = EmailAddresses.Normalize(request.Email);
-        if (await data.CountOpenAsync(now, normalizedEmail, cancellationToken) >= options.Value.MaxOpenInvitations)
+        if (!SiteInvitationRules.HasRoomForAnother(
+            await data.CountOpenAsync(now, normalizedEmail, cancellationToken),
+            options.Value.MaxOpenInvitations))
         {
             return SiteErrors.TooManyInvitations;
         }
@@ -79,8 +81,12 @@ internal sealed class SiteInvitationsFacade(
         data.StageInvitation(invitation);
         outbox.Enqueue(new SiteInvitationEmailMessage(invitation.Id.Value), SiteScope.Current);
         audit.Record(SiteAudit.Invited(account, invitation.Id), SiteScope.Current);
-        await data.SaveInvitationAsync(siteContext.Required, invitation, cancellationToken);
-        return new SiteInvitationDetail(invitation.Id.Value, invitation.Role, invitation.ExpiresAt);
+
+        // Counted again under the site's lock, so Owners inviting at the same moment cannot both pass the count above.
+        return await data.SaveInvitationAsync(invitation, now, options.Value.MaxOpenInvitations, cancellationToken)
+            == InvitationOutcome.Saved
+            ? new SiteInvitationDetail(invitation.Id.Value, invitation.Role, invitation.ExpiresAt)
+            : SiteErrors.TooManyInvitations;
     }
 
     /// <summary>Accepting is its own class, the one that enters a site from a link (tenancy.md rule 4), and only it.</summary>

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.Gateway.Hosting;
 
@@ -28,8 +29,8 @@ internal static class GatewayApi
     public const string BadRequestTitle = "We couldn't read that request.";
     public const string MethodNotAllowedCode = "method-not-allowed";
     public const string MethodNotAllowedTitle = "That action isn't available here.";
-    public const string TooLargeCode = "request-too-large";
-    public const string TooLargeTitle = "That request is too large.";
+    public const string TooLargeCode = RequestLimits.TooLargeCode;
+    public const string TooLargeTitle = RequestLimits.TooLargeTitle;
     public const string UnsupportedMediaTypeCode = "unsupported-media-type";
     public const string UnsupportedMediaTypeTitle = "Send the details as JSON.";
     public const string TooManyRequestsCode = "too-many-requests";

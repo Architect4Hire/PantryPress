@@ -181,8 +181,12 @@ public sealed class DomainBoundaryTests
 
     private static readonly string[] SiteContextResolvers =
     [
-        // The context itself.
-        Path.Combine("PantryPress.Domain", "Managers", "Tenancy"),
+        // The context itself: the writer's declaration, the class behind it, its registration, and the check that a
+        // context is that class - by file, so a new kernel file cannot enter a site unnoticed either (PP2.14).
+        Path.Combine("PantryPress.Domain", "Managers", "Tenancy", "ISiteContext.cs"),
+        Path.Combine("PantryPress.Domain", "Managers", "Tenancy", "SiteContext.cs"),
+        Path.Combine("PantryPress.Domain", "Managers", "Tenancy", "TenancyServiceCollectionExtensions.cs"),
+        Path.Combine("PantryPress.Domain", "Managers", "Tenancy", "ResolvedSiteContext.cs"),
 
         // An admin route's site, from its slug and the caller's membership (PP2.4).
         Path.Combine("PantryPress.Domain", "Modules", "Sites", "Facades", "SiteMembershipFacade.cs"),
@@ -386,6 +390,38 @@ public sealed class DomainBoundaryTests
 
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
         Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed as a resolver but is not there."));
+    }
+
+    // PP2.14: the membership decision enters the site it admits (tenancy.md rule 4), so only the site policy's handler asks
+    // it, with the slug from the route. A question about a site from anywhere else is FindAsync, which enters nothing.
+    [Fact]
+    public void Only_the_site_policy_asks_the_membership_decision()
+    {
+        var source = DomainSource.Project.Parent!;
+        var declaring = new[]
+        {
+            Path.Combine(DomainSource.Modules.FullName, "Sites", "Contracts", "ISiteMembershipFacade.cs"),
+            Path.Combine(DomainSource.Modules.FullName, "Sites", "Facades", "SiteMembershipFacade.cs"),
+        };
+        Assert.All(declaring, d => Assert.True(File.Exists(d), $"{d} declares the decision but is not there."));
+        var callers = new List<string>();
+        foreach (var project in source.GetDirectories("PantryPress.*").Where(d => d.Name != "PantryPress.Tests"))
+        {
+            var generated = new[] { Path.Combine(project.FullName, "bin"), Path.Combine(project.FullName, "obj") };
+            foreach (var file in project.EnumerateFiles("*.cs", SearchOption.AllDirectories)
+                .Where(f => !generated.Any(g => f.FullName.StartsWith(g + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    && !declaring.Any(d => f.FullName.Equals(d, StringComparison.OrdinalIgnoreCase))))
+            {
+                // The interface or the class, and the method by name: a call, or a method group passed along.
+                var text = File.ReadAllText(file.FullName);
+                if (Regex.IsMatch(text, @"\bI?SiteMembershipFacade\b") && Regex.IsMatch(text, @"\bAuthorizeAsync\b"))
+                {
+                    callers.Add(Path.GetRelativePath(source.FullName, file.FullName));
+                }
+            }
+        }
+
+        Assert.Equal([Path.Combine("PantryPress.ApiService", "Hosting", "SiteAuthorization.cs")], callers);
     }
 
     [Theory]

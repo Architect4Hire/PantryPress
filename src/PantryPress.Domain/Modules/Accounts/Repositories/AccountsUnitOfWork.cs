@@ -1,20 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PantryPress.Domain.Managers.Persistence;
+using PantryPress.Domain.Modules.Accounts.Business;
 
 namespace PantryPress.Domain.Modules.Accounts.Repositories;
-
-/// <summary>How saving a unit of work ended.</summary>
-internal enum SaveOutcome
-{
-    Saved,
-
-    /// <summary>Someone else changed the account after it was read (its concurrency stamp moved). Nothing was saved.</summary>
-    Conflict,
-
-    /// <summary>A new account lost a race for its email address. Nothing was saved.</summary>
-    EmailTaken,
-}
 
 /// <summary>
 /// Commits what <see cref="AccountUserStore"/> staged for one facade call, and turns EF Core's save failures into

@@ -25,7 +25,7 @@ output "front_door_profile_name" {
 }
 
 output "front_door_id" {
-  description = "The value Front Door sends in X-Azure-FDID; PP9.3's origin check compares against it."
+  description = "The value Front Door sends in X-Azure-FDID. Shared by every route on the profile, so a filter, not proof."
   value       = azurerm_cdn_frontdoor_profile.platform.resource_guid
 }
 

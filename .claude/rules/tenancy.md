@@ -15,7 +15,7 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    entering the same site again changes nothing and entering another throws. Only a resolver holds the writer - today
    the membership decision, site creation, accepting an invitation, and the public tier's host resolution (PP2.12), four
    files in the Sites module's facades, and the Worker's outbox delivery in the kernel's outbox folder (PP2.11) - and a
-   boundary test names each by its file and
+   boundary test names each by its file, the kernel's own tenancy files included (PP2.14), and
    keeps every other file from naming it. The filter (PP2.5) is a model
    convention named `site`, so it reaches every `ISiteOwned` root however the type joined the model; an owned type or one
    under a base that is not site-owned is refused when the model is built. It reads the site per query, so the context may
@@ -35,14 +35,17 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    membership. No membership, no site context, 404. The site policy's decision (`ISiteMembershipFacade.AuthorizeAsync`)
    is the resolution: admitting the caller enters the site, and a refused decision - 404 or 403 - enters none. The site
    policies stacked on one route are one decision, so a role that passes one and fails another enters nothing; a refusal
-   by any other policy on the route ends the request before its endpoint runs (PP2.4). Only that decision enters a
+   by any other policy on the route ends the request before its endpoint runs (PP2.4). Only the site policy's handler
+   asks that decision, with the slug from the route, and a boundary test keeps it so; the host refuses to start when a
+   route names a site after `sites/` by anything but a required `{siteSlug}` (PP2.14). Only that decision enters a
    site, and one other: creating a site (PP2.10) enters the site it has just minted, with the caller as its Owner, so
    its audit entry is filed under it; if the save then loses the address, the request ends in that unsaved site and
    nothing after the refusal may use it. Accepting an invitation (PP2.11) is the third: the caller is no member yet, so
    it enters the site sealed in the invitation's link (rule 6a), once that site is found not deleted and before the
    invitation is read through its filter; a refusal after that ends the request in that site, with nothing filed under it. A question about another site the caller holds (copying to a second site) asks
    `FindAsync`, which enters nothing, because a second site in one request throws.
-5. **Public requests** resolve the site from the Host header only, through `SiteHost` (ARCH-003, PSEC-004).
+5. **Public requests** resolve the site from the host the reader asked for only, through `SiteHost` (ARCH-003,
+   PSEC-004): the Host header, or, behind Front Door, the edge-proven header below.
    Unknown hosts get the neutral platform 404. Since PP2.12 `PublicSiteResolution` is that resolver: the Site host asks it
    for every request but a health probe, after the forwarding headers are stripped, with the `Host` header as it
    arrived. It splits off the port, refuses an IP literal in any spelling and anything `SiteHostNames` refuses before the
@@ -52,7 +55,12 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    (SITE-008, SEO-007) are owed before any public endpoint reads site-owned data. Since PP2.13 they are
    `SiteStatusFilter`, a global MVC resource filter on the Site host that asks `IPublicSitesFacade.CheckStatus`, so every
    public controller answers a closed site's status before it binds or reads anything (`public-endpoints.md`). The Site host refuses to start if a
-   trusted proxy may rewrite the Host (`ForwardHost`, `AllowedHosts`), and only the Sites module and the Site host name the
+   trusted proxy may rewrite the Host (`ForwardHost`, `Edge:TrustedProxies:AllowedHosts`), and that refusal stands for
+   good. Deployed, Front Door sets the origin's own Host, and from PP9.3 resolution reads the reader's host from the one
+   header Front Door's rule set overwrites (`X-PP-Reader-Host`) only with the edge secret, or on the SSR server's
+   page-data call with the internal service token - which the SSR server sends only after its own edge-secret check:
+   by secret, compared in constant time, never by address, subnet, or FDID (owner decision, PP2.14;
+   `public-endpoints.md`). Only the Sites module and the Site host name the
    resolver or its registration; only the Site host's resolution middleware sets the `IPublicSiteContext` endpoints read,
    and it must agree with `ISiteContext` (both by boundary test).
 6. **Publishing API** requests resolve the site from the publishing key.
@@ -84,7 +92,9 @@ The site is the tenant (PP-D03). Isolation failures are the worst bug this produ
    took longer than `SiteHostMap.MaxFillDelay` (5 seconds) between its read and its fill caches nothing, for a version
    the cache lost. The cache is never waited for: unreachable, every call fails at once, a command gives up after 500 ms,
    and its caller carries on without it. Blob prefixes,
-   purge tags, search indexes, and site rate-limit partitions build on the same rule when they arrive.
+   purge tags, search indexes, and site rate-limit partitions build on the same rule when they arrive. ApiService's
+   in-memory per-account limits (PP2.10, PP2.14) are partitioned by the account alone, which names no site and is never
+   a value a client chose.
 9. `IgnoreQueryFilters()` is allowed only in `Modules/Platform/` operator code, with a comment explaining why,
    and is flagged by the invariant hook elsewhere. Cross-site erasure is operator code too (ADR 0003). The comment
    starts `// Cross-site:` within the three lines above the call, and a boundary test scans every project, tests
@@ -162,7 +172,8 @@ Any change that touches site-owned, public, or reader data adds a test using the
 - prove site B cannot read, list, mutate, render, cache, purge, search, or redirect to site A's data through
   the changed path;
 - include host-header tricks for public paths (other site's host, `Host` vs `X-Forwarded-Host`, uppercase,
-  trailing dot, custom domain of the other site).
+  trailing dot, custom domain of the other site, and from PP9.3 `X-PP-Reader-Host` naming the other site with a
+  forged, stale, empty, or missing edge secret, as a list, or repeated).
 
 The harness (PP2.7) is `PantryPress.Tests/TwoSite/`. `TwoSiteHarness.SeedAsync` seeds two look-alike sites with fresh
 ids, so tests share the migrated database:
@@ -206,7 +217,8 @@ change to a host, a canonical host, a site's status, or its name, tagline, or lo
 other site's entry unchanged, and a lookup that raced it refused. A public path owes the host-header tricks
 `SiteHostTests` sends: the other site's host, `X-Forwarded-Host` and its kin, case, a trailing dot, a port, `www.` before
 either site's host, the other site's custom domain, `app.<zone>`, the bare `<zone>` itself (the platform home since
-PP-D19, never a tenant), an `xn--` look-alike, and IP literals.
+PP-D19, never a tenant), an `xn--` look-alike, IP literals, and `X-PP-Reader-Host` naming the other site (believed
+from PP9.3 only with the edge secret; never before).
 
 ## Review
 

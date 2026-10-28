@@ -17,5 +17,8 @@ public sealed record InviteMemberRequest(string Email, SiteRole? Role);
 public sealed record SiteInvitationDetail(Guid Id, SiteRole Role, DateTimeOffset ExpiresAt);
 
 /// <summary>Accept an invitation, from the link in its email.</summary>
-/// <param name="Token">The token from the invitation link, exactly as given.</param>
+/// <param name="Token">
+/// The token from the invitation link: the value of <c>token</c> in its fragment (<c>/dashboard/join#token=…</c>),
+/// percent-decoded, and otherwise exactly as given.
+/// </param>
 public sealed record AcceptInvitationRequest(string Token);

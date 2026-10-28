@@ -548,19 +548,24 @@ public sealed class SiteMembersTwoSiteTests(MigratedDatabase database) : IAsyncL
         Assert.False(scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().ChangeTracker.HasChanges());
     }
 
-    // The same, with no lead: two owners each stepping down in their own unit of work at once. The harness's context has
-    // no retries, so a deadlock's victim meets the failure itself; either way it is answered last-owner.
+    // The same, with no lead: two owners each stepping down in their own unit of work at once, in contexts that retry
+    // transient faults as every host's does. A deadlock's victim is retried and then refused by the owner trigger, or
+    // runs out of retries; either way it is answered last-owner. (The harness's own context has no retry strategy, and
+    // there SQL Server's provider turns a deadlock into an error the unit of work rightly does not explain - PP2.14.)
     [Fact]
     public async Task Owners_stepping_down_at_once_through_the_unit_of_work_leave_one()
     {
+        await using var retrying = await TwoSiteHarness.CreateAsync(
+            database,
+            configure: options => new SqlServerDbContextOptionsBuilder(options).EnableRetryOnFailure());
         for (var round = 0; round < 10; round++)
         {
             var world = await _harness.SeedAsync("mem-race");
             await PromoteAsync(world.A.Id, world.A.Editor);
 
             var outcomes = await Task.WhenAll(
-                StepDownAsync(world.A.Id, world.A.Owner),
-                StepDownAsync(world.A.Id, world.A.Editor));
+                StepDownAsync(retrying, world.A.Id, world.A.Owner),
+                StepDownAsync(retrying, world.A.Id, world.A.Editor));
 
             Assert.Equal(new[] { MemberChangeOutcome.Saved, MemberChangeOutcome.LastOwner }, outcomes.Order());
             Assert.Equal(1, await ActiveOwnersAsync(world.A.Id));

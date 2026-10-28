@@ -20,7 +20,8 @@
   sign-in and sign-up screens, and the dashboard under `/dashboard` from one origin. A host-only cookie there is never
   sent to `{slug}.pantrypress.app`. Sign-in, sign-up, email verification, and password reset are routes on that same
   origin, never another host, because a host-only cookie set anywhere else would not reach the dashboard. There is no
-  cross-host sign-in handoff. Account and invitation email links open that origin (`Accounts:AppBaseUrl`).
+  cross-host sign-in handoff. Account and invitation email links open that origin (`Accounts:AppBaseUrl`, the one key both read; PP2.14),
+  an invitation's at `/dashboard/join`, behind the dashboard's sign-in like the rest of the app.
 - Antiforgery on every state-changing admin request.
 - The gateway strips inbound identity headers and adds its own.
 - **What the ticket holds (PP1.6):** an account id and that account's Identity security stamp - never a token. The
@@ -56,7 +57,12 @@
 - A site policy decides by the route's `{siteSlug}` and the signed-in account, in the authorization middleware ahead of
   the idempotency step; the decision is the Sites facade's, never the host's. No such site, a deleted site, no membership,
   and a suspended one are one answer, 404 `site-not-found`; a member whose role is too low gets 403 `site-role-required`.
-  The host refuses to start when a `{siteSlug}` route lacks a site policy, or a site policy sits anywhere else.
+  The host refuses to start when a `{siteSlug}` route lacks a site policy, or a site policy sits anywhere else, or a
+  route names a site after `sites/` by anything but a required `{siteSlug}` - another value, a literal, or an
+  optional slug. Only the policy's handler asks the decision (PP2.14).
+- Every signed-in request to a `{siteSlug}` route is counted per account before the policy looks the caller up
+  (`RateLimits:SiteLookupsPerAccountPerMinute`, 300), so a refused lookup - a database read whatever it answers - is
+  bounded too; each route's own allowance counts only what the policy lets in (PP2.14).
 - Membership lookups are cached for one request only, keyed by account and slug, and never across requests.
 - Only an Owner lists, re-roles, and removes members (PP2.11b), naming a member by their account id within the route's site;
   an id that is not a member there is 404 `member-not-found`, alike for another site's member. A change takes effect at the

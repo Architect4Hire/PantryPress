@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using PantryPress.Domain.Managers.Persistence;
@@ -10,98 +8,81 @@ using PantryPress.Domain.Modules.Sites.Contracts;
 
 namespace PantryPress.Domain.Modules.Sites.Repositories;
 
-/// <summary>How saving a new site ended.</summary>
-internal enum NewSiteOutcome
-{
-    Saved,
-
-    /// <summary>
-    /// The slug or its host was taken, or reserved, between the check and the save. Nothing was saved.
-    /// </summary>
-    Unavailable,
-
-    /// <summary>The account already owns as many sites as its limit allows. Nothing was saved.</summary>
-    OverLimit,
-}
-
-/// <summary>How saving an accepted invitation ended (PP2.11).</summary>
-internal enum AcceptanceOutcome
-{
-    Saved,
-
-    /// <summary>The account became a member of the site some other way in the meantime. Nothing was saved.</summary>
-    AlreadyMember,
-
-    /// <summary>The invitation was used or replaced in the meantime. Nothing was saved.</summary>
-    NoLongerOpen,
-}
-
-/// <summary>How saving a member's new role, or their removal, ended (PP2.11b).</summary>
-internal enum MemberChangeOutcome
-{
-    Saved,
-
-    /// <summary>The change would now leave the site with no active owner. Nothing was saved.</summary>
-    LastOwner,
-
-    /// <summary>The member was removed in the meantime, and the change was a new role. Nothing was saved.</summary>
-    NotFound,
-
-    /// <summary>Someone else changed the same member in the meantime. Nothing was saved.</summary>
-    Changed,
-}
-
-/// <summary>At most <paramref name="Max"/> sites owned by <paramref name="Account"/>, the new one included.</summary>
-internal readonly record struct OwnedSiteLimit(AccountId Account, int Max);
-
 /// <summary>
 /// Commits what the Sites repositories staged for one facade call, and turns EF Core's save failures into outcomes, so
 /// nothing above the repositories sees EF Core.
 /// </summary>
-internal sealed class SitesUnitOfWork(PantryPressDbContext db)
+internal sealed class SitesUnitOfWork(PantryPressDbContext db, ISiteContext siteContext, SiteInvitationRepository invitations)
 {
     /// <summary>
     /// Saves a new invitation the facade staged - with its email and audit entry - after revoking every invitation still
     /// pending for the same address on the request's site, in one transaction, so the old links stop working exactly when
     /// the new one is made. The revoke is one statement over the filtered set, so an invitation accepted at that moment is
-    /// either accepted first, and left alone, or revoked first, and its acceptance then fails on its version. Two invitations
-    /// to one address at once take turns under a lock, so the later revokes the earlier. A retry whose first commit landed
-    /// meets its own invitation, and counts as saved.
+    /// either accepted first, and left alone, or revoked first, and its acceptance then fails on its version. Invitations on
+    /// one site take turns under a lock, so the later revokes the earlier, and the site's open invitations are counted
+    /// again under it: two Owners inviting at once cannot both pass the facade's count (PP2.14). A retry whose first commit
+    /// landed meets its own invitation, and counts as saved. The lock is named by the site the request entered, the same
+    /// one the filter reads, so the two can never disagree.
     /// </summary>
-    public Task SaveInvitationAsync(
-        SiteId site,
+    public async Task<InvitationOutcome> SaveInvitationAsync(
         SiteInvitationId invitation,
         string normalizedEmail,
-        CancellationToken cancellationToken) =>
-        db.Database.CreateExecutionStrategy().ExecuteAsync(
-            async token =>
-            {
-                if (await db.Set<SiteInvitation>().AnyAsync(i => i.Id == invitation, token))
+        DateTimeOffset now,
+        int maxOpen,
+        CancellationToken cancellationToken)
+    {
+        InvitationOutcome outcome;
+        try
+        {
+            outcome = await db.Database.CreateExecutionStrategy().ExecuteAsync(
+                async token =>
                 {
-                    db.ChangeTracker.AcceptAllChanges();
-                    return;
-                }
+                    await using var transaction = await db.Database.BeginTransactionAsync(token);
+                    await LockAsync($"sites.invitations:{siteContext.Required.Value:N}", token);
 
-                await using var transaction = await db.Database.BeginTransactionAsync(token);
+                    // Asked under the lock: a retry whose first commit was still in flight waits for it here, then meets
+                    // its own invitation, rather than revoking it and saving it again (PP2.14).
+                    if (await db.Set<SiteInvitation>().AnyAsync(i => i.Id == invitation, token))
+                    {
+                        return InvitationOutcome.Saved;
+                    }
 
-                // Invitations to one address on one site take turns, so each revokes whatever the one before it left open
-                // and the filtered unique index - at most one pending per address - is never what settles it. The lock is
-                // named by the site and a hash of the address, never the address itself, and ends with the transaction.
-                var resource = $"sites.invitation:{site.Value:N}:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedEmail)))}";
-                await db.Database.ExecuteSqlAsync(
-                    $"EXEC sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'",
-                    token);
+                    var open = await invitations.CountOpenAsync(now, normalizedEmail, token);
+                    if (!SiteInvitationRules.HasRoomForAnother(open, maxOpen))
+                    {
+                        return InvitationOutcome.TooMany;
+                    }
 
-                await db.Set<SiteInvitation>()
-                    .Where(i => i.Status == SiteInvitationStatus.Pending && i.NormalizedEmail == normalizedEmail)
-                    .ExecuteUpdateAsync(set => set.SetProperty(i => i.Status, SiteInvitationStatus.Revoked), token);
+                    await db.Set<SiteInvitation>()
+                        .Where(i => i.Status == SiteInvitationStatus.Pending && i.NormalizedEmail == normalizedEmail)
+                        .ExecuteUpdateAsync(set => set.SetProperty(i => i.Status, SiteInvitationStatus.Revoked), token);
 
-                // Changes are accepted only once the transaction commits, so a retried attempt saves them again.
-                await db.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
-                await transaction.CommitAsync(token);
-                db.ChangeTracker.AcceptAllChanges();
-            },
-            cancellationToken);
+                    // Changes are accepted only once the transaction commits, so a retried attempt saves them again.
+                    await db.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
+                    await transaction.CommitAsync(token);
+                    return InvitationOutcome.Saved;
+                },
+                cancellationToken);
+        }
+        catch
+        {
+            // Nothing staged may go out with a later save, whatever ended this one.
+            db.ChangeTracker.Clear();
+            throw;
+        }
+
+        if (outcome == InvitationOutcome.Saved)
+        {
+            db.ChangeTracker.AcceptAllChanges();
+        }
+        else
+        {
+            // Nothing staged may go out with a later save: not the invitation, its email, or its audit entry.
+            db.ChangeTracker.Clear();
+        }
+
+        return outcome;
+    }
 
     /// <summary>
     /// Saves an accepted invitation and the membership it grants (PP2.11). The invitation's version and the membership's key
@@ -216,8 +197,8 @@ internal sealed class SitesUnitOfWork(PantryPressDbContext db)
     /// <summary>
     /// Saves a new site, its first Owner, and its subdomain - and whatever else the facade staged with them - in one
     /// transaction. The unique slug and host indexes and the reserved-slug trigger are the last word on two sign-ups
-    /// racing for one address (PP2.8, PP2.9). Asking again keeps this provider-neutral and keeps the database's own
-    /// message from ever reaching a caller: if the address is now held or reserved, this one lost the race - unless the
+    /// racing for one address (PP2.8, PP2.9). Asking again rather than reading SQL Server's error numbers keeps the
+    /// database's own message from ever reaching a caller: if the address is now held or reserved, this one lost the race - unless the
     /// site holding it is this one. The context retries a save whose connection failed, and a commit that landed before
     /// the failure meets its own rows on the retry: that is a save, never a refusal of the caller's own new site.
     /// <para>
@@ -246,27 +227,38 @@ internal sealed class SitesUnitOfWork(PantryPressDbContext db)
             return await db.Database.CreateExecutionStrategy().ExecuteAsync(
                 async token =>
                 {
-                    if (await db.Set<Site>().AnyAsync(s => s.Id == site, token))
-                    {
-                        return NewSiteOutcome.Saved;
-                    }
-
                     await using var transaction = await db.Database.BeginTransactionAsync(token);
+
+                    // The count is the lock: the locking read of this raw query is why it is not the repository's own.
                     var owned = await db.Set<SiteMember>()
                         .FromSql($"""
                             SELECT * FROM [SiteMembers] WITH (UPDLOCK, HOLDLOCK)
                             WHERE [AccountId] = {cap.Account.Value} AND [Role] = {(int)SiteRole.Owner}
                             """)
                         .CountAsync(token);
-                    if (owned >= cap.Max)
+
+                    // Asked under the lock: a retry whose first commit was still in flight waits for it there, then meets
+                    // its own site here - counted among the owned ones, so asking after the comparison would refuse the
+                    // creator's own new site (PP2.14).
+                    if (await db.Set<Site>().AnyAsync(s => s.Id == site, token))
+                    {
+                        db.ChangeTracker.AcceptAllChanges();
+                        return NewSiteOutcome.Saved;
+                    }
+
+                    if (!cap.Allows(owned))
                     {
                         // Nothing staged may go out with a later save.
                         db.ChangeTracker.Clear();
                         return NewSiteOutcome.OverLimit;
                     }
 
-                    await db.SaveChangesAsync(token);
+                    // Changes are accepted only once the transaction commits. Accepted at the save, a commit that failed
+                    // would leave nothing to save on the retry, which would then commit an empty transaction and call the
+                    // site saved (PP2.14).
+                    await db.SaveChangesAsync(acceptAllChangesOnSuccess: false, token);
                     await transaction.CommitAsync(token);
+                    db.ChangeTracker.AcceptAllChanges();
                     return NewSiteOutcome.Saved;
                 },
                 cancellationToken);
@@ -289,4 +281,17 @@ internal sealed class SitesUnitOfWork(PantryPressDbContext db)
             throw;
         }
     }
+
+    /// <summary>
+    /// Takes an exclusive application lock that ends with the transaction, and fails rather than carry on without it: one
+    /// not granted within five seconds, or a request chosen as a deadlock victim, leaves the lock ungranted (PP2.14).
+    /// </summary>
+    private Task LockAsync(string resource, CancellationToken cancellationToken) =>
+        db.Database.ExecuteSqlAsync(
+            $"""
+            DECLARE @granted int;
+            EXEC @granted = sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 5000;
+            IF @granted < 0 THROW 51011, 'The application lock was not granted.', 1;
+            """,
+            cancellationToken);
 }

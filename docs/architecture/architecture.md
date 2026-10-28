@@ -122,7 +122,7 @@ Status is copied from the decisions record (`docs/architecture-decisions/pantryp
 | --- | --- | --- | --- | --- |
 | 0001 | Own repo and Aspire AppHost; no shared code with CreatorPantry | Nine .NET projects plus the `src/web` Angular workspace (section 4) | Accepted | — |
 | 0002 | Cache-first delivery, Angular SSR on every request | Page data built at publish; purge on change; Publish waits for the purge before showing the live URL | Accepted, with open items | D-02 stale-on-error (PP9.4) |
-| 0003 | The site is the tenant | `SiteId` filter, stamping and indexes; public tenant from Host only; `IgnoreQueryFilters()` only in `Modules/Platform/` | Accepted | — |
+| 0003 | The site is the tenant | `SiteId` filter, stamping and indexes; public tenant from the reader's host only (PP2.14); `IgnoreQueryFilters()` only in `Modules/Platform/` | Accepted | — |
 | 0004 | Publishing is a snapshot | Page data reads published revisions only; unpublish removes page data | Accepted | — |
 | 0005 | Structured recipes, deterministic calculations | Exact rationals; variants precomputed at build | Accepted | — |
 | 0006 | Four data zones | Platform, site-owned, published public, reader-submitted | Accepted | — |
@@ -180,7 +180,7 @@ flowchart TB
     afdPub -->|/api/public/*, sitemaps,<br/>feeds, robots, ads.txt| site
     afdApp --> gw
     afdApi --> api
-    ssr -->|one page-data fetch,<br/>forwards original Host| site
+    ssr -->|one page-data fetch,<br/>forwards the reader's host| site
     gw --> api
     api --> dom
     site --> dom
@@ -280,7 +280,7 @@ Each site has Owner, Editor and Author members. `PlatformAdmin` is the only plat
 | Surface | Tenant comes from | Rule |
 | --- | --- | --- |
 | Admin API | Route `{siteSlug}` plus the caller's membership | No membership means no site context and a 404 |
-| Public site and SSR | Original `Host`, via `SiteHost` | Trusted only when it arrives through Front Door (`X-Azure-FDID`) |
+| Public site and SSR | The reader's host, via `SiteHost`: the `Host`, or behind Front Door `X-PP-Reader-Host` | Believed only with the edge secret (SSR, Site) or the internal service token (SSR to Site); never by address or `X-Azure-FDID` (PP2.14) |
 | Publishing API | The publishing key | The key determines the site; scopes limit actions |
 | Worker jobs | `SiteId` in the job payload | Job sets `ISiteContext` before touching data |
 
@@ -300,14 +300,15 @@ sequenceDiagram
     alt cache hit
         FD-->>R: cached HTML
     else cache miss
-        FD->>N: request + X-Azure-FDID + original host
-        N->>N: check FDID, read original Host
-        N->>S: page-data request (Host forwarded unchanged, internal token)
+        FD->>N: request + X-PP-Edge (edge secret) + X-PP-Reader-Host (overwritten)
+        N->>N: check the edge secret, read the reader's host
+        N->>S: page-data request (X-PP-Reader-Host, internal service token)
         S->>H: resolve host to SiteId + canonical host
         alt unknown host
             S-->>N: neutral 404
         else non-canonical host
-            S-->>N: 301 to canonical
+            S-->>N: page data naming the canonical host
+            N-->>FD: 301 to canonical (PP7.13a)
         else site found
             S->>C: live pointer, then page data (LRU, Redis, blob)
             C-->>S: versioned JSON
@@ -576,7 +577,7 @@ preserving wording, generating 301s, and never publishing without confirmation.
 | Identity | ASP.NET Core Identity; verified email before publishing (ACCT-001, aligned at PP0.2); optional TOTP (required for PlatformAdmin) |
 | Browser boundary | YARP BFF; cookie `__Host-pp-session`, host-only, Secure, HttpOnly, SameSite Lax or stricter; no tokens in the browser; antiforgery on writes; same-origin CORS |
 | Authorization | Named policies (`SiteOwner`, `SiteEditor`, `SiteAuthor`, `PlatformAdmin`); facades re-check resource ownership |
-| Edge | Front Door Standard WAF custom rules (IP rate limits, geo and IP blocks, bad paths); origins accept only the `AzureFrontDoor.Backend` service tag plus `X-Azure-FDID` |
+| Edge | Front Door Standard WAF custom rules (IP rate limits, geo and IP blocks, bad paths); origins accept only the `AzureFrontDoor.Backend` service tag (a filter); the edge secret proves a request is PantryPress's (PP2.14) |
 | Origin rate limits | Per IP, per site and global on public dynamic endpoints; per key and per site on the publishing API |
 | Headers | HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, per-site CSP generated from enabled integrations |
 | Content | Allow-list sanitizer at page-data build; no inline handlers or `javascript:` URLs; affiliate links get `rel="sponsored nofollow"` |
@@ -780,7 +781,7 @@ OPS-001. The shared resources are the Terraform `platform` stack in this reposit
 | Full-site purge after a theme release | SSR load spike across all sites | Throttled batch purges (ARCH-012); PNFR-005 load drill |
 | No stale-on-error on Front Door Standard | An SSR outage shows errors on cache misses | Long TTLs, warm caches, health-gated deploys (D-02) |
 | Front Door Standard caps a profile at 100 custom domains and 10 endpoints | DOM-001 fills one profile long before 2,000 sites | A second profile or Premium before 80 domains, with a platform-wide count in PP17.1 (D-13b) |
-| Inbound traffic to an external Container Apps environment cannot be filtered by NSG | An origin reachable without Front Door would bypass the WAF and cache | Per-app ingress allow-list from the `AzureFrontDoor.Backend` service tag, refreshed by each Terraform plan, plus the `X-Azure-FDID` check (PP9.3) |
+| Inbound traffic to an external Container Apps environment cannot be filtered by NSG | An origin reachable without Front Door would bypass the WAF and cache | Per-app ingress allow-list from the `AzureFrontDoor.Backend` service tag, refreshed by each Terraform plan, plus the edge secret (PP9.3; never `X-Azure-FDID` alone, PP2.14) |
 | Tenant isolation bug | Worst-case incident | Filters, stamping, hook, two-site tests, isolation auditor (ADR 0003) |
 | Trial subdomains abused | Reputation and blocklisting of `pantrypress.app` | PSL entry, trial, velocity limits, Safe Browsing, takedown |
 | Studio combination explosion | Accessibility and layout regressions | Typed options, contrast engine, CUS-T matrix in CI |

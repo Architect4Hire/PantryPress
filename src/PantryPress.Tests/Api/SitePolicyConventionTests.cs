@@ -17,6 +17,9 @@ public sealed class SitePolicyConventionTests
     [InlineData(typeof(SitePolicyWithoutSiteController), "its route names no site")]
     [InlineData(typeof(SiteRouteSometimesController), "both with and without")]
     [InlineData(typeof(InternalSitePolicyController), "outside 'api/v1'")]
+    [InlineData(typeof(SiteRouteByAnotherNameController), "with something other than a required {siteSlug}")]
+    [InlineData(typeof(SiteRouteByLiteralController), "with something other than a required {siteSlug}")]
+    [InlineData(typeof(SiteRouteWithOptionalSlugController), "with something other than a required {siteSlug}")]
     public async Task A_misplaced_site_route_or_policy_fails_startup(Type controller, string reason)
     {
         await using var api = ApiServiceFactory.WithoutDatabase(
@@ -89,6 +92,33 @@ public sealed class SiteRouteSometimesController : ApiControllerBase
 {
     [HttpGet(ApiSurfaces.AdminV1Route + "/sites/{siteSlug}/misplaced/sometimes")]
     [HttpGet(ApiSurfaces.AdminV1Route + "/misplaced/sometimes")]
+    public IActionResult Get() => NoContent();
+}
+
+// PP2.14: a site named after "sites/" by another route value would get no site policy at all.
+[Route(ApiSurfaces.AdminV1Route + "/sites/{slug}/misplaced/renamed")]
+[Authorize]
+public sealed class SiteRouteByAnotherNameController : ApiControllerBase
+{
+    [HttpGet]
+    public IActionResult Get() => NoContent();
+}
+
+// A literal beside {siteSlug}: a site whose slug is the same word could never be reached here.
+[Route(ApiSurfaces.AdminV1Route + "/sites/mine")]
+[Authorize]
+public sealed class SiteRouteByLiteralController : ApiControllerBase
+{
+    [HttpGet]
+    public IActionResult Get() => NoContent();
+}
+
+// An optional slug would also answer the account-level list at "sites".
+[Route(ApiSurfaces.AdminV1Route + "/sites/{siteSlug?}")]
+[Authorize(Policy = SitePolicies.SiteAuthor)]
+public sealed class SiteRouteWithOptionalSlugController : ApiControllerBase
+{
+    [HttpGet]
     public IActionResult Get() => NoContent();
 }
 

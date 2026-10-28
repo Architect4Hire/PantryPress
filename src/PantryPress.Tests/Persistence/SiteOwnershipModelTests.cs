@@ -43,6 +43,11 @@ public sealed class SiteOwnershipModelTests
 
         Assert.All(SiteOwnedTypes(model), AssertSiteGuarded);
 
+        // The key is the clustered index, which GetIndexes leaves out, so it leads with the site too (ARCH-015; PP2.14).
+        Assert.All(
+            SiteOwnedTypes(model),
+            type => Assert.Equal(nameof(ISiteOwned.SiteId), type.FindPrimaryKey()!.Properties[0].Name));
+
         var siteBearing = model.GetEntityTypes()
             .Where(t => t.GetProperties().Any(p => p.Name == nameof(ISiteOwned.SiteId) || p.ClrType == typeof(SiteId)))
             .ToList();

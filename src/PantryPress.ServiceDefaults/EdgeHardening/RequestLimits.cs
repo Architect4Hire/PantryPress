@@ -34,11 +34,10 @@ public static class RequestLimits
     public const long AdminDefault = 1024 * 1024;
 
     /// <summary>
-    /// The 413's problem vocabulary, set here rather than left to a host's customizer, so a host that has not
-    /// written one yet - the public tier, whose reader-facing codes and titles arrive with its first endpoints -
-    /// still answers a document with a stable code and words a person can read (api-contract.md). It matches what
-    /// both <c>ApiProblems</c> and <c>GatewayApi</c> map 413 to, and a customizer that finds a code already set
-    /// leaves it and the title alone.
+    /// The 413's problem vocabulary, set here rather than left to a host's customizer, so the refusal is a document with
+    /// a stable code and words a person can read whatever the caller accepts (api-contract.md). <c>ApiProblems</c>,
+    /// <c>SiteProblems</c>, and <c>GatewayApi</c> all map 413 to these constants (PP2.14), and a customizer that finds a
+    /// code already set leaves it and the title alone.
     /// </summary>
     public const string TooLargeCode = "request-too-large";
 

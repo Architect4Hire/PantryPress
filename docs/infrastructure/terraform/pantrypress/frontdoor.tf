@@ -19,8 +19,11 @@ resource "azurerm_cdn_frontdoor_endpoint" "admin" {
 
 # --- Origins ------------------------------------------------------------------------------------------------------------
 # One origin per group, so no health probe: Front Door's probes only choose between origins, and a lone origin's probes
-# would just be paid-for requests. Front Door connects to each app's own Container Apps address; the browser's host
-# arrives in X-Forwarded-Host, which PP9.3 teaches the public tier to trust from Front Door alone.
+# would just be paid-for requests. Front Door connects to each app's own Container Apps address, with that address as the
+# Host, so no tenant host is ever bound at the origin. The reader's host reaches the public tier in X-PP-Reader-Host,
+# which PP9.3's rule set on the sites routes overwrites and proves with the edge secret (X-PP-Edge, from Key Vault);
+# the profile is shared, so its X-Azure-FDID proves nothing on its own, and X-Forwarded-Host never names a host
+# (owner decision, PP2.14).
 
 locals {
   origins = {

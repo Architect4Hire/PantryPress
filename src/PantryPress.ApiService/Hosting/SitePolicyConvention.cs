@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using PantryPress.ApiService.Http;
@@ -18,6 +19,13 @@ internal sealed class SitePolicyConvention : IApplicationModelConvention
 {
     private static readonly string SlugSegment = "{" + SiteAuthorization.SlugRouteValue;
 
+    // The segment straight after "sites/" names a site, so it is exactly the value the policy reads - required, with at
+    // most a constraint. Another value would reach a site with no policy; a literal is a word some site could take as its
+    // slug (api-contract.md); an optional or defaulted slug would also answer the account-level list at "sites" (PP2.14).
+    private static readonly Regex OtherSiteValue = new(
+        @"(?:^|/)sites/(?!\{" + SiteAuthorization.SlugRouteValue + @"(?::[^}?=]+)?\}(?:/|$))",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     public void Apply(ApplicationModel application)
     {
         foreach (var controller in application.Controllers)
@@ -26,6 +34,14 @@ internal sealed class SitePolicyConvention : IApplicationModelConvention
             {
                 var name = $"{controller.ControllerType.Name}.{action.ActionMethod.Name}";
                 var routes = ApiSurfaceConvention.RouteTemplates(controller, action).ToList();
+                if (routes.FirstOrDefault(OtherSiteValue.IsMatch) is { } other)
+                {
+                    throw new InvalidOperationException(
+                        $"{name} names a site after 'sites/' with something other than a required {{{SiteAuthorization.SlugRouteValue}}} "
+                        + $"({other}). Only that value carries a site policy; anything else would reach a site with none, collide "
+                        + "with a slug, or answer the account-level list (PP2.14).");
+                }
+
                 var namesSite = routes.Any(r => r.Contains(SlugSegment, StringComparison.OrdinalIgnoreCase));
                 var attributes = controller.Attributes.Concat(action.Attributes).ToList();
                 var sitePolicy = attributes.OfType<IAuthorizeData>().Any(a => a.Policy is { } p && SitePolicies.LeastRole.ContainsKey(p));

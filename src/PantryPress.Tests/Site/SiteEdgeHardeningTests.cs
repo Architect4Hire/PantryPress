@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Primitives;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.ServiceDefaults.EdgeHardening;
+using PantryPress.Site.Hosting;
 
 namespace PantryPress.Tests.Site;
 
@@ -78,9 +79,9 @@ public sealed class SiteEdgeHardeningTests
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
         Assert.True(response.Headers.CacheControl?.NoStore);
 
-        // The public tier has no problem vocabulary of its own yet (PP2, PP7), so the refusal carries the one the
-        // shared middleware states: a stable code and words a reader could read, like every other surface.
+        // The shared middleware's code and words, the same on every surface: SiteProblems maps 413 to them too (PP2.14).
         Assert.Equal(RequestLimits.TooLargeCode, await response.CodeAsync());
+        Assert.Equal(RequestLimits.TooLargeTitle, SiteProblems.TitleFor(StatusCodes.Status413PayloadTooLarge));
     }
 
     [Fact]
@@ -162,6 +163,95 @@ public sealed class SiteEdgeHardeningTests
         var refused = await Assert.ThrowsAnyAsync<Exception>(() => Task.FromResult(site.Server));
 
         Assert.Contains("ForwardHost must stay off", refused.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_public_site_refuses_the_frameworks_host_filter()
+    {
+        // PP2.14: an unlisted host would get the filter's bodiless 400 ahead of resolution, never the neutral 404.
+        await using var site = new SiteFactory("Development", new Dictionary<string, string?> { ["AllowedHosts"] = "cook.localhost" });
+
+        var refused = await Assert.ThrowsAnyAsync<Exception>(() => Task.FromResult(site.Server));
+
+        Assert.Contains("AllowedHosts must stay '*'", refused.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_trusted_proxy_is_believed_about_the_reader_but_never_about_the_host()
+    {
+        // PSEC-004 (PP2.14): with a peer trusted, as a deployment names one, its word on the reader's address is taken -
+        // which proves it is trusted here - and its X-Forwarded-Host is not: the site is still the one the Host names.
+        string? resolved = null;
+        await using var site = new SiteFactory(
+            "Production",
+            new Dictionary<string, string?>
+            {
+                ["Edge:TrustedProxies:TrustNobody"] = "false",
+                ["Edge:TrustedProxies:KnownNetworks:0"] = "10.0.0.0/8",
+            },
+            services => services.Replace(
+                ServiceDescriptor.Scoped<IPublicSiteResolution>(_ => new RecordingResolution(host => resolved = host))));
+
+        var context = await site.Server.SendAsync(c =>
+        {
+            c.Connection.RemoteIpAddress = IPAddress.Parse("10.1.2.3");
+            c.Request.Path = "/recipes/sourdough";
+            c.Request.Headers.Host = SiteFactory.TenantOrigin.Host;
+            c.Request.Headers["X-Forwarded-For"] = "203.0.113.7";
+            c.Request.Headers["X-Forwarded-Proto"] = "https";
+            c.Request.Headers["X-Forwarded-Host"] = SiteFactory.OtherTenantOrigin.Host;
+            c.Request.Headers["X-Original-Host"] = SiteFactory.OtherTenantOrigin.Host;
+            c.Request.Headers["Forwarded"] = $"for=203.0.113.7;host={SiteFactory.OtherTenantOrigin.Host};proto=https";
+
+            // Until PP9.3 reads it behind the edge secret, the reader-host header names nothing, secret or not.
+            c.Request.Headers["X-PP-Reader-Host"] = SiteFactory.OtherTenantOrigin.Host;
+            c.Request.Headers["X-PP-Edge"] = "a-secret-nobody-configured";
+        });
+
+        Assert.Equal(IPAddress.Parse("203.0.113.7"), context.Connection.RemoteIpAddress);
+        Assert.Equal(SiteFactory.TenantOrigin.Host, resolved);
+    }
+
+    [Theory]
+    [InlineData("10.1.2.3", "203.0.113.7, 10.4.5.6", "203.0.113.7")]
+    [InlineData("192.0.2.10", "203.0.113.7", "192.0.2.10")]
+    public async Task Only_a_named_peer_is_believed_about_the_reader_and_none_about_the_host(string peer, string forwardedFor, string reader)
+    {
+        // PSEC-004 (PP2.14), as deployed: two trusted hops (Front Door, then the environment's ingress) are believed about
+        // the reader's address; a peer outside the named networks is not believed at all. Neither ever names the host.
+        string? resolved = null;
+        await using var site = new SiteFactory(
+            "Production",
+            new Dictionary<string, string?>
+            {
+                ["Edge:TrustedProxies:TrustNobody"] = "false",
+                ["Edge:TrustedProxies:KnownNetworks:0"] = "10.0.0.0/8",
+                ["Edge:TrustedProxies:ForwardLimit"] = "2",
+            },
+            services => services.Replace(
+                ServiceDescriptor.Scoped<IPublicSiteResolution>(_ => new RecordingResolution(host => resolved = host))));
+
+        var context = await site.Server.SendAsync(c =>
+        {
+            c.Connection.RemoteIpAddress = IPAddress.Parse(peer);
+            c.Request.Path = "/recipes/sourdough";
+            c.Request.Headers.Host = SiteFactory.TenantOrigin.Host;
+            c.Request.Headers["X-Forwarded-For"] = forwardedFor;
+            c.Request.Headers["X-Forwarded-Proto"] = "https, https";
+            c.Request.Headers["X-Forwarded-Host"] = $"{SiteFactory.OtherTenantOrigin.Host}, {SiteFactory.OtherTenantOrigin.Host}";
+        });
+
+        Assert.Equal(IPAddress.Parse(reader), context.Connection.RemoteIpAddress);
+        Assert.Equal(SiteFactory.TenantOrigin.Host, resolved);
+    }
+
+    private sealed class RecordingResolution(Action<string?> recorded) : IPublicSiteResolution
+    {
+        public Task<PublicSite?> ResolveAsync(string? hostHeader, CancellationToken cancellationToken)
+        {
+            recorded(hostHeader);
+            return Task.FromResult<PublicSite?>(null);
+        }
     }
 
     [Theory]

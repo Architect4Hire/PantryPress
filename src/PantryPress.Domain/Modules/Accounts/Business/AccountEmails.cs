@@ -22,7 +22,7 @@ internal sealed class AccountEmails(string appBaseUrl)
 
     public string ForgotPasswordLink => $"{_base}/forgot-password";
 
-    public string SecurityLink => $"{_base}/account/security";
+    public string SecurityLink => $"{_base}/dashboard/account/security";
 
     public EmailMessage Verification(Guid id, string to, AccountId account, string token) =>
         Build(

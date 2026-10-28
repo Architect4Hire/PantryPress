@@ -93,7 +93,8 @@ public static class SitesServiceCollectionExtensions
     /// <summary>
     /// What the Worker does for the Sites module (PP2.11): send invitation email from the outbox, with the link in it. The
     /// <paramref name="configuration"/> section binds <see cref="SiteInvitationEmailOptions"/> - the admin app's origin for
-    /// the link - checked at startup. The host also registers <c>PantryPressDbContext</c>, the clock, the outbox dispatcher,
+    /// the link - checked at startup. It is the <c>Accounts</c> section: account and invitation links open one origin,
+    /// <c>Accounts:AppBaseUrl</c> (auth.md; PP2.14). The host also registers <c>PantryPressDbContext</c>, the clock, the outbox dispatcher,
     /// an <see cref="IEmailGateway"/>, and data protection with the API's application name, since the API checks the links
     /// made here.
     /// </summary>
@@ -122,7 +123,7 @@ public static class SitesServiceCollectionExtensions
         // provider, or it refuses to start rather than claim the messages and poison every one for want of either.
         services.AddOptions<SiteInvitationEmailOptions>()
             .Bind(configuration)
-            .Validate(o => o.IsValid(), "Sites:AppBaseUrl must be the admin app's absolute HTTPS origin.")
+            .Validate(o => o.IsValid(), "Accounts:AppBaseUrl must be the admin app's absolute HTTPS origin.")
             .Validate<IServiceProvider>(
                 (_, provider) => provider.GetService<IEmailGateway>() is not null,
                 "No email gateway is registered. Invitation email is sent from the outbox here (PP2.11); outside "

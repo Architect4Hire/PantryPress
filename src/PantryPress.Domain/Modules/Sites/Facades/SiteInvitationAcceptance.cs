@@ -8,7 +8,6 @@ using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Domain.Modules.Sites.DataLayer;
-using PantryPress.Domain.Modules.Sites.Repositories;
 
 namespace PantryPress.Domain.Modules.Sites.Facades;
 
@@ -55,8 +54,10 @@ internal sealed class SiteInvitationAcceptance(
             return SiteErrors.AlreadyMember;
         }
 
+        // One instant for the whole decision, so an invitation found open is still open when it is accepted.
+        var now = clock.UtcNow;
         if (await data.FindInvitationAsync(invitationId, cancellationToken) is not { } invitation
-            || !SiteInvitationRules.IsOpen(invitation.Status, invitation.ExpiresAt, clock.UtcNow))
+            || !SiteInvitationRules.IsOpen(invitation.Status, invitation.ExpiresAt, now))
         {
             return SiteErrors.InvitationInvalid;
         }
@@ -73,10 +74,7 @@ internal sealed class SiteInvitationAcceptance(
         }
 
         // PP14: ask the entitlements facade whether the site may have another member (ARCH-010), here, where one is added.
-        var now = clock.UtcNow;
-        invitation.Status = SiteInvitationStatus.Accepted;
-        invitation.AcceptedBy = account;
-        invitation.AcceptedAt = now;
+        SiteInvitationRules.Accept(invitation, account, now);
         data.StageMember(new SiteMember
         {
             SiteId = siteId,

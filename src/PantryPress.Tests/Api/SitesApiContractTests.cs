@@ -163,6 +163,32 @@ public sealed class SitesApiContractTests
             schemas.GetProperty("SiteInvitationDetail").GetProperty("properties").EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
     }
 
+    // PP2.14: every 429 in the admin document says Retry-After comes with it, and a site route's says the per-account limit
+    // on every route that names a site counts toward it, refused lookups included.
+    [Fact]
+    public async Task The_admin_documents_429_says_when_to_retry_and_what_counts()
+    {
+        await using var api = ApiServiceFactory.WithoutDatabase(
+            "Development",
+            new Dictionary<string, string?> { ["DevelopmentMail:Host"] = "localhost", ["DevelopmentMail:Port"] = "1025" });
+
+        using var response = await api.CreateClient().GetAsync("/openapi/v1.json");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var paths = document.RootElement.GetProperty("paths");
+        var siteRoute = paths.GetProperty("/api/v1/sites/{siteSlug}").GetProperty("get");
+        var accountRoute = paths.GetProperty("/api/v1/sites").GetProperty("get");
+
+        foreach (var operation in new[] { siteRoute, accountRoute })
+        {
+            var tooMany = operation.GetProperty("responses").GetProperty("429");
+            Assert.Contains("too-many-requests", tooMany.GetProperty("description").GetString(), StringComparison.Ordinal);
+            Assert.Equal("integer", tooMany.GetProperty("headers").GetProperty("Retry-After").GetProperty("schema").GetProperty("type").GetString());
+        }
+
+        Assert.Contains("refused lookups included", Description(siteRoute, "429"), StringComparison.Ordinal);
+        Assert.DoesNotContain("refused lookups", Description(accountRoute, "429"), StringComparison.Ordinal);
+    }
+
     // PP2.11b: every member route gains its Owner policy's 403 and 404; the writes add member-not-found to that 404 and say
     // which codes their 409 carries, and their answers carry nothing to store.
     [Fact]

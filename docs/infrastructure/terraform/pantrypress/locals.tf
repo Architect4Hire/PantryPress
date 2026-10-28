@@ -63,7 +63,7 @@ locals {
   # Who may say who the client is (Edge:TrustedProxies, PP1.8). Behind Front Door into Container Apps there are two
   # hops: Front Door adds the browser's address to X-Forwarded-For, then the environment's ingress proxy - which
   # connects from the environment subnet - appends Front Door's. ForwardLimit 2 believes exactly those two, and only
-  # when each hop is in this list. Front Door's identity is still checked separately with X-Azure-FDID (PP9.3).
+  # when each hop is in this list. Front Door's identity is proved separately, by PP9.3's edge secret (never X-Azure-FDID alone; PP2.14).
   trusted_proxy_networks = concat(
     [local.platform.container_apps_subnet_cidr],
     data.azurerm_network_service_tags.front_door.ipv4_cidrs,
@@ -132,8 +132,15 @@ locals {
         # A new site's own address is {slug}.<zone> (SITE-003; PP2.10). The API refuses to start without it.
         "Sites__SubdomainZone" = var.dns_zone_name
       }
-      secret_env = { "Gateway__SharedSecret" = "gateway-secret" }
-      secrets    = { "gateway-secret" = azurerm_key_vault_secret.gateway_secret.versionless_id }
+      # Creating a site refreshes the public tier's host map in Redis, so its address answers at once (PP2.12, PP2.14).
+      secret_env = {
+        "Gateway__SharedSecret"    = "gateway-secret"
+        "ConnectionStrings__redis" = "redis-connection"
+      }
+      secrets = {
+        "gateway-secret"   = azurerm_key_vault_secret.gateway_secret.versionless_id
+        "redis-connection" = azurerm_key_vault_secret.redis_connection.versionless_id
+      }
     }
 
     site = {
@@ -174,7 +181,6 @@ locals {
         # The Worker sends account email from the outbox (PP1.10b), so the links in it are written here, and
         # invitation email (PP2.11) from the same origin.
         "Accounts__AppBaseUrl" = local.admin_origin
-        "Sites__AppBaseUrl"    = local.admin_origin
       }
       secret_env = { "ConnectionStrings__redis" = "redis-connection" }
       secrets    = { "redis-connection" = azurerm_key_vault_secret.redis_connection.versionless_id }

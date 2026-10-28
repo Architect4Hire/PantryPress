@@ -117,6 +117,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
                 ["RateLimits:InvitesPerAccountPerHour"] = "100000",
                 ["RateLimits:InvitationAcceptsPerAccountPerHour"] = "100000",
                 ["RateLimits:SiteMembersPerAccountPerMinute"] = "100000",
+                ["RateLimits:SiteLookupsPerAccountPerMinute"] = "100000",
                 ["RateLimits:SiteMemberChangesPerAccountPerMinute"] = "100000",
                 ["Sites:UnconfirmedAccountSiteLimit"] = "100000",
             };

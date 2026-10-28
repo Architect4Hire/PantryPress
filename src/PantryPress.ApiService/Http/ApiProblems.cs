@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.ApiService.Http;
 
@@ -116,7 +117,7 @@ internal static class ApiProblems
         StatusCodes.Status403Forbidden => "forbidden",
         StatusCodes.Status404NotFound => "not-found",
         StatusCodes.Status405MethodNotAllowed => "method-not-allowed",
-        StatusCodes.Status413PayloadTooLarge => "request-too-large",
+        StatusCodes.Status413PayloadTooLarge => RequestLimits.TooLargeCode,
         StatusCodes.Status415UnsupportedMediaType => "unsupported-media-type",
         StatusCodes.Status429TooManyRequests => "too-many-requests",
         >= 500 => "unexpected-error",
@@ -131,7 +132,7 @@ internal static class ApiProblems
         StatusCodes.Status403Forbidden => "You don't have access to this.",
         StatusCodes.Status404NotFound => "We couldn't find that.",
         StatusCodes.Status405MethodNotAllowed => "That action isn't available here.",
-        StatusCodes.Status413PayloadTooLarge => "That request is too large.",
+        StatusCodes.Status413PayloadTooLarge => RequestLimits.TooLargeTitle,
         StatusCodes.Status415UnsupportedMediaType => "Send the details as JSON.",
         StatusCodes.Status429TooManyRequests => "Too many requests. Please wait a minute and try again.",
         >= 500 => "Something went wrong on our side. Please try again in a moment.",

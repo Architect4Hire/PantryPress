@@ -166,7 +166,8 @@ that bill, through MED-002's AVIF/WebP derivatives and responsive `srcset`.
 - **Only Front Door reaches the apps.** Every app with external ingress accepts only the `AzureFrontDoor.Backend` IPv4
   ranges, read from the service tag at plan time; the Site API also accepts the environment's own subnet. An NSG cannot
   do this job, because on an external workload-profile environment inbound traffic arrives on a public IP the NSG never
-  sees. `X-Azure-FDID` (output `front_door_id`) is PP9.3's check on top of the address list.
+  sees. `X-Azure-FDID` (output `front_door_id`) is at most a filter on top of the address list: the profile is shared, so
+  what proves a request is PantryPress's is PP9.3's edge secret (PP2.14).
 - **ApiService has no public address.** It is internal ingress only, until the publishing API (O-01) and the Stripe
   webhook (O-02) get their Front Door route.
 - **No passwords exist for data.** SQL is Entra ID only, with each app connecting as its own managed identity. Storage
@@ -174,7 +175,8 @@ that bill, through MED-002's AVIF/WebP derivatives and responsive `srcset`.
   secrets.
 - **Secrets never touch Terraform state.** The gateway's shared secret is generated during apply and written to Key
   Vault as a write-only value. The platform admin list is passed in at apply time and written the same way. Only the
-  Redis access key is in state, because the provider reads it back; keep the state account locked down.
+  Redis access key is in state, because the provider reads it back; keep the state account locked down. From PP9.3
+  the edge secret will be too, since a Front Door rule set takes the header's value as a literal (PP2.14).
 - **Trusted proxies are explicit.** `Edge__TrustedProxies` names the Container Apps subnet plus the Front Door
   ranges, with `ForwardLimit` 2: Front Door's hop and the environment proxy's. The gateway gets `HTTPS_PORT=443` beside
   it, as PP1.8 asked.
@@ -195,13 +197,13 @@ Microsoft sample image on port 8080.
 | The gateway's data-protection key ring is not persisted (PP1.6, PP1.7).                                                                                    | The gateway is pinned to one replica, and a restart signs everyone out. The Key Vault key and blob container for the fix already exist. | PP19                                |
 | ApiService's data-protection key ring is not persisted either, and since PP1.10b the Worker makes the links in account email that ApiService checks (PP1.12). | Deployed, the Worker sends no account email: it has no provider before PP13.1, and it refuses to send without the shared ring, so PP19's persisted ring must come first. Its container (`data-protection`) and key exist, apart from the gateway's (`data-protection-gateway`). | PP19, before PP13.1 |
 | The production gateway image must contain the built admin SPA.                                                                                             | `app.` serves only the API.                                                                                                             | PP19                                |
-| Front Door forwards the blog's host in `X-Forwarded-Host`. The public tier does not trust it yet, and Angular SSR's `allowedHosts` is empty in production. | Blog hosts answer the neutral 404 or 400.                                                                                               | PP9.3                               |
+| Front Door sets the origin's own Host, so no tenant host is bound at Container Apps. The reader's host has no proven path to the public tier until PP9.3's rule set overwrites `X-PP-Reader-Host` and adds the edge secret (owner decision, PP2.14), and Angular SSR's `allowedHosts` is empty in production. | Blog hosts answer the neutral 404 or 400.                                                                                               | PP9.3                               |
+| No edge secret (`X-PP-Edge`, for `site` and `site-ssr`) and no internal service token (for `site-ssr` and `site`) in Key Vault yet (PP2.14's decision). | Nothing proves a request came through PantryPress's Front Door routes or the SSR server, so the reader's host is not read behind Front Door. | PP9.3, PP7.13 |
 | No Cache-Control per response yet.                                                                                                                         | Edge caching stays off, and every request reaches an origin.                                                                            | PP9.4                               |
 | Public media has no Front Door route, and Front Door Standard cannot use Private Link.                                                                     | `media-public` stays private.                                                                                                           | O-04                                |
 | The publishing API and Stripe webhook have no edge host.                                                                                                   | ApiService stays internal.                                                                                                              | O-01, O-02                          |
 | ACS is provisioned, but nothing sends through it.                                                                                                          | Account email in Azure goes nowhere.                                                                                                    | PP13.1                              |
-| Redis has no consumer, and its auth is by access key.                                                                                                      | Unused. Switch to Entra ID when Redis gets its first consumer.                                                                          | First Redis prompt                  |
-| `dev` and `app` must be reserved slugs.                                                                                                                    | A prod blog called `dev` would collide with the dev zone.                                                                               | The reserved slug list (`sites.md`) |
+| Redis auth is by access key. Its consumers since PP2.12 - the public site and ApiService - read one connection string from Key Vault; the Worker's grant waits for page data (PP7.12). | A leaked key reaches the cache until it is rotated. Switch to Entra ID with the other identities.                                       | PP19                                |
 
 ## 8. Risks and limits
 

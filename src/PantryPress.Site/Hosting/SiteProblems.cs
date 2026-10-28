@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using PantryPress.Domain.Managers.Results;
+using PantryPress.ServiceDefaults.EdgeHardening;
 
 namespace PantryPress.Site.Hosting;
 
@@ -84,7 +85,7 @@ internal static class SiteProblems
         StatusCodes.Status400BadRequest => "bad-request",
         StatusCodes.Status404NotFound => NotFoundCode,
         StatusCodes.Status405MethodNotAllowed => "method-not-allowed",
-        StatusCodes.Status413PayloadTooLarge => "request-too-large",
+        StatusCodes.Status413PayloadTooLarge => RequestLimits.TooLargeCode,
         StatusCodes.Status415UnsupportedMediaType => "unsupported-media-type",
         StatusCodes.Status429TooManyRequests => "too-many-requests",
         >= 500 => "unexpected-error",
@@ -96,7 +97,7 @@ internal static class SiteProblems
         StatusCodes.Status400BadRequest => "We couldn't read that request.",
         StatusCodes.Status404NotFound => NotFoundTitle,
         StatusCodes.Status405MethodNotAllowed => "That isn't something you can do here.",
-        StatusCodes.Status413PayloadTooLarge => "That's more than we can accept at once.",
+        StatusCodes.Status413PayloadTooLarge => RequestLimits.TooLargeTitle,
         StatusCodes.Status415UnsupportedMediaType => "We can't read that kind of content.",
         StatusCodes.Status429TooManyRequests => "That's a lot of requests. Please wait a moment and try again.",
         >= 500 => "Something went wrong on our side. Please try again in a moment.",

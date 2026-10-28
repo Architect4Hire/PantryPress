@@ -105,7 +105,7 @@ locals {
   # Which app reads which secret. Scoped to the secret, not the vault.
   secret_readers = merge(
     { for app in ["gateway", "apiservice"] : "gateway-secret-${app}" => { app = app, secret = azurerm_key_vault_secret.gateway_secret } },
-    { for app in ["site", "worker"] : "redis-${app}" => { app = app, secret = azurerm_key_vault_secret.redis_connection } },
+    { for app in ["apiservice", "site", "worker"] : "redis-${app}" => { app = app, secret = azurerm_key_vault_secret.redis_connection } },
     { "platform-admins-migrations" = { app = "migrations", secret = azurerm_key_vault_secret.platform_admins } },
   )
 }

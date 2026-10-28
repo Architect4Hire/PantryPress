@@ -8,7 +8,6 @@ using PantryPress.Domain.Managers.Validation;
 using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.DataLayer;
-using PantryPress.Domain.Modules.Accounts.Repositories;
 
 namespace PantryPress.Domain.Modules.Accounts.Facades;
 

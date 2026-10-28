@@ -29,7 +29,8 @@ Link, but its base fee is significant at launch.
   stricter. `pantrypress.app` is submitted to the Public Suffix List.
 - The edge is Front Door **Standard**. Its missing protections are compensated for by WAF custom rules (rate
   limits, geo and IP blocks), origins locked to the `AzureFrontDoor.Backend` service tag plus an
-  `X-Azure-FDID` check, and application-level defenses.
+  `X-Azure-FDID` check, and application-level defenses. (Amended at PP2.14: the profile is shared, so `X-Azure-FDID`
+  is only a filter; an edge secret the rule set adds is what proves a request is PantryPress's.)
 
 ## Options considered
 

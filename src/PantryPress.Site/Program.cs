@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using PantryPress.Domain.Managers.Persistence;
@@ -43,12 +44,22 @@ builder.Services.AddTrustedProxies(
     required: !builder.Environment.IsDevelopment());
 
 // Here the host is the tenant (PSEC-004; PP2.12): a proxy that may say what host was asked for may say whose site a
-// reader sees, so no configuration can grant it, however a deployment copies the gateway's settings.
+// reader sees, so no configuration can grant it, however a deployment copies the gateway's settings - and this stands
+// for good. Behind Front Door the reader's host arrives in X-PP-Reader-Host instead, which host resolution reads only with
+// the edge secret, or the SSR server's internal service token (PP9.3, PP7.13; owner decision, PP2.14).
 builder.Services.AddOptions<TrustedProxyOptions>()
     .Validate(
         o => !o.ForwardHost && o.AllowedHosts.Count == 0,
-        "Edge:TrustedProxies:ForwardHost must stay off on the public site: the Host header chooses the site, and only the "
-        + "connection may set it.")
+        "Edge:TrustedProxies:ForwardHost must stay off on the public site: the host chooses the site, and no proxy may set "
+        + "it through X-Forwarded-Host.")
+    .ValidateOnStart();
+
+// Nor may the framework's host filter run here: an unlisted host would get its bodiless 400 ahead of resolution, where
+// every host that names no site must get the neutral 404 (PP2.14).
+builder.Services.AddOptions<HostFilteringOptions>()
+    .Validate(
+        o => o.AllowedHosts.Count == 0 || o.AllowedHosts.Contains("*"),
+        "AllowedHosts must stay '*' on the public site: a host that names no site gets the neutral 404, never a bare 400.")
     .ValidateOnStart();
 builder.Services.AddRequestLimits(RequestLimits.PublicDefault);
 builder.Services.AddSecurityHeaders(options =>
@@ -67,9 +78,9 @@ var app = builder.Build();
 app.UseSiteProblems();
 app.UseSecurityHeaders();
 
-// Nothing is trusted yet: a site is resolved from the Host header alone (PSEC-004), and proving that a request came
-// through Front Door rather than straight at the origin is PP9.3's. Until then the strip is the whole rule, so no
-// caller can pass itself off as a proxy.
+// A peer named in Edge:TrustedProxies is believed about the reader's address and scheme, never about the host, and every
+// other forwarding header comes off; a site is resolved from the Host header alone until PP9.3 adds the edge-proven
+// X-PP-Reader-Host (PSEC-004; PP2.14).
 app.UseTrustedProxies();
 app.UseForwardingHeaderHygiene();
 app.UseRequestLimits();

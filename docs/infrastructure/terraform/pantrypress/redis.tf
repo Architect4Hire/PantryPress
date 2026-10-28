@@ -12,8 +12,11 @@ resource "azurerm_managed_redis" "pantrypress" {
   tags                      = local.tags
 
   default_database {
-    # Access keys rather than Entra ID for now: nothing in the code reads Redis yet, and the StackExchange.Redis
-    # connection string works unchanged. Moving to Entra ID is a code change for whichever prompt first uses Redis.
+    # Access keys rather than Entra ID for now. Redis has had consumers since PP2.12 - the host map, which the public site
+    # reads and ApiService refreshes - through one StackExchange.Redis connection string in Key Vault. The Worker's grant
+    # waits for its first use (page data, PP7.12); the AppHost gives it no Redis until then. Moving
+    # to Entra ID is a code change to ServiceDefaults' CacheConnection plus a data access policy per app; PP2.14 left it to
+    # PP19's hardening, with the other secrets that become identities.
     access_keys_authentication_enabled = true
     client_protocol                    = "Encrypted"
     clustering_policy                  = "EnterpriseCluster"

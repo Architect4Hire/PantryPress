@@ -97,6 +97,22 @@ internal static class ApiOpenApi
                                 + "(site-role-required).");
                         }
 
+                        // Every 429 says when to come back, and a site route's says what else counts toward it: the
+                        // per-account limit on every route that names a site, refused lookups included (PP2.14).
+                        if (operation.Responses?.TryGetValue("429", out var limited) is true && limited is OpenApiResponse tooMany)
+                        {
+                            tooMany.Description = leastRoles.Count > 0
+                                ? "Too many requests (too-many-requests): this route's own allowance, or the per-account limit "
+                                    + "on every route that names a site, refused lookups included."
+                                : "Too many requests (too-many-requests).";
+                            tooMany.Headers ??= new Dictionary<string, IOpenApiHeader>();
+                            tooMany.Headers["Retry-After"] = new OpenApiHeader
+                            {
+                                Description = "Seconds to wait before trying again.",
+                                Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+                            };
+                        }
+
                         // A created thing says where it is read (PP2.10).
                         if (operation.Responses?.TryGetValue("201", out var created) is true && created is OpenApiResponse declared)
                         {

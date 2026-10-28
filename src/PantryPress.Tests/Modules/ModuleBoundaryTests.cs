@@ -29,12 +29,13 @@ public sealed class ModuleBoundaryTests
     private const string Root = "(root)";
 
     /// <summary>
-    /// The layers of its own module each layer may not name (ARCH-002, <c>backend.md</c>). Facades orchestrate and may
-    /// name everything; Contracts are the public face and name nothing behind them; Business is pure, names nothing that
-    /// does I/O, and any layer may use it.
+    /// The layers of its own module each layer may not name (ARCH-002, <c>backend.md</c>). Facades orchestrate through
+    /// their data layer and never reach past it to a repository, the unit of work, or a gateway (PP2.14); Contracts are the
+    /// public face and name nothing behind them; Business is pure, names nothing that does I/O, and any layer may use it.
     /// </summary>
     private static readonly Dictionary<string, string[]> ForbiddenWithinModule = new(StringComparer.Ordinal)
     {
+        ["Facades"] = ["Repositories", "Gateways"],
         ["Contracts"] = ["Facades", "Business", "DataLayer", "Repositories", "Gateways", "Validation"],
         ["Business"] = ["Facades", "DataLayer", "Repositories", "Gateways", "Validation"],
         ["Validation"] = ["Facades", "DataLayer", "Repositories", "Gateways"],
@@ -454,6 +455,40 @@ public sealed class ModuleBoundaryTests
                     $@"\bPantryPress\.Domain\.Modules\.\w+\.(?:{layers})\b",
                     Path.GetRelativePath(source.FullName, file.FullName),
                     "a host names a module's contracts and its registration, never a layer behind them");
+            }
+        }
+
+        Assert.True(scanned > 50, "The scan found too few host files to be looking in the right place.");
+    }
+
+    // PP2.14: a host registers the context in its Program.cs and queries nothing itself - raw SQL that is not FromSql over
+    // an entity set skips the site filter, which is why it stays in repositories (tenancy.md rule 3). The migration service
+    // is the written exception: it applies the schema, and switches the database to committed snapshots.
+    [Fact]
+    public void Hosts_register_the_context_and_query_nothing_themselves()
+    {
+        var source = DomainSource.Project.Parent!;
+        var scanned = 0;
+        foreach (var host in source.GetDirectories("PantryPress.*")
+            .Where(d => d.Name is not ("PantryPress.Domain" or "PantryPress.Tests" or "PantryPress.MigrationService")))
+        {
+            var skipped = new[] { "bin", "obj" }.Select(d => Path.Combine(host.FullName, d) + Path.DirectorySeparatorChar);
+            foreach (var file in host.EnumerateFiles("*.cs", SearchOption.AllDirectories)
+                .Where(f => !skipped.Any(s => f.FullName.StartsWith(s, StringComparison.OrdinalIgnoreCase))))
+            {
+                scanned++;
+                var name = Path.GetRelativePath(source.FullName, file.FullName);
+                var code = Code(File.ReadAllText(file.FullName));
+                AssertDoesNotName(
+                    code,
+                    @"\.Database\b|\bSqlQuery(?:Raw)?\b|\bExecuteSql(?:Raw|Interpolated)?(?:Async)?\b|\bFromSql(?:Raw|Interpolated)?\b|\bDbSet<|\bSet<"
+                        + @"|\b(?:Sql|Db)(?:Connection|Command|DataReader)\b",
+                    name,
+                    "a host queries nothing itself; queries belong to a module's repositories");
+                if (file.Name != "Program.cs")
+                {
+                    AssertDoesNotName(code, EfCore, name, "only a host's Program.cs registers the context");
+                }
             }
         }
 

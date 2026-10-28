@@ -19,7 +19,9 @@ request belongs to. The admin app sits behind a sign-in, where SSR gives little 
 `projects/pantrypress-site` is served by the `pantrypress-site` Node server (Angular's Node app engine). It is
 added to the AppHost as a JavaScript app and exposed only through Front Door.
 
-- **Host only:** the SSR server forwards the original Host to `PantryPress.Site`. Node never decides tenancy.
+- **Host only:** the SSR server forwards the host the reader asked for to `PantryPress.Site`, with its internal service
+  token. Node never decides tenancy. (Amended at PP2.14: behind Front Door that host arrives in `X-PP-Reader-Host`,
+  proven by the edge secret, not as the connection's Host.)
 - **One fetch per page:** a route resolver fetches that route's page data (Redis, then blob, plus an
   in-process LRU). There is no other data access during SSR, and output is deterministic.
 - **Islands only:** scaling and units, cook mode, ratings, comments, signup, search, and the minimal-header

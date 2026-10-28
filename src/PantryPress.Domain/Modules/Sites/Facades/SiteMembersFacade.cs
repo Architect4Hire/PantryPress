@@ -7,7 +7,6 @@ using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Domain.Modules.Sites.DataLayer;
-using PantryPress.Domain.Modules.Sites.Repositories;
 
 namespace PantryPress.Domain.Modules.Sites.Facades;
 

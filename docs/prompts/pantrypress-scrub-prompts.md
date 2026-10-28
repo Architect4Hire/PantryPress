@@ -267,7 +267,8 @@ server (AppHost PP7.2a, container PP19). Recorded for later prompts:
 - **PP7.2a/PP9.3:** Angular SSR rejects any Host not in `security.allowedHosts` with a 400 (no client-side
   fallback). Development allows `localhost` and `*.localhost`; production is empty, so a production build
   serves nothing until host validation moves to Front Door plus `SiteHost` (`allowedHosts: ['*']` and
-  `trustProxyHeaders` behind the `X-Azure-FDID` check, with two-site host-header tests). `NG_ALLOWED_HOSTS` was
+  `trustProxyHeaders` behind the `X-Azure-FDID` check, with two-site host-header tests - superseded at PP2.14:
+  `trustProxyHeaders` stays off, and the reader's host is the edge-proven `X-PP-Reader-Host`). `NG_ALLOWED_HOSTS` was
   used only to smoke-test the production build.
 - **PP7.2:** no `npm run budget` yet (CLAUDE.md lists it); Angular's default budgets are far above RND-007.
   Production critical-CSS inlining and event replay add inline scripts; decide `autoCsp` or
@@ -2261,7 +2262,8 @@ BEHAVIOR: Plan, wait for approval, implement with two-site tests.
     - the Site host calls `AddSites` and so needs `Sites:SubdomainZone`.
   - PP14: the entitlements check before creating (step 1).
   - PP17.2: a pending custom host under the platform zone can block a slug; refuse it there.
-  - The provisioning prompt after PP9.5: `Provisioning`, `sites.provision`, default theme and settings.
+  - The provisioning prompt after PP9.5: `Provisioning`, `sites.provision`, default theme and settings. Numbered
+    PP9.5a at PP2.14.
 - **Not verified.** Nothing ran against Azure. The Terraform change is one environment variable.
 
 Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts path while `aspire run` held the default
@@ -2331,7 +2333,8 @@ BEHAVIOR: Implement with two-site tests.
   - From review:
     - acceptance moved into its own file, so the resolver allow-list names only it;
     - the site is entered only once found not deleted;
-    - same-address invites take turns under an app lock, with the unique index beneath it;
+    - same-address invites take turns under an app lock, with the unique index beneath it (one lock per site since
+      PP2.14, under which the cap is counted again);
     - the cap no longer counts the invitation being replaced;
     - a boundary test keeps every file but the Worker's processor from making an outbox delivery, since a delivery now
       enters a site;
@@ -2379,7 +2382,8 @@ BEHAVIOR: Implement with two-site tests.
 - **Left for later.**
   - PP2.11b: the members list, role changes, and removal, with the 51003 and 1205 answers PP2.3 assigned to PP2.11, and
     the tenant-root two-site tests for a role change or removal on A leaving B's rows unchanged.
-  - PP3: the admin app's `/join` page, which reads the token from the fragment and posts it.
+  - PP3: the admin app's `/join` page, which reads the token from the fragment and posts it. Moved to
+    `/dashboard/join` at PP2.14 (PP-D19: the app's routes live under `/dashboard`).
   - PP14: the member count, checked at accept. PP19: the persisted key ring, and purging closed invitations.
 - **Not verified.** Nothing ran against Azure. If `aspire run` was up, the first version of the migration may have
   reached your local database before its index changed in review: drop and re-create the database, or roll the
@@ -2624,8 +2628,9 @@ BEHAVIOR: Plan, wait for approval, implement with known, unknown, mixed-case, po
     `RefreshSiteAsync`, and make the refresh survive a crash through the outbox.
   - PSEC-001: a cap on uncached lookups under a flood of random hosts.
   - PP9.3 and PP19:
-    - Front Door must pass the reader's Host through to the origin.
-    - The Container Apps ingress must accept tenant hosts.
+    - Superseded at PP2.14 (owner decision): not "Front Door must pass the reader's Host through" and "the ingress
+      must accept tenant hosts", but Front Door keeps the origin's Host and overwrites X-PP-Reader-Host, read only
+      with the edge secret (PP9.3).
     - Deployed health probes.
   - PP9.5: tenant-provisioning step 7, the edge purge of a new host.
 - **Not verified.**
@@ -2740,13 +2745,14 @@ BEHAVIOR: Plan, wait for approval, implement with a test per status.
       branding from the snapshot alone.
     - The SSR server does not call this route per page, since a page makes one page-data fetch. PP7.13's page data
       carries this context.
-    - The 200 varies by Host alone, so every cache of it must key on Host or the site id (PP7.12, PP7.13a, PP9.4).
+    - The 200 varies by Host alone, so every cache of it must key on Host or the site id (PP7.12, PP7.13a, PP9.4) -
+      since PP2.14 the resolved host, never the inbound Host.
     - During a rolling deploy, old and new Site replicas read each other's entry as a miss. That costs SQL until the
       rollout ends and never crosses sites.
     - `HEAD` is 405.
 - **Left for later.**
-  - PP7.13 and PP7.13a: carry this context in page data, answer the page's 301, and send the reader's host as the real
-    `Host` header (the PP7.13 text says "forwarded Host"; only the connection's Host is read).
+  - PP7.13 and PP7.13a: carry this context in page data, answer the page's 301, and send the reader's host to the Site
+    (superseded at PP2.14: in `X-PP-Reader-Host` with the internal service token, not as the real `Host`).
   - PP8, PP10, and PP11: a change of a site's name, tagline, or locale calls `RefreshSiteAsync` (`tenancy.md`).
   - PP12: bring `SiteIdBindingConvention` and plain-language binding errors to the Site host with the first input, then
     lift the refusal. Refuse reader writes on a ReadOnly site.
@@ -2764,7 +2770,7 @@ Verification: `dotnet build PantryPress.slnx` (0 warnings, separate artifacts pa
 outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1778 of 1779
 (1694 before this prompt; the one failure is the race test above).
 
-### PP2.14 Tenancy audit
+### PP2.14 Tenancy audit - done
 
 ```text
 SCOPE: Audit PP2 against SITE-001–005, 008–010, ARCH-003, ARCH-015, PSEC-004, and PSEC-007. Report only.
@@ -2772,6 +2778,101 @@ CONSTRAINT: Template L.
 UTILIZATION: site-isolation-auditor, public-site-reviewer, architecture-reviewer.
 BEHAVIOR: Return findings and checkpoint evidence.
 ```
+
+*PP2.14 delivery note (done 2026-10-28):* the audit (Template L; `site-isolation-auditor`, `public-site-reviewer`,
+`architecture-reviewer`) found no blocker and no way for one site to reach another's data: 2 high, 6 medium, and about 20
+low findings. The owner approved "fix all". As at PP1.12, the fix shipped as one change the constitution would have split
+(the save fixes, a rate limit, a contract tweak, rules, and the deployment decision), recorded here as one because the
+owner asked for one. The review of the fix (`architecture-reviewer`, `site-isolation-auditor`, `public-site-reviewer`,
+`api-contract-checker`, then a second look by the isolation and public-tier reviewers) changed it again; what follows is
+what shipped. Decision log, 2026-10-28 (PP2.14).
+
+- **High, fixed: a site created under the unconfirmed-account cap could be answered 201 and never saved.** The save
+  accepted its changes before its commit, so a commit that failed was retried as an empty transaction and called saved,
+  and the idempotency store replayed the 201 for a day. Both saves that open their own transaction now accept changes
+  only after commit (`SitesUnitOfWork`). From review: each also looks for its own row only once it holds its lock, so a
+  retry racing its own in-flight commit meets its row instead of refusing the creator's own site (over the cap) or
+  revoking its own invitation. `A_commit_that_failed_under_a_limit_is_saved_again_on_the_retry` fails without the fix
+  (checked by reverting it) and passes with it; `An_invitation_whose_commit_failed_is_saved_again_on_the_retry` is its
+  invitation twin.
+- **High, decided by the owner: how the reader's host reaches the public tier when deployed.** The rules and the code
+  read the connection's Host alone, while the Terraform and PP9.3 had Front Door rewrite it. Asked twice - the second time
+  once review showed that the Front Door profile and the Container Apps environment are shared with CreatorPantry, so
+  `X-Azure-FDID` and an address prove nothing - the owner chose **hardened forwarding**. Front Door keeps each origin's
+  own Host. A rule set on PantryPress's sites routes overwrites `X-PP-Reader-Host` and adds the edge secret
+  (`X-PP-Edge`). The SSR server and the Site believe that header only with the edge secret, and the Site also with the
+  SSR server's internal service token, compared in constant time and by secret alone. `ForwardHost` stays refused for
+  good, and caches key on the resolved host, never the inbound Host. The owner approved amending CLAUDE.md (site isolation
+  and the first restriction), ARCH-003, PSEC-004, PP-D03's text, ADR 0008 and ADR 0013, `public-endpoints.md`,
+  `tenancy.md`, `rendering.md`, the architecture, and PP7.2a, PP7.13, PP7.13a, PP9.2, PP9.3, and PP9.4. Superseded notes
+  are marked where they stand. PP9.3 builds it, with the secret's place in Terraform state recorded as an exception,
+  rotation overlap, and its spoofing tests; PP7.13 owns the SSR-to-Site hop. Until then a deployed blog answers the
+  neutral 404, as before.
+- **Medium, fixed:**
+  - *ApiService had no Redis in the Terraform.* It has had Redis since PP2.12 (`locals.tf`, `keyvault.tf`), and the stale
+    "no consumer" notes are corrected. Entra ID for Redis is PP19's.
+  - *A signed-in caller's refused site lookups were never counted.* Every signed-in request to a `{siteSlug}` route is now
+    counted per account before the site policy (`RateLimits:SiteLookupsPerAccountPerMinute`, 300). The 429 is the same
+    for a real address and an unheld one. From contract review: the admin document's 429 now says so and declares
+    `Retry-After`, and a 429 is a problem document whatever the caller accepts.
+  - *Invitation links opened `/join`, outside PP-D19's routes, and read a key of their own.* They now open
+    `/dashboard/join` and read `Accounts:AppBaseUrl`, the one key. From review, the account-security link moved to
+    `/dashboard/account/security`, and `/forgot-password` joined `frontend.md`'s client-rendered list. PP3.9 now builds
+    the join screen.
+  - *No prompt owned provisioning or SITE-003's 60 seconds.* PP9.5a now does. A `Live` site with no page data answers
+    coming soon (PP7.13, PP7.13a).
+  - *The two-site race test was intermittent.* It now runs in contexts that retry, as every host's does. It passed in
+    every full run here.
+  - *The module's layering differed from `backend.md`.* The save outcomes moved to `Business/`, facades may name neither
+    a repository nor a gateway (`ModuleBoundaryTests`), and `backend.md` describes the unit of work as built. A re-check
+    under a lock is the same Business rule the facade asked first (`OwnedSiteLimit.Allows`,
+    `SiteInvitationRules.HasRoomForAnother`).
+- **Low, fixed:**
+  - *Ordering and locks.* Invitations take turns under one lock per site (it was per address), named from the site
+    context, with the cap counted again under it. The lock gives up after five seconds (51011) rather than carry on.
+  - *Startup refusals.* The host refuses a route that names a site after `sites/` by anything but a required
+    `{siteSlug}`. The public site refuses a top-level `AllowedHosts` other than `*`.
+  - *Boundary tests.* The membership decision is asked only by the site policy's handler. The resolver allow-list names
+    the kernel's tenancy files one by one. A site-owned type's key leads with `SiteId`. Hosts query nothing themselves,
+    raw ADO.NET included.
+  - *New tests.* A trusted proxy, one hop or two, is believed about the reader and never about the host, and an
+    untrusted peer about nothing. `X-PP-Reader-Host` names nothing until PP9.3. B's invitations never wait on A's lock.
+  - *Smaller changes.*
+    - Sites asks `IAccountEmailConfirmation` rather than the publishing check.
+    - Accepting an invitation is `SiteInvitationRules.Accept`, decided at one instant.
+    - The 413's code and title are one set of constants on all three hosts.
+    - The accept request's token is documented as percent-decoded.
+    - `tenant-provisioning.md`, the register's SITE-004 row, and the infrastructure README are brought up to date.
+    - Owners are named: PP9.8 for the random-host flood, PP12 for a 413 raised while binding a body (today it would be a
+      500).
+- **Accepted, not changed:** a site route's refusal takes two queries for a live slug and one for none, which tells only
+  what availability and the site's own host already say (PP2.7 left the call here). The public site's host-filter check
+  also accepts an empty list, which configuration cannot produce.
+- **Declined, with reasons:** typed ids in outbox payloads, which are a stored wire format whose handler wraps them (now
+  in `backend.md`). Storing an invitation's address once: one copy is the address it is sent to, the other the unique
+  index, and PP19 purges closed invitations.
+- **Checkpoint (PP2.14):** "Two sites cannot see each other; `demo.localhost` resolves through the site API; members have
+  the right powers."
+  - *Two sites:* met. The two-site suites pass, every obligation in `tenancy.md` has a named test, and three review
+    passes found no isolation hole.
+  - *`{slug}.localhost`:* met in process. `SiteHostTests.A_site_at_its_local_address_answers_there_with_any_port`
+    creates a site through ApiService with the zone `localhost` and resolves it with any port, any case, and a trailing
+    dot; `SiteContextTests` reads the real `/api/public/v1/site`. No `demo` site is seeded, and it was not shown on a
+    live `aspire run` (none of PantryPress's was up).
+  - *Member powers:* met. `SiteMembersTwoSiteTests` and the policy tests pass, the last-owner guard included.
+- **Not verified:**
+  - No live `aspire run` demo of `demo.localhost`.
+  - Kestrel's own answer to a Host it cannot parse (the in-process test server skips Kestrel).
+  - Azure: whether Front Door's rule set overwrites a client's header and can carry the edge secret, its cache key on a
+    shared origin Host, and Azure Managed Redis 7.4 or later and its eviction policy.
+  - `terraform fmt` and `validate`, with no CLI here.
+- **Environment, not code:** one full run had `AdminAppTests.Gateway_serves_the_admin_app_and_keeps_its_own_health_endpoint`
+  time out after 5 m 30 s while it started the admin dev server on the real AppHost. The final full run on the same tree
+  passed it.
+
+Verification: `dotnet build PantryPress.slnx` (0 warnings; built to a separate artifacts path, as `aspire run` may hold the
+default outputs), `dotnet format PantryPress.slnx --verify-no-changes` (clean), and `dotnet test PantryPress.slnx` 1795 of
+1795 (1779 before this prompt).
 
 ## PP3 — Design system and admin shell
 
@@ -2854,7 +2955,8 @@ BEHAVIOR: Plan, wait for approval, implement.
 
 ```text
 SCOPE: Add the admin shell (navigation, header, account menu) under /dashboard and a site switcher that sets the
-route's site (PP-D19).
+route's site (PP-D19), and the /dashboard/join screen an invitation's email links to: it reads the token from the
+fragment, keeps it through sign-in or sign-up, and accepts it (PP2.11; path fixed at PP2.14).
 CONSTRAINT: SITE-010; Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
@@ -3305,8 +3407,10 @@ SCOPE: Add pantrypress-site (the Node SSR server built from projects/pantrypress
 JavaScript app with a reference to PantryPress.Site, health checks, OpenTelemetry, and local *.localhost
 routing so {slug}.localhost reaches it.
 CONSTRAINT: PP-D08, SITE-009; aspire.md; add-aspire-resource skill.
-RESTRICTION: Node holds no secrets beyond the internal service token and has no SQL, Redis, or blob access.
-It forwards the original Host to the site API and never chooses a site itself.
+RESTRICTION: Node holds no secrets beyond the internal service token and, from PP9.3, the edge secret (PP2.14), and
+has no SQL, Redis, or blob access.
+It forwards the host the reader asked for to the site API - in X-PP-Reader-Host, with the internal service token
+(PP7.13; PP2.14) - and never chooses a site itself.
 UTILIZATION: add-aspire-resource; aspire-monitoring.
 BEHAVIOR: Verify the current Aspire JavaScript hosting API, plan, wait for approval, implement, and show it
 healthy in the dashboard.
@@ -3445,11 +3549,17 @@ BEHAVIOR: Plan, wait for approval, implement with concurrency tests.
 ### PP7.13 Page-data read endpoint
 
 ```text
-SCOPE: Add the internal page-data endpoint in PantryPress.Site: given the forwarded Host and a path, resolve
+SCOPE: Add the internal page-data endpoint in PantryPress.Site: given the reader's host - which the SSR server sends
+in X-PP-Reader-Host with the internal service token, and which the Site's host resolution reads on this call only with
+that token (public-endpoints.md; this prompt owns that hop, locally and deployed) - and a path, resolve
 the site, follow the live pointer, and return that route's page data from Redis, falling back to blob, with
-ETag.
-CONSTRAINT: ARCH-003, ARCH-007, ARCH-013, PNFR-002; add-public-endpoint.
-RESTRICTION: Callable only by pantrypress-site with the internal service token; not routed by Front Door.
+ETag. A Live site with no page data yet answers 503 site-coming-soon, as Provisioning does (tenant-provisioning
+G-01, until PP9.5a provisions every new site).
+CONSTRAINT: ARCH-003, ARCH-007, ARCH-013, PNFR-002, SITE-008; add-public-endpoint.
+RESTRICTION: Callable only by pantrypress-site with the internal service token, compared in constant time; an empty
+or unset token matches nothing. Its path is also outside Front Door's site-API route, because that route lists the
+public paths one by one rather than /api/public/* (this prompt changes site_api_paths in the Terraform; PP9.2 keeps
+it so).
 No SQL on the request once the host map is warm. Paths are normalized; traversal is impossible.
 BEHAVIOR: Plan, wait for approval, implement with tests, including serving with SQL stopped.
 ```
@@ -3459,7 +3569,13 @@ BEHAVIOR: Plan, wait for approval, implement with tests, including serving with 
 ```text
 SCOPE: In pantrypress-site, wire route resolvers to the page-data endpoint with an in-process LRU, set
 Cache-Control for edge caching, and render the neutral 404 for unknown hosts and the SITE-008 and SEO-007
-status pages (503 with Retry-After, 410).
+status pages (503 with Retry-After, 410), the coming-soon page for a Live site with no page data yet included (G-01).
+The SSR server reads the reader's host only as public-endpoints.md allows (locally the Host; behind Front Door the
+edge-proven X-PP-Reader-Host) and passes it on with the internal service token; it never chooses a site. The
+in-process LRU and every other cache key on the resolved host or site id, never on the inbound Host, which every tenant
+shares behind Front Door, with a two-site test that A's entry is missed as B when both arrive with the same
+connection Host. Angular SSR's allowedHosts is ['*'] and trustProxyHeaders stays off; canonical and og:url addresses
+come from page data, never from the request URL. The page's 301 to the canonical host is answered here.
 CONSTRAINT: PP-D02, ARCH-003, ARCH-007, SITE-008, SEO-007; rendering.md.
 RESTRICTION: One page-data fetch per request. Timeouts render a themed-neutral error, never a stack trace.
 UTILIZATION: public-site-reviewer.
@@ -3702,12 +3818,14 @@ SCOPE: Add IaC for PantryPress's endpoints and routes on the shared Front Door S
 custom domain *.pantrypress.app (managed or Key Vault certificate per current support), the apex pantrypress.app
 for the gateway (the platform home, PP-D19) caching only fingerprinted static assets and never a document,
 www.pantrypress.app and app.pantrypress.app as 301 redirects to the apex keeping path and query, two origin groups for blogs (pantrypress-site for page routes; PantryPress.Site for
-/api/public/*, sitemaps, robots.txt, feeds, ads.txt, and the search index), a PantryPress WAF policy, and
+its public paths listed one by one - never the page-data path (PP7.13) - sitemaps, robots.txt, feeds, ads.txt, and
+the search index), a PantryPress WAF policy, and
 Container Apps ingress IP restrictions allowing only the AzureFrontDoor.Backend service tag.
 CONSTRAINT: PP-D13, PP-D16, PP-D19, PSEC-001; docs/infrastructure plan and runbook.
 RESTRICTION: Standard tier only (PP-D13); no Premium-only features such as Private Link or managed rule sets.
-Never modify CreatorPantry's endpoints or routes. Origins accept traffic only from Front Door (service-tag IP
-restriction plus X-Azure-FDID check). No production apply.
+Never modify CreatorPantry's endpoints or routes. Origins accept traffic only from Front Door's address ranges, a
+filter; what proves a request is PantryPress's own is PP9.3's edge secret, never X-Azure-FDID (PP2.14). No
+production apply.
 BEHAVIOR: Verify current Front Door wildcard certificate options, plan, wait for approval, generate and validate.
 ```
 
@@ -3721,12 +3839,29 @@ D-13b.
 ### PP9.3 Origin trust check
 
 ```text
-SCOPE: In pantrypress-site and PantryPress.Site, reject requests that did not come through Front Door
-(X-Azure-FDID match) outside local development, and trust X-Forwarded-Host only from Front Door. The SSR
-server forwards that host to the page-data endpoint unchanged.
-CONSTRAINT: PSEC-001, ARCH-003; edge hardening (PP1.8).
-RESTRICTION: Host resolution must use the original host Front Door forwards, never a client-supplied header.
-BEHAVIOR: Plan, wait for approval, implement with spoofing tests.
+SCOPE: Build the owner's PP2.14 decision (public-endpoints.md, "How the reader's host reaches this tier"). In
+Terraform, a rule set on PantryPress's sites routes that overwrites X-PP-Reader-Host with the requested hostname and
+sets X-PP-Edge to the edge secret from Key Vault, with rotation. In PantryPress.Site's host resolution, read
+X-PP-Reader-Host only when X-PP-Edge matches the edge secret in constant time (the SSR hop's token path is PP7.13's),
+and answer the neutral 404 to any deployed request with neither proof, health probes excepted. In pantrypress-site,
+read the reader's host the same way before passing it on.
+CONSTRAINT: PSEC-001, PSEC-004, ARCH-003; edge hardening (PP1.8); public-endpoints.md; tenancy.md rule 5.
+RESTRICTION: By secret only: no address, subnet, Front Door range, or X-Azure-FDID (the profile is shared, PP-D16)
+stands in for it. The SSR server makes the same check before it passes the host on, holds the edge secret beside its
+token, and never forwards X-PP-Edge. An empty or unset secret matches nothing; a non-Development host without one
+refuses to start unless it says on purpose it runs without the edge (the TrustNobody pattern). During a rotation
+both hosts accept the current and the previous value. The rule set's header value is a literal, so it sits in
+Terraform state and is readable by anyone with Reader on the shared profile: record that in the infrastructure
+README's exceptions; it tells PantryPress's routes from others, not one operator from another. Never logged or
+rendered. ForwardHost and Edge:TrustedProxies:AllowedHosts stay refused; X-Forwarded-Host never names a host.
+Exactly one X-PP-Reader-Host value; a list or a repeat is refused. Front Door keeps sending the origin's own Host, so
+no tenant host or custom domain is bound at Container Apps. Verify, and record, that the rule set's overwrite replaces
+a value the client sent.
+UTILIZATION: site-isolation-auditor, public-site-reviewer, integration-reviewer.
+BEHAVIOR: Plan, wait for approval, implement with spoofing tests: X-PP-Reader-Host sent straight at the origin with
+and without a forged or stale edge secret, a client's own X-PP-Reader-Host through a genuine Front Door hop, a list
+and a repeated header, a valid FDID from another route or profile, X-Forwarded-Host and its kin, and every two-site
+host trick through the proven path.
 ```
 
 ### PP9.4 Caching rules
@@ -3737,7 +3872,8 @@ TTL; assets immutable; feeds and sitemaps short) and Front Door rule sets that h
 host. Resolve the PP-D02 DECIDE: verify whether Front Door can serve stale content on origin errors.
 CONSTRAINT: PP-D02, PNFR-002, ARCH-007.
 RESTRICTION: Dynamic island endpoints are never cached at the edge unless explicitly marked. Cache keys always
-include host.
+include the domain the reader asked for: verify Front Door keys on the requested domain, never on the origin host
+header, which every tenant shares (PP2.14).
 BEHAVIOR: Plan, wait for approval, implement with header tests and an IaC diff.
 ```
 
@@ -3749,6 +3885,22 @@ affected URLs.
 CONSTRAINT: POST-009; Template F.
 RESTRICTION: Purges are batched, idempotent, and never wildcard across hosts. No live call in default CI.
 BEHAVIOR: Verify the current purge API, plan, wait for approval, implement with fake tests.
+```
+
+### PP9.5a Site provisioning
+
+```text
+SCOPE: Close tenant-provisioning G-01. A new site starts Provisioning; a sites.provision outbox job gives it its
+default design and settings, builds its first page data, purges its host, and moves it to Live, refreshing the host
+map through the outbox. Prove SITE-003: a site created through the API answers over HTTPS at {slug}.{zone} within 60
+seconds.
+CONSTRAINT: SITE-003, SITE-008; tenant-provisioning.md; tenancy.md ("Tenant root": a status change refreshes the host
+map); add-background-job.
+RESTRICTION: Idempotent and resumable: a provisioning job that runs twice leaves one site, one first build, and one
+purge. Until PP11.4's theme snapshot exists, the default design is the built-in one. One seam; split if the design
+defaults need their own.
+UTILIZATION: site-isolation-auditor, architecture-reviewer.
+BEHAVIOR: Plan, wait for approval, implement with tests, including a timed check against a deployed environment.
 ```
 
 ### PP9.6 Security headers and per-site CSP
@@ -3779,7 +3931,8 @@ BEHAVIOR: Plan, wait for approval, implement with cookie-tossing tests from a si
 ```text
 SCOPE: Add a Front Door Standard WAF policy with custom rules (rate limits per client IP, geo or IP block
 lists, and blocks for obviously malicious paths), plus application rate limits on
-public dynamic endpoints per IP, per site, and global.
+public dynamic endpoints per IP, per site, and global, and a global cap on host-map lookups that miss the cache, so a
+flood of random hosts under the zone cannot drive SQL (PP2.14).
 CONSTRAINT: PSEC-001; existing rate limiting.
 RESTRICTION: Rendered pages are never rate-limited at the origin in a way that breaks a viral spike served from cache.
 BEHAVIOR: Plan, wait for approval, implement with tests and an IaC diff.
@@ -5191,7 +5344,7 @@ for approval before any fix.
 SCOPE: Add [method/path] on PantryPress.Site for [one reader action] through Controller → Facade → Business →
 DataLayer → Repository | Gateway.
 CONSTRAINT: public-endpoints.md and sites.md; add-public-endpoint skill; [requirement ID].
-RESTRICTION: SiteId from Host only. No site identifier in the payload. Rate-limited. Untrusted input. Works
+RESTRICTION: SiteId from the reader's host only (public-endpoints.md). No site identifier in the payload. Rate-limited. Untrusted input. Works
 without JavaScript where it backs a form. No SQL reachable from a page request.
 UTILIZATION: add-public-endpoint; public-site-reviewer; site-isolation-auditor.
 BEHAVIOR: Show contracts, limits, and abuse cases, wait for approval, implement with two-site, spam, and

@@ -9,7 +9,6 @@ using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Domain.Modules.Sites.DataLayer;
-using PantryPress.Domain.Modules.Sites.Repositories;
 
 namespace PantryPress.Domain.Modules.Sites.Facades;
 
@@ -21,7 +20,7 @@ internal sealed class SitesFacade(
     SitesDataLayer data,
     SiteHostMapDataLayer hostMap,
     ISiteMembershipFacade memberships,
-    IAccountPublishingEligibility confirmedEmail,
+    IAccountEmailConfirmation confirmedEmail,
     ISiteContext siteContext,
     ISiteContextWriter siteContextWriter,
     IAuditLog audit,
@@ -43,7 +42,7 @@ internal sealed class SitesFacade(
         // this is what keeps throwaway accounts from taking addresses. Asked before the address, so such an account
         // learns nothing about addresses once it is over the limit. The save counts again, under a lock.
         var limit = await UnconfirmedLimitAsync(account, cancellationToken);
-        if (limit is { } cap && await data.CountOwnedAsync(account, cancellationToken) >= cap.Max)
+        if (limit is { } cap && !cap.Allows(await data.CountOwnedAsync(account, cancellationToken)))
         {
             return AccountErrors.EmailNotVerified;
         }
@@ -121,7 +120,7 @@ internal sealed class SitesFacade(
     // The limit on sites for an account whose email address is not confirmed, or null once it is. An account the Accounts
     // module cannot find is treated as unconfirmed: the limit is the safe answer.
     private async Task<OwnedSiteLimit?> UnconfirmedLimitAsync(AccountId account, CancellationToken cancellationToken) =>
-        (await confirmedEmail.CheckAsync(account, cancellationToken)).IsSuccess
+        await confirmedEmail.IsConfirmedAsync(account, cancellationToken)
             ? null
             : new OwnedSiteLimit(account, options.Value.UnconfirmedAccountSiteLimit);
 

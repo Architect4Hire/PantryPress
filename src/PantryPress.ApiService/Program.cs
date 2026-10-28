@@ -70,6 +70,10 @@ app.MapDefaultEndpoints();
 app.UseInternalSurfaceGuard();
 
 app.UseAuthentication();
+
+// A route that names a site looks the caller's membership up in its policy, so those lookups are counted per account
+// before authorization makes them (PP2.14); the routes' own allowances below count only what is let in.
+app.UseSiteLookupLimit();
 app.UseAuthorization();
 app.UseRateLimiter();
 

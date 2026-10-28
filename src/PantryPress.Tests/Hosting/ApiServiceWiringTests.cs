@@ -35,8 +35,8 @@ public sealed class ApiServiceWiringTests
             origin.ValueProviders.OfType<EndpointReferenceExpression>(),
             e => e.Endpoint.Resource.Name == "gateway" && e.Endpoint.EndpointName == "https");
 
-        // Invitation links (PP2.11) open the same origin.
-        Assert.Same(origin, variables["Sites__AppBaseUrl"]);
+        // Invitation links (PP2.11) open the same origin, read from the same key (PP2.14).
+        Assert.DoesNotContain("Sites__AppBaseUrl", variables.Keys);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class ApiServiceWiringTests
 
             var origin = Assert.IsType<ParameterResource>(variables["Accounts__AppBaseUrl"]);
             Assert.Equal("app-base-url", origin.Name);
-            Assert.Same(origin, variables["Sites__AppBaseUrl"]);
+            Assert.DoesNotContain("Sites__AppBaseUrl", variables.Keys);
             Assert.DoesNotContain(variables.Keys, k => k.StartsWith("DevelopmentMail__", StringComparison.Ordinal));
 
             // Deployed, the zone new sites' addresses sit under is the environment's own (PP2.10).

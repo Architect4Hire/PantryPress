@@ -15,7 +15,7 @@ internal sealed class SiteInvitationEmails(string appBaseUrl)
 {
     private readonly string _base = appBaseUrl.TrimEnd('/');
 
-    public string JoinLink(string token) => $"{_base}/join#token={Uri.EscapeDataString(token)}";
+    public string JoinLink(string token) => $"{_base}/dashboard/join#token={Uri.EscapeDataString(token)}";
 
     public EmailMessage Invitation(Guid id, string to, string siteName, SiteRole role, int days, string token)
     {

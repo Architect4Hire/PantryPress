@@ -79,7 +79,9 @@ published public data (`SiteId`, deliberately public, removable on unpublish); r
 
 **Site isolation (PP-D03, ARCH-015).** The site is the tenant. Every site-owned entity has `SiteId`, a
 global query filter, server-side stamping, and `SiteId`-leading indexes. Admin routes resolve the site from
-the route plus membership. Public requests resolve it from the Host header only, through `SiteHost`. A site
+the route plus membership. Public requests resolve it from the host the reader asked for only, through `SiteHost`:
+the Host header, or, behind Front Door, the one header its rule set overwrites, believed only with the edge secret
+(PP2.14, PP9.3). A site
 ID is never accepted from a request body, query string, or client header. The one written exception is a link
 the server sealed itself: an invitation's token names its site the way a publishing key does (tenancy.md rule
 6a). Every site-scoped change owes a two-site test.
@@ -98,7 +100,8 @@ preset.
 
 ## Restriction
 
-- Never weaken site isolation, the Host-only rule, or a global query filter. `IgnoreQueryFilters()` is
+- Never weaken site isolation, the Host-only rule (the reader's host, from the Host or the edge-proven header and
+  nothing else), or a global query filter. `IgnoreQueryFilters()` is
   allowed only in platform-admin code with a written reason.
 - Never add a dependency on an AI SDK or call a model.
 - Never let reader or API input skip validation, sanitization, rate limits, or entitlements.

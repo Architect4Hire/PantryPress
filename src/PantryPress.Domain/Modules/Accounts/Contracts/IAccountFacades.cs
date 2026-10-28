@@ -77,6 +77,17 @@ public interface IAccountPublishingEligibility
     Task<Result> CheckAsync(AccountId account, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Whether an account's email address is confirmed, and nothing more: the Sites module asks it before letting an account
+/// own another site (PP2.10). Apart from <see cref="IAccountPublishingEligibility"/>, so widening what publishing needs
+/// never changes how many sites an account may own (PP2.14).
+/// </summary>
+public interface IAccountEmailConfirmation
+{
+    /// <summary>True when the account exists and its address is confirmed; false for an account that does not exist.</summary>
+    Task<bool> IsConfirmedAsync(AccountId account, CancellationToken cancellationToken);
+}
+
 /// <summary>How an account's own email address compares with one that something was sent to.</summary>
 public enum AccountAddressMatch
 {

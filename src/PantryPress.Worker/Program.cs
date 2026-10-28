@@ -54,8 +54,9 @@ builder.Services.AddAccountsWorker(builder.Configuration.GetSection("Accounts"),
 
 // Sites' share: invitation email from the outbox, with the link to join in it (PP2.11) - the first site message, whose
 // delivery scope enters the site it was staged under. Its links are checked by the API too, under the same key ring and
-// the same rule about where the Worker may send them from.
-builder.Services.AddSitesWorker(builder.Configuration.GetSection(SitesOptions.SectionName), sendsEmail);
+// the same rule about where the Worker may send them from, and they open the one origin account links open,
+// Accounts:AppBaseUrl (auth.md; PP2.14).
+builder.Services.AddSitesWorker(builder.Configuration.GetSection("Accounts"), sendsEmail);
 
 // The outbox dispatcher and the sweep that also purges expired idempotency keys and sign-outs (PP1.10, PP1.12).
 builder.Services.AddIdempotency(builder.Configuration.GetSection("Idempotency"));

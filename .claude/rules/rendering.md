@@ -14,7 +14,11 @@ Requirements RND-001 to RND-008, ARCH-003 to ARCH-008, ARCH-012 to ARCH-014, PP-
 ## SSR (`projects/pantrypress-site`)
 
 - Angular SSR renders every request; Front Door caches it with a long TTL and explicit purge.
-- The SSR server forwards the original Host to `PantryPress.Site`; Node never decides tenancy.
+- The SSR server forwards the host the reader asked for to `PantryPress.Site` in `X-PP-Reader-Host`, with the
+  internal service token; Node never decides tenancy. Locally that host is the request's Host; behind Front Door, the
+  header it reads only after its own edge-secret check, answering anything unproven with the neutral 404 and never
+  forwarding `X-PP-Edge` (`public-endpoints.md`, PP2.14). Every cache keys on the resolved host or site id, never the
+  inbound Host, which every tenant shares behind Front Door.
 - One page-data fetch per request through the route resolver. No other data access. No SQL, ever.
 - SSR-safe components: no `window` or `document` outside browser-only hooks, no `localStorage`, no timers
   that affect output.

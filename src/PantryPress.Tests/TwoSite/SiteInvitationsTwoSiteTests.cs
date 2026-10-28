@@ -21,6 +21,7 @@ namespace PantryPress.Tests.TwoSite;
 
 // Inside the namespace, so the types win over the PantryPress.Tests.Site namespace (the public site host's tests).
 using PantryPress.Domain.Modules.Sites;
+using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.DataLayer;
 using PantryPress.Domain.Modules.Sites.Repositories;
 
@@ -532,7 +533,7 @@ public sealed class SiteInvitationsTwoSiteTests(MigratedDatabase database) : IAs
 
         Assert.Equal(first.Id, second.Id);
         Assert.Equal((await StagedAsync(id)).Id, first.Id);
-        Assert.StartsWith($"{AppBaseUrl}/join#token=", Link(second), StringComparison.Ordinal);
+        Assert.StartsWith($"{AppBaseUrl}/dashboard/join#token=", Link(second), StringComparison.Ordinal);
         using var joined = await _harness.ClientFor(invitee).PostAsJsonAsync(Accept, new AcceptInvitationRequest(TokenFrom(second)));
         Assert.Equal(HttpStatusCode.OK, joined.StatusCode);
     }
@@ -675,6 +676,108 @@ public sealed class SiteInvitationsTwoSiteTests(MigratedDatabase database) : IAs
 
         using var again = await InviteAsync(aOwner, world.A.Slug, first, "editor");
         Assert.Equal(HttpStatusCode.Accepted, again.StatusCode);
+    }
+
+    // PP2.14: invitations to different addresses at the same instant cannot pass the cap together - they are counted again
+    // under the site's lock - and B's own invitations at that instant neither wait on A's lock nor count toward A's cap.
+    [Fact]
+    public async Task Invitations_at_the_same_instant_never_pass_the_cap_together()
+    {
+        await using var harness = await TwoSiteHarness.CreateAsync(
+            database,
+            withApi: true,
+            apiSettings: new Dictionary<string, string?> { ["Sites:MaxOpenInvitations"] = "2" },
+            apiServices: WorkerHalf(new RecordingEmailGateway()));
+        var world = await harness.SeedAsync("inv-crowd");
+        var onA = Enumerable.Range(0, 8).Select(_ => harness.ClientFor(world.A.Owner)).ToList();
+        var onB = Enumerable.Range(0, 2).Select(_ => harness.ClientFor(world.B.Owner)).ToList();
+
+        var responses = await Task.WhenAll(
+            onA.Select(c => InviteAsync(c, world.A.Slug, NewEmail(), "author"))
+                .Concat(onB.Select(c => InviteAsync(c, world.B.Slug, NewEmail(), "author"))));
+
+        var answersOnA = responses[..onA.Count];
+        Assert.Equal(2, answersOnA.Count(r => r.StatusCode == HttpStatusCode.Accepted));
+        Assert.All(
+            answersOnA.Where(r => r.StatusCode != HttpStatusCode.Accepted),
+            r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        Assert.All(responses[onA.Count..], r => Assert.Equal(HttpStatusCode.Accepted, r.StatusCode));
+
+        await using var scope = harness.In(world.A.Id);
+        Assert.Equal(
+            2,
+            await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<SiteInvitation>()
+                .CountAsync(i => i.Status == SiteInvitationStatus.Pending));
+
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
+
+        onA.Concat(onB).ToList().ForEach(c => c.Dispose());
+    }
+
+    // PP2.14: the lock invitations take turns under is the site's own. With A's held, B's invitation goes through and A's
+    // waits for it - a lock shared across sites would hold B up too.
+    [Fact]
+    public async Task Invitations_take_turns_within_a_site_and_never_across_sites()
+    {
+        var world = await _harness.SeedAsync("inv-lock");
+        await using var holderScope = _harness.Scope();
+        var holder = holderScope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Database;
+        await using var transaction = await holder.BeginTransactionAsync();
+        var resource = $"sites.invitations:{world.A.Id.Value:N}";
+        await holder.ExecuteSqlAsync(
+            $"EXEC sp_getapplock @Resource = {resource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'");
+
+        using var aOwner = _harness.ClientFor(world.A.Owner);
+        using var bOwner = _harness.ClientFor(world.B.Owner);
+        var onA = InviteAsync(aOwner, world.A.Slug, NewEmail(), "author");
+        using (var onB = await InviteAsync(bOwner, world.B.Slug, NewEmail(), "author").WaitAsync(TimeSpan.FromSeconds(2)))
+        {
+            Assert.Equal(HttpStatusCode.Accepted, onB.StatusCode);
+        }
+
+        Assert.False(onA.IsCompleted, "A's invitation did not wait for A's lock.");
+        await transaction.RollbackAsync();
+        using var answered = await onA;
+        Assert.Equal(HttpStatusCode.Accepted, answered.StatusCode);
+    }
+
+    // PP2.14: the save opens its own transaction inside the retry strategy, and accepts what it staged only after the
+    // commit, so a commit that failed and rolled back is saved again on the retry rather than reported saved and lost.
+    [Fact]
+    public async Task An_invitation_whose_commit_failed_is_saved_again_on_the_retry()
+    {
+        var commits = new PlantedCommitFault();
+        await using var retrying = await TwoSiteHarness.CreateAsync(database, configure: commits.Configure);
+        var world = await _harness.SeedAsync("inv-retry");
+        var id = new SiteInvitationId(Guid.NewGuid());
+        var now = retrying.Services.GetRequiredService<IClock>().UtcNow;
+
+        await using (var scope = retrying.In(world.A.Id))
+        {
+            scope.ServiceProvider.GetRequiredService<SiteInvitationRepository>().Add(new SiteInvitation
+            {
+                Id = id,
+                Email = "retry@example.com",
+                NormalizedEmail = "RETRY@EXAMPLE.COM",
+                Role = SiteRole.Author,
+                Status = SiteInvitationStatus.Pending,
+                InvitedBy = world.A.Owner,
+                CreatedAt = now,
+                ExpiresAt = now.AddDays(7),
+            });
+            Assert.Equal(
+                InvitationOutcome.Saved,
+                await scope.ServiceProvider.GetRequiredService<SitesUnitOfWork>()
+                    .SaveInvitationAsync(id, "RETRY@EXAMPLE.COM", now, maxOpen: 50, CancellationToken.None));
+        }
+
+        Assert.Equal(2, commits.Attempts);
+        await using var check = _harness.In(world.A.Id);
+        Assert.True(await check.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<SiteInvitation>()
+            .AnyAsync(i => i.Id == id && i.Status == SiteInvitationStatus.Pending));
     }
 
     // Two invitations to one address at the same instant leave one open: the later replaces the earlier, as one after the
@@ -858,8 +961,8 @@ public sealed class SiteInvitationsTwoSiteTests(MigratedDatabase database) : IAs
         JsonSerializer.Serialize(new SiteInvitationEmailMessage(id.Value), OutboxRules.Json);
 
     private static string Link(EmailMessage email) =>
-        email.TextBody.Split('\n').Single(line => line.StartsWith($"{AppBaseUrl}/join#token=", StringComparison.Ordinal));
+        email.TextBody.Split('\n').Single(line => line.StartsWith($"{AppBaseUrl}/dashboard/join#token=", StringComparison.Ordinal));
 
     private static string TokenFrom(EmailMessage email) =>
-        Uri.UnescapeDataString(Link(email)[$"{AppBaseUrl}/join#token=".Length..]);
+        Uri.UnescapeDataString(Link(email)[$"{AppBaseUrl}/dashboard/join#token=".Length..]);
 }

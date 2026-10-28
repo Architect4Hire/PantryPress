@@ -239,7 +239,8 @@ JSON endpoints and hydrated islands.
 plan limit). Each site has members with roles `Owner`, `Editor`, and `Author`. `PlatformAdmin` is the only
 platform-wide role. All site-owned data carries `SiteId` with a global query filter and server-side
 stamping. Admin routes resolve the site from the route plus membership; public requests resolve it **from
-the Host header only**, through `SiteHost`. A site ID is never accepted from a request body, query string,
+the host the reader asked for only** (the Host header, or behind Front Door the edge-proven
+`X-PP-Reader-Host`; PP2.14), through `SiteHost`. A site ID is never accepted from a request body, query string,
 or client header.
 
 **PP-D04 Publishing is a snapshot.** Publishing a post creates an immutable **published revision**: the
@@ -273,7 +274,9 @@ libraries.
 **PP-D08 Public themes are an Angular 22 SSR application.** `projects/pantrypress-site` is served by the
 `pantrypress-site` Node server (Angular's Node app engine), added to the AppHost as a JavaScript app and
 exposed only through Front Door.
-- **Host only:** the SSR server forwards the original Host to `PantryPress.Site`; Node never decides tenancy.
+- **Host only:** the SSR server forwards the host the reader asked for to `PantryPress.Site`; Node never decides
+  tenancy. Behind Front Door that host arrives in a header Front Door overwrites and proves with the edge secret
+  (PP2.14).
 - **One fetch per page:** a route resolver fetches that route's page data (Redis, then blob, plus an
   in-process LRU). No other data access during SSR. Output is deterministic for given page data.
 - **Islands only:** scaling and units, cook mode, ratings, comments, signup, and search use incremental
@@ -309,7 +312,8 @@ AI-assisted creation is CreatorPantry's job.
   the Public Suffix List.
 - **Standard, not Premium:** no managed WAF rule sets, bot rule set, or Private Link. Compensate with WAF
   custom rules (rate limits, geo and IP blocks), origins locked to the `AzureFrontDoor.Backend` service tag
-  plus an `X-Azure-FDID` check, and application-level defenses. **Upgrade trigger (DECIDE):** a sustained
+  plus an edge secret Front Door's rule set adds (PP2.14; `X-Azure-FDID` alone proves nothing on a shared profile),
+  and application-level defenses. **Upgrade trigger (DECIDE):** a sustained
   attack the custom rules cannot handle, or revenue that makes the Premium base fee small.
 
 **PP-D14 Newsletter signup and CSV export only (owner).** PantryPress collects subscribers with double
@@ -392,7 +396,7 @@ settings (PP-D17), so accessibility and the performance budget hold on every pag
 | --- | --- |
 | ARCH-001 | PantryPress is a standalone repository and Aspire application with no code or runtime dependency on CreatorPantry. The domain is module-first (`Modules/<Context>/`) with boundary tests. |
 | ARCH-002 | Every API route follows `Controller → Facade → Business → DataLayer → Repository \| Gateway`. Admin and publishing routes live in `PantryPress.ApiService`; anonymous routes live in `PantryPress.Site`. The Node SSR server is a presentation tier only. |
-| ARCH-003 | The public tier resolves the tenant only from the request Host via `SiteHost`; the SSR server forwards the original Host and never chooses a site. Unknown hosts get a neutral 404. |
+| ARCH-003 | The public tier resolves the tenant only from the host the reader requested, via `SiteHost`: the request Host, or, behind Front Door, the header its rule set overwrites with that host, believed only with the edge secret (PP2.14). The SSR server forwards that host and never chooses a site. Unknown hosts get a neutral 404. |
 | ARCH-004 | Page data is built only from immutable published revisions and site settings, never from drafts or live editing tables. |
 | ARCH-005 | Rendering is deterministic: the same page data and SSR build produce byte-identical HTML. Golden-file tests prove it. SSR components read only their page data. |
 | ARCH-006 | A publish writes page data for a version under a new versioned blob prefix, switches one pointer atomically, and purges the edge. Rollback is a pointer switch. |
@@ -601,7 +605,7 @@ settings (PP-D17), so accessibility and the performance budget hold on every pag
 | PSEC-001 | Public endpoints are rate-limited per IP, per site, and globally, with Front Door WAF custom rules at the edge and ASP.NET Core rate limiting at the origin. |
 | PSEC-002 | Each site serves a strict, generated CSP plus HSTS, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`. |
 | PSEC-003 | The BFF cookie is `__Host-`, host-only, `Secure`, and `HttpOnly`; no tenant page can read or set it. |
-| PSEC-004 | Public endpoints derive `SiteId` from Host only; reader payloads never carry a site identifier. |
+| PSEC-004 | Public endpoints derive `SiteId` from the reader's requested host only (ARCH-003); no client-chosen header, address, or payload names a site, and reader payloads never carry a site identifier. |
 | PSEC-005 | Reader personal data is encrypted at rest, minimized, and never shown to other readers except a commenter's display name. |
 | PSEC-006 | Uploaded, imported, and API-supplied files are malware-scanned before they become public. |
 | PSEC-007 | Isolation tests prove one site cannot read, render, cache, purge, or redirect to another site's content, including through host-header and cache-key tricks. |
@@ -634,7 +638,7 @@ settings (PP-D17), so accessibility and the performance budget hold on every pag
 | Storage | PantryPress's own storage account: `media-originals` (private), `media-public` (via Front Door only), `pagedata` (private) | No |
 | DNS | Azure DNS zone for `pantrypress.app` with a wildcard record | No |
 | Secrets and identity | PantryPress's own Key Vault and managed identities | No |
-| Networking | Origins accept only Front Door traffic (service-tag IP restriction plus `X-Azure-FDID`); private endpoints for SQL, Redis, Blob, and Key Vault where the environment supports them | Environment VNet shared |
+| Networking | Origins accept only Front Door traffic (service-tag IP restriction, plus the edge secret; PP2.14); private endpoints for SQL, Redis, Blob, and Key Vault where the environment supports them | Environment VNet shared |
 | Email | Azure Communication Services Email, PantryPress's own resource and sending domain | No |
 | Observability | Application Insights and Log Analytics via OpenTelemetry | **Workspace shared**; separate cloud role names |
 | Billing | Stripe, PantryPress's own account | No |

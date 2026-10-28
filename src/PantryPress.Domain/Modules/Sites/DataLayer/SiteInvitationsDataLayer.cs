@@ -1,5 +1,6 @@
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Sites.Business;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Domain.Modules.Sites.Repositories;
 
@@ -28,9 +29,16 @@ internal sealed class SiteInvitationsDataLayer(
     /// <summary>Stages a new invitation, to be saved with whatever else the facade staged.</summary>
     public void StageInvitation(SiteInvitation invitation) => invitations.Add(invitation);
 
-    /// <summary>Saves the staged invitation, revoking the address's older ones on the site in the same transaction.</summary>
-    public Task SaveInvitationAsync(SiteId site, SiteInvitation invitation, CancellationToken cancellationToken) =>
-        unitOfWork.SaveInvitationAsync(site, invitation.Id, invitation.NormalizedEmail, cancellationToken);
+    /// <summary>
+    /// Saves the staged invitation, revoking the address's older ones on the entered site in the same transaction, unless the site
+    /// has <paramref name="maxOpen"/> other open invitations by then.
+    /// </summary>
+    public Task<InvitationOutcome> SaveInvitationAsync(
+        SiteInvitation invitation,
+        DateTimeOffset now,
+        int maxOpen,
+        CancellationToken cancellationToken) =>
+        unitOfWork.SaveInvitationAsync(invitation.Id, invitation.NormalizedEmail, now, maxOpen, cancellationToken);
 
     /// <summary>The site's invitation, tracked, or null.</summary>
     public Task<SiteInvitation?> FindInvitationAsync(SiteInvitationId invitation, CancellationToken cancellationToken) =>

@@ -27,7 +27,7 @@ output "certificate_expiry" {
 }
 
 output "front_door_id" {
-  description = "X-Azure-FDID value for PP9.3's origin check."
+  description = "X-Azure-FDID value: a filter only, never proof on a shared profile; the edge secret proves (PP2.14)."
   value       = data.azurerm_cdn_frontdoor_profile.platform.resource_guid
 }
 

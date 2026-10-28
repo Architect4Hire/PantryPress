@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using PantryPress.Domain.Modules.Accounts.Business;
 using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Accounts.Repositories;
 

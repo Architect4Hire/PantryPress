@@ -3,7 +3,8 @@
 - `PantryPress.AppHost` is the only place resources are declared: SQL Server, Redis, Azure Storage (blob
   emulator locally), the migration service, ApiService, Site, Gateway, Worker, the admin Angular app, and the
   `pantrypress-site` Node SSR server.
-- Site references the database and Redis and waits for both (PP2.12): it resolves each request's site from its Host
+- Site references the database and Redis and waits for Redis and for the migration service, which waits for the
+  database (PP2.12): it resolves each request's site from its Host
   through the host map in Redis, reading the database only on a miss. ApiService references Redis too, because creating a
   site refreshes the map. Both connect through `AddCacheConnection` (ServiceDefaults), which never waits for Redis and adds
   no readiness check for it: each host carries on without the cache. Locally a site answers at `{slug}.localhost` on the

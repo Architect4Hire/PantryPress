@@ -121,12 +121,11 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
 // outbox (PP1.10b). The origin is set here, never taken from a request's Host header: locally the gateway at
 // app.localhost, elsewhere the deployed admin origin from a parameter.
 var isLocalDevelopment = builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment();
-// Invitation links open it too (PP2.11), so the Worker writes both from the one origin.
+// Invitation links open it too (PP2.11), so the Worker writes both from the one origin, under the one key (PP2.14).
 if (!isLocalDevelopment)
 {
     var appBaseUrl = builder.AddParameter("app-base-url");
     worker.WithEnvironment("Accounts__AppBaseUrl", appBaseUrl);
-    worker.WithEnvironment("Sites__AppBaseUrl", appBaseUrl);
 }
 
 // The zone a new site's own address sits under, {slug}.{zone} (SITE-003; PP2.10). Locally it is localhost, which browsers
@@ -179,7 +178,6 @@ if (isLocalDevelopment)
     var localAppBaseUrl = ReferenceExpression.Create(
         $"https://app.localhost:{gateway.GetEndpoint("https").Property(EndpointProperty.Port)}");
     worker.WithEnvironment("Accounts__AppBaseUrl", localAppBaseUrl);
-    worker.WithEnvironment("Sites__AppBaseUrl", localAppBaseUrl);
 
     // The development email sink's catcher (external.md: every provider has a local fake). Mail the Worker sends through the
     // development email gateway lands here and is read in its web UI; nothing leaves the machine. Messages live only as long as the

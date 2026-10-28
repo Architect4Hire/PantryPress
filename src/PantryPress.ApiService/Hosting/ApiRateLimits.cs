@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using PantryPress.ApiService.Http;
 
 namespace PantryPress.ApiService.Hosting;
 
@@ -58,6 +59,15 @@ public sealed class ApiRateLimitOptions
     public int SiteMemberChangesPerAccountPerMinute { get; set; } = 30;
 
     /// <summary>
+    /// Requests per minute for one signed-in account on any route that names a site, counted ahead of the site policy
+    /// (PP2.14). The route's own allowance counts only what the policy lets in; this one counts the membership lookups
+    /// themselves, refused ones included, since each is a database read whatever it answers. Set above the sum of today's
+    /// site routes' own per-minute allowances, so it binds only on a caller probing sites it does not belong to; every
+    /// later prompt that adds a site route (autosave, media) checks it still is.
+    /// </summary>
+    public int SiteLookupsPerAccountPerMinute { get; set; } = 300;
+
+    /// <summary>
     /// Requests per minute across every caller for the internal sign-in routes. Deliberately still a global ceiling:
     /// only the gateway can reach this surface, it calls with a client of its own rather than through its proxy, and
     /// it already limits sign-in per address at the browser's end (PP1.8). This is the backstop behind that.
@@ -98,7 +108,7 @@ internal static class ApiRateLimits
                     && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
                     && o.InvitesPerAccountPerHour > 0 && o.InvitationAcceptsPerAccountPerHour > 0
                     && o.SiteMembersPerAccountPerMinute > 0 && o.SiteMemberChangesPerAccountPerMinute > 0
-                    && o.SignInPerMinute > 0
+                    && o.SiteLookupsPerAccountPerMinute > 0 && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
             .ValidateOnStart();
@@ -136,8 +146,9 @@ internal static class ApiRateLimits
             });
 
             // The site routes, partitioned by account as well, each with its own allowance (PP2.10). A route that names a
-            // site is authorized first (PP2.3), so a refused site lookup is not counted: its answer reveals nothing, and
-            // whether a site lives at an address is public through the site itself.
+            // site is authorized first (PP2.3), so a refused site lookup is not counted here: its answer reveals nothing,
+            // and whether a site lives at an address is public through the site itself. The lookups are counted ahead of
+            // authorization instead, by UseSiteLookupLimit (PP2.14).
             options.AddPolicy(Sites, context =>
             {
                 var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
@@ -188,24 +199,68 @@ internal static class ApiRateLimits
                     _ => PerMinute(limits.SiteMemberChangesPerAccountPerMinute));
             });
 
-            options.OnRejected = async (context, cancellationToken) =>
-            {
-                var response = context.HttpContext.Response;
-                response.StatusCode = StatusCodes.Status429TooManyRequests;
-                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-                {
-                    response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
-                }
-
-                await context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(
-                    new ProblemDetailsContext
-                    {
-                        HttpContext = context.HttpContext,
-                        ProblemDetails = { Status = StatusCodes.Status429TooManyRequests },
-                    });
-            };
+            options.OnRejected = (context, _) => RefuseAsync(context.HttpContext, context.Lease);
         });
+        services.AddSingleton<SiteLookupLimiter>();
         return services;
+    }
+
+    /// <summary>
+    /// Counts every signed-in request to a route that names a site, per account, before the site policy looks the caller's
+    /// membership up (PP2.14). Registered between authentication, which names the account, and authorization, which makes
+    /// the lookup. An anonymous caller makes none - the policy leaves it to the 401 - so it is not counted here.
+    /// </summary>
+    public static IApplicationBuilder UseSiteLookupLimit(this IApplicationBuilder app)
+    {
+        var limiter = app.ApplicationServices.GetRequiredService<SiteLookupLimiter>();
+        return app.Use(async (context, next) =>
+        {
+            if (!context.Request.RouteValues.ContainsKey(SiteAuthorization.SlugRouteValue)
+                || !context.User.TryGetAccountId(out var account))
+            {
+                await next(context);
+                return;
+            }
+
+            using var lease = await limiter.AcquireAsync(account.ToString(), context.RequestAborted);
+            if (lease.IsAcquired)
+            {
+                await next(context);
+                return;
+            }
+
+            await RefuseAsync(context, lease);
+        });
+    }
+
+    private static async ValueTask RefuseAsync(HttpContext context, RateLimitLease lease)
+    {
+        var response = context.Response;
+        response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+
+        // Through Results.Problem, as RequestLimits writes its 413: the problem details service writes nothing for an Accept
+        // that names neither JSON nor */*, and a refusal is still owed its problem document (api-contract.md; PP2.14).
+        await Results.Problem(
+            statusCode: StatusCodes.Status429TooManyRequests,
+            title: ApiProblems.TitleFor(StatusCodes.Status429TooManyRequests),
+            extensions: new Dictionary<string, object?> { ["code"] = ApiProblems.CodeFor(StatusCodes.Status429TooManyRequests) })
+            .ExecuteAsync(context);
+    }
+
+    /// <summary>The per-account window behind <see cref="UseSiteLookupLimit"/>, one for the host's lifetime.</summary>
+    internal sealed class SiteLookupLimiter(Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions> options) : IDisposable
+    {
+        private readonly PartitionedRateLimiter<string> _limiter = PartitionedRateLimiter.Create<string, string>(
+            account => RateLimitPartition.GetFixedWindowLimiter(account, _ => PerMinute(options.Value.SiteLookupsPerAccountPerMinute)));
+
+        public ValueTask<RateLimitLease> AcquireAsync(string account, CancellationToken cancellationToken) =>
+            _limiter.AcquireAsync(account, 1, cancellationToken);
+
+        public void Dispose() => _limiter.Dispose();
     }
 
     private static string AccountKey(HttpContext context) =>
