@@ -1,2 +1,5 @@
+@if (waiting()) {
+  <div class="waiting"><pp-progress label="Loading" /></div>
+}
 <router-outlet />
 <pp-toast-region />

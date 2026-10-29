@@ -10,6 +10,7 @@ import { ApiPath } from './core/api/api-path';
 import { ApiResult } from './core/api/api-problem';
 import { provideRuntimeConfig, RuntimeConfigService } from './core/config/runtime-config.service';
 import { RUNTIME_CONFIG_DEFAULTS } from './core/config/runtime-config';
+import { PendingInvitation } from './core/sites/pending-invitation';
 import { DEV_ROUTES } from './dev-routes';
 import { PUBLIC_PATHS, SIGNED_IN_REDIRECT_PATHS } from './public-paths';
 
@@ -86,6 +87,7 @@ async function open(url: string) {
 describe('the apex route table (PPL.2)', () => {
   describe('in the browser', () => {
     beforeEach(() => setUp());
+    afterEach(() => localStorage.clear());
 
     it('renders the landing page at /, with one main and one h1', async () => {
       const page = await open('/');
@@ -138,21 +140,38 @@ describe('the apex route table (PPL.2)', () => {
       expect(page.url()).toBe('/sign-in?next=%2Fdashboard%2Fsites');
     });
 
-    it('renders the dashboard for a complete session', async () => {
+    it('renders the dashboard in its shell for a complete session', async () => {
       const api = TestBed.inject(ApiClient) as unknown as RecordingApi;
       api.session = { ok: true, status: 200, value: SIGNED_IN };
       const page = await open('/dashboard');
-      expect(page.root.tagName.toLowerCase()).toBe('ppa-dashboard-home');
-      expect(page.h1()).toEqual(['Dashboard']);
+      expect(page.root.tagName.toLowerCase()).toBe('ppa-dashboard-shell');
+      expect(page.root.querySelectorAll('main')).toHaveLength(1);
+      expect(page.root.querySelector('main ppa-dashboard-home')).not.toBeNull();
+      expect(page.h1()).toEqual(['Your sites']);
       expect(page.url()).toBe('/dashboard');
+      expect(document.title).toBe('Your sites - PantryPress');
     });
 
-    it('renders the not-found page under the dashboard for a complete session', async () => {
+    it("renders the dashboard's own not-found page, in the shell, for a complete session", async () => {
       const api = TestBed.inject(ApiClient) as unknown as RecordingApi;
       api.session = { ok: true, status: 200, value: SIGNED_IN };
       const page = await open('/dashboard/x');
-      expect(page.root.tagName.toLowerCase()).toBe('ppa-not-found');
+      expect(page.root.querySelector('main ppa-dashboard-not-found')).not.toBeNull();
+      expect(page.h1()).toEqual(['Page not found']);
       expect(page.url()).toBe('/dashboard/x');
+      expect(document.title).toBe('Page not found - PantryPress');
+    });
+
+    it('keeps an invitation link through the way to sign in, and never puts its token in an address (PP3.9)', async () => {
+      const page = await open('/dashboard/join#token=sealed+token/value=');
+      expect(page.root.tagName.toLowerCase()).toBe('ppa-sign-in');
+      expect(page.url()).toBe('/sign-in?next=%2Fdashboard%2Fjoin');
+      expect(TestBed.inject(PendingInvitation).link()?.token).toBe('sealed+token/value=');
+    });
+
+    it('drops any fragment from the address sign-in goes on to', async () => {
+      const page = await open('/dashboard/sites/my-blog#secret');
+      expect(page.url()).toBe('/sign-in?next=%2Fdashboard%2Fsites%2Fmy-blog');
     });
 
     it.each(['/nope', '/pricing/x', '/terms/x', '/sign-in/x'])(

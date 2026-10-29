@@ -17,6 +17,7 @@ import {
   SIGN_IN_EXPIRED_CODE,
 } from '../../core/session/session-client';
 import { dashboardAddress, SignInReason } from '../../core/session/session-guards';
+import { JOIN_PATH } from '../../core/sites/pending-invitation';
 import { AuthFrame } from './auth-frame';
 import { feedbackFor, FormFeedback, marksFields, noFeedback } from './form-feedback';
 
@@ -63,6 +64,9 @@ export class SignIn {
 
   /** Sign-up is offered only while it is open (BIZ-009): the screen does not invite what the API would refuse. */
   protected readonly signUpOpen = computed(() => this.config().publicSignUp);
+
+  /** Whether signing in goes on to accept an invitation (PP3.9): the invited address is the one that can. */
+  protected readonly forInvitation = signal(this.query.get('next') === JOIN_PATH);
 
   /** Why the visitor was sent here, if a guard said; shown until they try to sign in. */
   protected readonly reason = signal(this.reasonText(this.query.get('reason')));

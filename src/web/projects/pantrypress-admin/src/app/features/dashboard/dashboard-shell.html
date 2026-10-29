@@ -1,0 +1,42 @@
+<a class="skip" href="#main" (click)="skip($event)">Skip to main content</a>
+<header class="header">
+  <a class="brand" routerLink="/dashboard">PantryPress</a>
+  <div class="tools">
+    <ppa-site-switcher />
+    <ppa-account-menu />
+  </div>
+</header>
+<div class="body">
+  <nav class="nav" aria-label="Dashboard">
+    <ul class="links">
+      <li>
+        <a
+          routerLink="/dashboard"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          [routerLinkActiveOptions]="{ exact: true }"
+          >Your sites</a
+        >
+      </li>
+    </ul>
+    @if (site(); as site) {
+      <p class="group" id="nav-site">{{ site.name }}</p>
+      <ul class="links" aria-labelledby="nav-site">
+        @for (section of sections; track section.label) {
+          <li>
+            <a
+              [routerLink]="['/dashboard/sites', site.slug, ...section.path]"
+              routerLinkActive="active"
+              ariaCurrentWhenActive="page"
+              [routerLinkActiveOptions]="{ exact: true }"
+              >{{ section.label }}</a
+            >
+          </li>
+        }
+      </ul>
+    }
+  </nav>
+  <main #main id="main" class="main" tabindex="-1">
+    <router-outlet />
+  </main>
+</div>

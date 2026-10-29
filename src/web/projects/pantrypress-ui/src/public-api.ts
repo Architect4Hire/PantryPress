@@ -24,6 +24,7 @@ export { PpTab, PpTabs } from './primitives/tabs/tabs';
 export { PpToolbar } from './primitives/toolbar/toolbar';
 export { PpDialog } from './primitives/dialog/dialog';
 export { PpDrawer } from './primitives/drawer/drawer';
+export { PpDropdown, PpDropdownItem } from './primitives/dropdown/dropdown';
 export type { PpToast, PpToastAction, PpToastOptions } from './primitives/toast/toaster';
 export { PpToaster } from './primitives/toast/toaster';
 export { PpToastRegion } from './primitives/toast/toast-region';

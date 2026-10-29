@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 import { RuntimeConfigService } from './core/config/runtime-config.service';
-import { signedInGuard, signedOutGuard } from './core/session/session-guards';
+import { keepInvitationLink, signedInGuard, signedOutGuard } from './core/session/session-guards';
 import { DEV_ROUTES } from './dev-routes';
 import { Landing } from './features/landing/landing';
 
@@ -79,11 +79,18 @@ export const routes: Routes = [
     title: 'Choose a new password - PantryPress',
     loadComponent: () => import('./features/auth/reset-password').then((m) => m.ResetPassword),
   },
-  // Everything signed in, behind the gateway's word on the session (PP3.8). PP3.9 adds the shell.
+  // Everything signed in, behind the gateway's word on the session (PP3.8). An invitation link's token is kept first,
+  // on the parent, whose guards finish before the child's start (PP3.9): the way to sign in carries no fragment.
   {
     path: 'dashboard',
-    canActivate: [signedInGuard],
-    loadChildren: () => import('./features/dashboard/dashboard.routes'),
+    canActivate: [keepInvitationLink],
+    children: [
+      {
+        path: '',
+        canActivate: [signedInGuard],
+        loadChildren: () => import('./features/dashboard/dashboard.routes'),
+      },
+    ],
   },
   { path: '**', title: 'Page not found - PantryPress', loadComponent: notFound },
 ];

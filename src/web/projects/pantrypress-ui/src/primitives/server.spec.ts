@@ -12,6 +12,7 @@ import { PpToolbar } from './toolbar/toolbar';
 import { PpCard } from './card/card';
 import { PpDialog } from './dialog/dialog';
 import { PpDrawer } from './drawer/drawer';
+import { PpDropdown, PpDropdownItem } from './dropdown/dropdown';
 import { PpEmptyState } from './empty-state/empty-state';
 import { PpNotice } from './notice/notice';
 import { PpPageHeader } from './page-header/page-header';
@@ -42,6 +43,8 @@ import { PpUploader, PpUploadItem } from './uploader/uploader';
     PpCard,
     PpDialog,
     PpDrawer,
+    PpDropdown,
+    PpDropdownItem,
     PpEmptyState,
     PpNotice,
     PpPageHeader,
@@ -81,6 +84,10 @@ import { PpUploader, PpUploadItem } from './uploader/uploader';
     </pp-tabs>
     <pp-dialog heading="Closed dialog"><p>Not shown.</p></pp-dialog>
     <pp-drawer heading="Closed drawer"><p>Not shown.</p></pp-drawer>
+    <pp-dropdown prefix="Site" label="Apple Pie Club" caption="Your sites">
+      <a pp-dropdown-item href="/dashboard" aria-current="page">Apple Pie Club</a>
+      <button pp-dropdown-item>Sign out</button>
+    </pp-dropdown>
     <pp-list label="Posts" [sortOptions]="sorts" sort="title" [page]="2" [hasPrevious]="true">
       <pp-search-field ppListSearch label="Search posts" query="pie" />
       <pp-chip-group ppListFilters legend="Status" [options]="statuses" />
@@ -157,6 +164,14 @@ describe('the primitives on the server', () => {
     const toolbar = /<pp-toolbar[\s\S]*?<\/pp-toolbar>/.exec(html)![0];
     expect(toolbar).toContain('role="toolbar"');
     expect(toolbar).not.toContain('tabindex');
+  });
+
+  it('render a dropdown closed, its items out of reach until it opens', async () => {
+    const html = await render();
+    const dropdown = /<pp-dropdown[\s\S]*?<\/pp-dropdown>/.exec(html)![0];
+    expect(dropdown).toMatch(/<button[^>]*aria-expanded="false"/);
+    expect(dropdown).toMatch(/<div[^>]*class="popup"[^>]*hidden/);
+    expect(dropdown).toContain('Your sites');
   });
 
   it('render every data primitive in the state it was given', async () => {

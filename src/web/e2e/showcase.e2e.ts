@@ -86,13 +86,33 @@ test.describe('axe, contrast included', () => {
   }
 
   for (const mode of MODES) {
+    test(`passes over both dropdowns, open in the ${mode} panel, and Escape closes them`, async ({
+      page,
+    }) => {
+      const host = panel(page, 'dropdown', mode);
+      for (const name of ['Site Apple Pie Club', 'Account']) {
+        const trigger = host.getByRole('button', { name, exact: true });
+        await trigger.focus();
+        await page.keyboard.press('Enter');
+        await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        expect(await violations(page, `#dropdown .panel[data-mode="${mode}"]`)).toEqual([]);
+        // Focus inside the panel, as Tab puts it (WebKit's Tab skips links, so it is placed directly).
+        await host.locator('[aria-expanded="true"] + .popup [pp-dropdown-item]').first().focus();
+        await page.keyboard.press('Escape');
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        await expect(trigger).toBeFocused();
+      }
+    });
+  }
+
+  for (const mode of MODES) {
     test(`passes over every toast, with the page in ${mode} mode`, async ({ page }) => {
       await choosePageMode(page, mode === 'light' ? 'Light' : 'Dark');
       const host = panel(page, 'toast', mode);
       for (const name of ['Show a warning', 'Show an error', 'Show one with an action']) {
         await host.getByRole('button', { name }).click();
       }
-      // The app has one toast region, whichever panel asked (PP3.9's shell will hold it).
+      // The app has one toast region, whichever panel asked: the app's own, in app.html (PP3.8).
       await expect(page.locator('pp-toast-region')).toHaveCount(1);
       const region = page.getByRole('region', { name: 'Notifications' });
       await expect(region.getByRole('listitem')).toHaveCount(3);

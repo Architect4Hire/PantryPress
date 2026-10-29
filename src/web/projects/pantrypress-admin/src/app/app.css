@@ -1,0 +1,22 @@
+.waiting {
+  box-sizing: border-box;
+  inline-size: min(20rem, calc(100% - 2 * var(--space-4)));
+  margin: var(--space-4) auto 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r);
+  background: var(--surface);
+  animation: ppa-waiting-in var(--dur-2) var(--ease-enter) 400ms both;
+}
+
+@keyframes ppa-waiting-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting {
+    animation-duration: 1ms;
+  }
+}

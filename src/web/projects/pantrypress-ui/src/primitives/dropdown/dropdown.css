@@ -1,0 +1,77 @@
+:host {
+  position: relative;
+  display: inline-block;
+  /* In a flex row the button can shrink, its words cut short with an ellipsis, rather than push the page wide. */
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.trigger {
+  max-inline-size: 100%;
+}
+
+.prefix {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.text {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  transition: transform var(--dur-1) var(--ease-standard);
+}
+
+:host([data-open]) .chevron {
+  transform: rotate(180deg);
+}
+
+.popup {
+  position: absolute;
+  z-index: 10;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-start: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 14rem;
+  max-inline-size: min(22rem, calc(100vw - 2 * var(--space-4)));
+  max-block-size: min(24rem, 70vh);
+  overflow-y: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  color: var(--ink);
+}
+
+.popup[data-align='end'] {
+  inset-inline: auto 0;
+}
+
+.popup[hidden] {
+  display: none;
+}
+
+.caption {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--line-subtle);
+  color: var(--muted);
+  font-size: var(--text-1);
+  line-height: var(--leading-2);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

@@ -314,6 +314,26 @@
   </ppa-specimen>
 
   <ppa-specimen
+    anchor="dropdown"
+    heading="Dropdown"
+    use="A button that shows a short list of links and buttons: switching sites, the account menu. Escape closes it."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <pp-dropdown prefix="Site" label="Apple Pie Club" caption="Your sites">
+          <a pp-dropdown-item href="#dropdown" aria-current="page">Apple Pie Club</a>
+          <a pp-dropdown-item href="#dropdown">Plum Tart Society</a>
+          <a pp-dropdown-item href="#dropdown">All your sites</a>
+        </pp-dropdown>
+        <pp-dropdown label="Account" align="end" caption="Signed in as sam@example.com">
+          <button pp-dropdown-item>Sign out</button>
+        </pp-dropdown>
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
     anchor="dialog"
     heading="Dialog and drawer"
     use="A modal question or task, and a side panel. Escape closes both; the page behind is out of reach."

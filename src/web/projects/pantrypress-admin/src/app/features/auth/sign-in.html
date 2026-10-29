@@ -7,6 +7,14 @@
   }
 
   @if (step() === 'password') {
+    @if (forInvitation()) {
+      <pp-notice tone="info">
+        To accept your invitation, sign in with the email address it was sent to.
+        @if (signUpOpen()) {
+          No account yet? Create one with that address.
+        }
+      </pp-notice>
+    }
     <form class="form" [formGroup]="credentials" (ngSubmit)="signIn()" novalidate>
       <pp-field label="Email address" [error]="feedback().fields.email">
         <input

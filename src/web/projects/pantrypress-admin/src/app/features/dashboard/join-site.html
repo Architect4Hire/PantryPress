@@ -1,0 +1,68 @@
+<pp-page-header [heading]="heading()" />
+@switch (state()) {
+  @case ('joining') {
+    <pp-progress label="Working on it" />
+  }
+  @case ('invalid') {
+    <p class="text">
+      {{
+        detail() ??
+          'The link may be incomplete, or it may have expired or been used already. Ask the person who invited you to send a new invitation.'
+      }}
+    </p>
+    <p class="actions">
+      <a pp-button variant="primary" routerLink="/dashboard">Go to your sites</a>
+    </p>
+  }
+  @case ('already-member') {
+    <p class="text">Nothing has changed. You'll find the site with the rest of yours.</p>
+    <p class="actions">
+      <a pp-button variant="primary" routerLink="/dashboard">Go to your sites</a>
+    </p>
+  }
+  @case ('other-address') {
+    <p class="text">
+      {{ detail() }}
+      @if (email(); as email) {
+        You're signed in as {{ email }}.
+      }
+    </p>
+    <p class="actions">
+      <button pp-button variant="primary" [busy]="busy() === 'sign-out'" (click)="signInAgain()">
+        Sign in with another account
+      </button>
+      <a pp-button routerLink="/dashboard">Go to your sites</a>
+    </p>
+  }
+  @case ('unconfirmed') {
+    <p class="text">
+      {{ detail() }} Once you've opened the link in it, come back here and try again.
+    </p>
+    <p class="actions">
+      <button pp-button variant="primary" [busy]="busy() === 'accept'" (click)="accept()">
+        Try again
+      </button>
+      @if (email()) {
+        <button pp-button [busy]="busy() === 'resend'" (click)="resend()">
+          Send the email again
+        </button>
+      }
+    </p>
+  }
+  @case ('failed') {
+    <pp-notice tone="danger">
+      <p class="text">{{ detail() }}</p>
+    </pp-notice>
+    <p class="actions">
+      <button pp-button variant="primary" [busy]="busy() === 'accept'" (click)="accept()">
+        Try again
+      </button>
+      <a pp-button routerLink="/dashboard">Go to your sites</a>
+    </p>
+  }
+}
+@if (note(); as note) {
+  <pp-notice class="note" [tone]="note.tone" announce>
+    <p class="text">{{ note.text }}</p>
+  </pp-notice>
+}

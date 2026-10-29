@@ -110,7 +110,7 @@ test('an anonymous visitor at the dashboard signs in and arrives where they were
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Your sites' })).toBeVisible();
   expect(api.bodies['POST account/session']).toEqual([
     { email: 'cook@example.test', password: 'a long kitchen phrase' },
   ]);
