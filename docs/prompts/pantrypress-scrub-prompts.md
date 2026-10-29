@@ -3107,13 +3107,98 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
   - Builds: `ng build pantrypress-ui`, and `ng build pantrypress-admin` to a scratch path.
   - Not run: a browser, `aspire run`, or a screen reader.
 
-### PP3.5 Admin primitives: data
+### PP3.5 Admin primitives: data - done
 
 ```text
 SCOPE: Add list shell with paging and sorting, search field, chip group, and an uploader shell.
 CONSTRAINT: add-admin-component.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP3.5 delivery note (done 2026-10-29):*
+
+- **What shipped.** Four primitives in `@pantrypress/ui`, exported with a `Pp` prefix. They hold no data: each takes
+  plain inputs and says what the reader did, and fetching, cursors, debouncing, and sending files stay the app's.
+  - `pp-list`, the list shell, around rows the app draws.
+    - It is a region named by its `label`, with slots for search, filters, and the empty state.
+    - Sorting is a "Sort by" select over typed `sortOptions` with `[(sort)]`.
+    - Paging is Previous, Next, and "Page n" (owner-approved: lists page by cursor and know no total, and the app keeps
+      the cursors).
+    - `status` is `loading`, `ready`, or `error`. The first load shows progress. A later one keeps the rows in view,
+      marked busy. An error is an alert with Try again. Each answer after the first says `resultsText` once.
+  - `pp-search-field`.
+    - A search landmark around a labelled `<input type="search">`, with Clear and Search buttons.
+    - `searched` fires on Enter or Search, and with `''` once the field is emptied.
+    - Escape with words in the field clears them and goes no further.
+    - No debounce (owner-approved), so the toast's stays the library's one timer.
+  - `pp-chip-group`.
+    - A `fieldset` over native checkboxes, giving an array in the options' order.
+    - With `multiple="false"`, native radios instead.
+    - A chosen chip has the accent fill and a check mark.
+  - `pp-uploader`.
+    - A visible button opens the browser's own picker; a drop is the extra.
+    - `accept` and `maxBytes` are a courtesy check that names each refused file and why; the server still sniffs and
+      scans (MED-001).
+    - The app's `items` draw as progress, then Added or Not added, with Try again and Remove.
+
+  There are no new tokens or dependencies. `PANTRYPRESS-DESIGN-SYSTEM.md` has a row for each primitive and a "Data
+  primitives hold no data" rule.
+- **Tests.** 165 library specs, up from 125. They cover:
+  - every state, with axe in each;
+  - focus: after paging, after Try again in the list and in the uploader, after Remove (next, previous, button, then
+    the uploader itself), after dismissing refusals, and when rows hidden by an error held it;
+  - announcements said once: results only after the first answer, and files chosen, refused, added, or failed, never
+    progress or a first sight;
+  - the courtesy checks (`acceptsFile`, `sizeInWords`), drops while enabled and disabled, and picker reset;
+  - chip and search reactive forms;
+  - a server render of all four.
+
+  Thirteen rules were shown failing on a deliberate break.
+- **Differs from the approved plan.**
+  - **The search output is `searched`, not `search`.** `search` is a native event name.
+  - **The search field is a `div` with the search role, not a `form`,** so it may sit inside a form.
+  - **The chosen sort is bound as an attribute too.** A server render writes no DOM property, and its spec caught the
+    first paint showing the wrong sort.
+  - **The library's tests now run isolated (`isolate: true` in `angular.json`).**
+    - The Angular builder leaves isolation off by default, so `server.spec.ts`'s comment that "Vitest isolates files"
+      was never true.
+    - A server render's DOM classes leaked into later specs. Toolbar specs failed 2 runs in 4 once the four new files
+      changed the order.
+    - HEAD was green 5 of 5 in a worktree; with isolation this change is green 5 of 5, at about 3.7 s.
+    - The comment now names the setting.
+  - **After `design-review`:**
+    - **Focus never falls to the page.** Try again leaves focus on the list, or on that file's Remove button. Remove
+      moves focus to the next file's Remove, else the previous one's, else the choose button, else the uploader.
+      Dismissing refusals moves it to the choose button. Rows or an empty state hidden while holding focus hand it to
+      the list.
+    - **Paging focuses the rows, not the region.** That puts the reader past the search and filters; the list itself
+      takes focus when no rows show.
+    - **A choice is "chosen".** Only a finished file is "added", and refusals add "The reason is listed below."
+    - **A drop on a disabled uploader is held,** so the browser never opens the file in place of the dashboard.
+    - **New inputs and defaults.** The uploader has a `variant` input for a primary choose button. Only the pager button
+      pressed shows busy. Loading says "Loading posts" from the label. The chip's check mark keeps its room, so no
+      chip moves when chosen. The default `acceptText` is plainer.
+- **Open, for later prompts.**
+  - **PP3.6's browser run:**
+    - a real drop, and `dropEffect`;
+    - Escape in the search field inside a dialog (whether a cancelled keydown stops the dialog's close request);
+    - Safari's and Firefox's search input with the browser's own clear mark hidden;
+    - `:has()` chip states and the check mark in forced colors;
+    - focus rings on the list and its rows;
+    - both modes as drawn.
+  - **The search field copies `control.css`'s look** rather than sharing it, because `control.css` is written for
+    `:host`. A change there must be made in both until a shared stylesheet is split out.
+  - **The chip group's value type** is `readonly T[] | T | null` for both modes, so a form typed for the other mode
+    compiles. The doc says to match it.
+  - **Sortable table headings** (`aria-sort`) are not built. Add them when a real table needs them.
+  - **The uploader's words are English.** As at PP3.3, the admin app's i18n decides how they are translated.
+- **Verification.**
+  - Tests: `ng test pantrypress-ui` (165 of 165, isolated, green on five runs in a row) and `npm test` (all three
+    projects).
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Builds: `ng build pantrypress-ui`, and `ng build pantrypress-admin` to a scratch path.
+  - Not run: a browser, `aspire run`, a Playwright flow (there is still no screen; PP3.6's showcase is the first), or a
+    screen reader.
 
 ### PP3.6 Showcase
 

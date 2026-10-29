@@ -1,6 +1,6 @@
 /*
  * @pantrypress/ui: the admin entry point (PP-D07). Tokens ship as CSS, @pantrypress/ui/tokens.css (PP3.2); actions and
- * inputs are PP3.3's, layout and feedback PP3.4's, and data primitives arrive in PP3.5.
+ * inputs are PP3.3's, layout and feedback PP3.4's, and data PP3.5's.
  * Public-site code imports @pantrypress/ui/themes instead; ESLint enforces the boundary.
  */
 
@@ -31,3 +31,10 @@ export { PpNotice } from './primitives/notice/notice';
 export { PpEmptyState } from './primitives/empty-state/empty-state';
 export { PpProgress } from './primitives/progress/progress';
 export { PpStatusPill } from './primitives/status-pill/status-pill';
+export type { PpListStatus, PpPageTurn, PpSortOption } from './primitives/list/list';
+export { PpList } from './primitives/list/list';
+export { PpSearchField } from './primitives/search-field/search-field';
+export type { PpChipOption } from './primitives/chip-group/chip-group';
+export { PpChipGroup } from './primitives/chip-group/chip-group';
+export type { PpUploadItem, PpUploadStatus } from './primitives/uploader/uploader';
+export { PpUploader } from './primitives/uploader/uploader';

@@ -1,0 +1,85 @@
+:host {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Focus lands here only when no button is left to hold it: a disabled uploader whose last file was removed. */
+:host(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Where files are chosen or dropped: a dashed outline that turns solid accent while files are held over it. */
+.zone {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  padding: var(--space-6) var(--space-5);
+  border: 2px dashed var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  text-align: center;
+  transition: border-color var(--dur-1) var(--ease-standard);
+}
+
+.zone[data-dragging] {
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.drop,
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-1);
+  line-height: var(--leading-2);
+}
+
+.reasons {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+.items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-2);
+  line-height: var(--leading-2);
+}
+
+.name {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.progress {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-inline-start: auto;
+}
+
+.error {
+  flex-basis: 100%;
+}

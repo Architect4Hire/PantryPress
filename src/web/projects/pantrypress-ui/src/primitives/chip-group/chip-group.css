@@ -1,0 +1,85 @@
+:host {
+  display: block;
+}
+
+.group {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: var(--space-2);
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-2);
+  font-weight: 600;
+  line-height: var(--leading-1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The label is the chip: its words and the hidden box are one target, at least 32 px tall. */
+.chip {
+  position: relative;
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  box-sizing: border-box;
+  min-block-size: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-1);
+  font-weight: 600;
+  line-height: var(--leading-1);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-standard),
+    border-color var(--dur-1) var(--ease-standard);
+}
+
+.chip:hover:not(:has(:disabled)) {
+  border-color: var(--ink);
+}
+
+.chip:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Chosen: the accent fill with its ink, and the check mark, so the state is never color alone. The mark's room is
+   kept while it is hidden, so choosing a chip never moves the ones after it out from under the pointer. */
+.check {
+  flex: none;
+  visibility: hidden;
+}
+
+.chip:has(:checked) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chip:has(:checked):hover:not(:has(:disabled)) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.chip:has(:checked) .check {
+  visibility: visible;
+}
+
+.chip:has(:disabled) {
+  border-color: var(--disabled);
+  background: var(--disabled);
+  color: var(--disabled-ink);
+  cursor: not-allowed;
+}

@@ -186,7 +186,8 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "projects/pantrypress-ui/tsconfig.spec.json"
+            "tsConfig": "projects/pantrypress-ui/tsconfig.spec.json",
+            "isolate": true
           }
         },
         "lint": {

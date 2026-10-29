@@ -19,10 +19,15 @@ import { PpProgress } from './progress/progress';
 import { PpStatusPill } from './status-pill/status-pill';
 import { PpTab, PpTabs } from './tabs/tabs';
 import { PpToastRegion } from './toast/toast-region';
+import { PpChipGroup, PpChipOption } from './chip-group/chip-group';
+import { PpList, PpSortOption } from './list/list';
+import { PpSearchField } from './search-field/search-field';
+import { PpUploader, PpUploadItem } from './uploader/uploader';
 
 // The platform's public pages prerender with these primitives (PP-D19). renderApplication puts the server's DOM
 // classes on the global object, which breaks jsdom specs that run after it, so every server render lives in this
-// file alone (Vitest isolates files).
+// file alone. That holds only because the library's tests run isolated, one file to a worker: `isolate` in
+// angular.json, which the Angular builder leaves off by default (PP3.5 found specs failing after this one without it).
 
 @Component({
   selector: 'pp-test-page',
@@ -45,6 +50,10 @@ import { PpToastRegion } from './toast/toast-region';
     PpTabs,
     PpTab,
     PpToastRegion,
+    PpList,
+    PpSearchField,
+    PpChipGroup,
+    PpUploader,
   ],
   template: `
     <pp-field label="Email" hint="We never share it."
@@ -72,6 +81,14 @@ import { PpToastRegion } from './toast/toast-region';
     </pp-tabs>
     <pp-dialog heading="Closed dialog"><p>Not shown.</p></pp-dialog>
     <pp-drawer heading="Closed drawer"><p>Not shown.</p></pp-drawer>
+    <pp-list label="Posts" [sortOptions]="sorts" sort="title" [page]="2" [hasPrevious]="true">
+      <pp-search-field ppListSearch label="Search posts" query="pie" />
+      <pp-chip-group ppListFilters legend="Status" [options]="statuses" />
+      <ul>
+        <li>Apple pie</li>
+      </ul>
+    </pp-list>
+    <pp-uploader label="Choose photos" accept="image/png" [items]="uploads" />
     <pp-toast-region />
   `,
 })
@@ -79,6 +96,18 @@ class TestPage {
   readonly modes: PpRadioOption<string>[] = [
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
+  ];
+  readonly sorts: PpSortOption<string>[] = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'title', label: 'Title' },
+  ];
+  readonly statuses: PpChipOption<string>[] = [
+    { value: 'draft', label: 'Drafts' },
+    { value: 'published', label: 'Published' },
+  ];
+  readonly uploads: PpUploadItem[] = [
+    { id: 'a', name: 'pie.jpg', status: 'uploading', progress: 60 },
+    { id: 'b', name: 'tart.jpg', status: 'failed', error: 'The connection dropped.' },
   ];
 }
 
@@ -128,5 +157,21 @@ describe('the primitives on the server', () => {
     const toolbar = /<pp-toolbar[\s\S]*?<\/pp-toolbar>/.exec(html)![0];
     expect(toolbar).toContain('role="toolbar"');
     expect(toolbar).not.toContain('tabindex');
+  });
+
+  it('render every data primitive in the state it was given', async () => {
+    const html = await render();
+    const list = /<pp-list[\s\S]*?<\/pp-list>/.exec(html)![0];
+    expect(list).toMatch(/<pp-list[^>]*role="region"[^>]*aria-label="Posts"/);
+    expect(list).toMatch(/<option[^>]*value="1"[^>]*selected/);
+    expect(list).toContain('Page 2');
+    expect(list).toMatch(
+      /<input[^>]*type="search"[^>]*value="pie"|<input[^>]*value="pie"[^>]*type="search"/,
+    );
+    expect(list).toMatch(/<input[^>]*type="checkbox"/);
+    expect(list).toContain('Apple pie');
+    expect(html).toMatch(/<input[^>]*type="file"[^>]*hidden|<input[^>]*hidden[^>]*type="file"/);
+    expect(html).toMatch(/<progress[^>]*value="60"/);
+    expect(html).toContain('The connection dropped.');
   });
 });

@@ -1,0 +1,65 @@
+:host {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+/* Focus arrives on the list or its rows only when what held it went away, so the ring says where the reader is. */
+:host(:focus-visible),
+.items:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+}
+
+/* A slot the page left empty takes no room, and a row with nothing in it none at all. */
+.search:empty,
+.filters:empty,
+.controls:not(:has(> :not(:empty))) {
+  display: none;
+}
+
+.search {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.filters {
+  flex: 1 1 100%;
+}
+
+.sort {
+  flex: 0 1 14rem;
+}
+
+.error {
+  margin: 0 0 var(--space-3);
+}
+
+.items {
+  min-inline-size: 0;
+}
+
+[hidden] {
+  display: none;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+}
+
+.page {
+  color: var(--muted);
+  font-size: var(--text-1);
+  line-height: var(--leading-1);
+}
