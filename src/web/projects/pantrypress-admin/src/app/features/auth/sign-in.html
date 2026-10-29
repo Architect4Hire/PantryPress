@@ -1,6 +1,6 @@
 <ppa-auth-frame [heading]="heading()">
   @if (reason(); as reason) {
-    <pp-notice tone="info">{{ reason }}</pp-notice>
+    <pp-notice tone="info" announce>{{ reason }}</pp-notice>
   }
   @if (feedback().notice; as notice) {
     <pp-notice tone="danger" announce>{{ notice }}</pp-notice>
@@ -9,13 +9,20 @@
   @if (step() === 'password') {
     <form class="form" [formGroup]="credentials" (ngSubmit)="signIn()" novalidate>
       <pp-field label="Email address" [error]="feedback().fields.email">
-        <input pp-text-field type="email" autocomplete="username" formControlName="email" />
+        <input
+          pp-text-field
+          type="email"
+          autocomplete="username"
+          required
+          formControlName="email"
+        />
       </pp-field>
       <pp-field label="Password" [error]="feedback().fields.password">
         <input
           pp-text-field
           type="password"
           autocomplete="current-password"
+          required
           formControlName="password"
         />
       </pp-field>
@@ -25,26 +32,29 @@
     </form>
     <p class="links">
       <a routerLink="/forgot-password">Forgot your password?</a>
-      <a routerLink="/sign-up">Create an account</a>
+      @if (signUpOpen()) {
+        <a routerLink="/sign-up">Create an account</a>
+      }
     </p>
   } @else {
     <form class="form" [formGroup]="code" (ngSubmit)="completeSecondStep()" novalidate>
-      <p class="lead">
-        Open your authenticator app and enter the code it shows for PantryPress. If you can't, use
-        one of your recovery codes.
-      </p>
-      <pp-field label="Sign-in code" [error]="feedback().fields.code">
+      <pp-field
+        label="Sign-in code"
+        hint="Enter the code your authenticator app shows for PantryPress. If you can't, use one of your recovery codes."
+        [error]="feedback().fields.code"
+      >
         <input
           pp-text-field
           autocomplete="one-time-code"
           autocapitalize="off"
           spellcheck="false"
+          required
           formControlName="code"
         />
       </pp-field>
       <div class="actions">
         <button pp-button variant="primary" type="submit" [busy]="busy()">Continue</button>
-        <button pp-button variant="quiet" type="button" [disabled]="busy()" (click)="startAgain()">
+        <button pp-button variant="quiet" type="button" [busy]="busy()" (click)="startAgain()">
           Sign in with a different account
         </button>
       </div>

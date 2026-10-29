@@ -20,7 +20,8 @@ Workspace `web/`: `pantrypress-ui` (library), `pantrypress-admin` (the platform 
 - Each page owns its one `<main>` and its one `h1`; the app shell is a bare router outlet.
 - No document may carry inline script: the gateway serves them under `script-src 'self'` and refuses to start on a
   build that has any (PPL.3). So the admin build turns off critical-CSS inlining (`optimization.styles.inlineCritical:
-  false`), and hydration runs without event replay. JSON data blocks (hydration state, JSON-LD) are not script.
+  false`), and hydration runs without event replay or incremental hydration (on by default since Angular 22, and it
+  brings event replay with it: `withNoIncrementalHydration()`). JSON data blocks (hydration state, JSON-LD) are not script.
   `npm run build` checks the admin build for it (`check:admin-build`). Without event replay a click before hydration
   is lost, so a control on a prerendered page works as a plain link or form first.
 - The landing page lives in `features/landing/` and follows the "public page" shape in
@@ -36,6 +37,13 @@ Workspace `web/`: `pantrypress-ui` (library), `pantrypress-admin` (the platform 
 - A link to a path the gateway decides for a signed-in visitor (`/`, `/pricing`) is a plain `href`, a document load,
   never a `routerLink`: drawn in the browser, the landing page would reach a signed-in visitor without the gateway's
   redirect (PPL-001).
+- The session (PP3.8): `SessionClient` and `AccountClient` in `core/session/`. `signedInGuard` on `/dashboard` asks the
+  gateway (`GET /session`) each time the dashboard is entered, and every refusal goes to `/sign-in` with a `next`
+  under `/dashboard` and a reason - never to `/` or `/pricing`, which would loop with the gateway's 302. Every address
+  under `/dashboard` matches a dashboard route (an unknown one as its not-found child), so the guard runs for all of
+  them. A screen that meets `second-factor-required` offers to finish or drop the half-finished sign-in.
+- The app's one `pp-toast-region` is in `app.html`, so every page has the polite announcer a notice speaks through;
+  no screen or shell draws another.
 
 ## Everywhere
 

@@ -3350,6 +3350,7 @@ BEHAVIOR: Plan, wait for approval, implement.
     - `provide-api.ts`: `withFetch()` and `withXsrfConfiguration` over `__Host-pp-xsrf` and `X-PP-Xsrf`.
   - `core/config/`:
     - `RuntimeConfig`, a typed document with no fields yet. PPL.13 adds `publicSignUp`, defaulting to `false`.
+      (Since PP3.8 the app already reads the field, closed by default; PPL.13 adds the server side.)
     - `readRuntimeConfig`, which reads known fields only and defaults the rest.
     - `RuntimeConfigService`, with `config` and `status` signals. It reads once, in the browser only, and never holds
       up the app's start (`provideRuntimeConfig`).
@@ -3415,7 +3416,7 @@ BEHAVIOR: Plan, wait for approval, implement.
     is 59.35 kB compressed.
   - Not run: `aspire run`, or a read through the real gateway, which has no route to answer yet.
 
-### PP3.8 BFF auth client and guards
+### PP3.8 BFF auth client and guards - done
 
 ```text
 SCOPE: Add the BFF session client, route guards, and the sign-in, sign-up, and verify-email screens at
@@ -3425,6 +3426,94 @@ CONSTRAINT: ACCT-001, ACCT-002; PP-D19 (ADR 0019); the route table PPL.2 writes;
 RESTRICTION: Runs after PPL.1 to PPL.3. Sign-up honours the PPL.13 gate (BIZ-009). No screen on another host.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
+
+**Delivery note (2026-10-29).**
+
+- **What shipped.**
+  - **Clients** (`core/session/`):
+    - `SessionClient` covers the gateway's four session routes. It keeps the last answer in a signal, and forgets it on a
+      401, on `sign-in-expired`, and on a sign-out the gateway accepted. A refused sign-out keeps the session and
+      returns the problem.
+    - `AccountClient` covers register, verify, resend, forgot, and reset.
+  - **Guards.**
+    - `signedInGuard` sits on `/dashboard`. Every address under it now matches there, an unknown one as a child
+      not-found page, so the guard runs for all of them.
+    - It sends a refusal to `/sign-in?next=…`, where `next` is kept only under `/dashboard`. It adds a reason: `signed-out`
+      for `session-ended`, `busy` for a 429, and `unavailable` for anything else. It never sends anyone to `/` or
+      `/pricing`, so an API that is down cannot loop with the gateway's 302.
+    - `signedOutGuard` sits on sign-in and sign-up and sends a complete session to `/dashboard`. If the gateway cannot
+      say, the screen is shown.
+  - **Screens** (`features/auth/`):
+    - `/sign-in`: two steps; the code step accepts a recovery code.
+    - `/sign-up`: closed until the server's `publicSignUp` says otherwise. The route waits for that read.
+    - `/verify-email`.
+    - `/forgot-password` and `/reset-password`: added at the owner's word, since no prompt owned them and reset emails
+      already link there.
+  - **How the screens behave.**
+    - The server's plain-language titles are shown as they are, and field errors sit on their fields.
+    - A field refusal moves focus to the first invalid field.
+    - The heading takes focus on each step.
+    - An emailed link leaves the address bar as the page opens.
+  - **The app's one toast region is now in `app.html`,** so every page has the polite announcer. The showcase's copy is
+    gone.
+- **Differs from the prompt.**
+  - Reset-password and forgot-password screens are included (above).
+  - `/verify-email` confirms first, signed in or not. Sending a signed-in visitor straight on would lose the link.
+  - Sign-up stays closed in every environment, local runs included, until PPL.13 publishes the switch (owner's
+    choice). Locally an account is made through the API (`POST /api/v1/account/register`), and its email is read in
+    the mail catcher.
+- **From review.**
+  - **Two bugs found in testing.**
+    - An unknown `/dashboard/…` address skipped the guard.
+    - A link token's `+` was read as a space, because the router had already decoded the fragment and
+      `URLSearchParams` decoded it again.
+  - **From `api-contract-checker`.**
+    - The gateway's 401 `second-factor-required`, which every account route returns to a browser part-way through a
+      sign-in, offers "Finish signing in" or "Start again".
+    - A reset retried after a lost answer, then refused as a used link, says the password may already be changed and
+      leads with Sign in, as `PasswordController.Reset` documents.
+    - Malformed links (the empty account id, a token over 1,024 characters, or a refusal keyed `accountId` or `token`)
+      read as links that do not work.
+  - **From `design-review`.**
+    - A field-only refusal is now heard, because focus moves to the field.
+    - Success notices are now spoken.
+    - The copy no longer claims a link was sent when the server may have sent none.
+    - "Use a different address".
+    - `required` on every field.
+    - The code instructions are the field's hint.
+    - The card primitive and the library's ring width.
+    - Ways on from every state.
+    - Sign-up is not offered while closed.
+  - **Caught by `check:admin-build`.** With the toast region in the shell, every prerendered page had a listener, and
+    Angular 22's incremental hydration, on by default, inlined its event-dispatch script, which the gateway would have
+    refused to serve. Hydration now runs with `withNoIncrementalHydration()`.
+  - **The password hint.** "At least 12 characters" restates `PasswordRules.MinLength`. `PasswordHintTests` reads
+    every hint and fails if the number drifts.
+- **Open, for later prompts.**
+  - **PP3.9.**
+    - Draw no second toast region in the shell.
+    - Sign-out uses `SessionClient.signOut()` and shows its refusal.
+    - Draw something while a guard waits on `GET /session`; a slow first load is blank.
+    - Decide the dashboard's own not-found page.
+  - **PPL.13.**
+    - Publish `publicSignUp`.
+    - Give sign-up a degraded state for a switch that cannot be read. Today a 404 is the normal closed answer.
+    - Consider publishing the password minimum rather than repeating it.
+  - **PP3.10, the contract fixture.** Nothing ties the TypeScript client to the server's shapes beyond review: the session
+    routes have no OpenAPI document, and the e2e stands in for `/api/v1`. Add a shared fixture, or one flow against the
+    real gateway, before admin v1 leaves pre-release.
+  - **Server copy (PP1 owners).** The `invalid-code` title speaks only of the authenticator app, though the field also
+    takes recovery codes.
+  - **Page titles follow the route, not the state.** For example, the tab says "Create your account" while the page
+    says sign-up opens at launch.
+- **Verification.**
+  - `npm test`: the admin app's 182 tests, with the library's and the site's.
+  - `npm run lint`, `npm run format:check`, and `npm run build` (with `check:admin-build`): all clean.
+  - `npm run e2e`: every test, in Chromium, Firefox, and WebKit. That includes the auth flows, axe with contrast in
+    both modes over each screen's states, focus after a refusal, and the spoken resend.
+  - `dotnet test`: all pass, `PasswordHintTests` included.
+  - `api-contract-checker` and `design-review`: their blockers and should-fixes are resolved above, and the rest are
+    recorded under "Open".
 
 ### PP3.9 Admin shell and site switcher
 

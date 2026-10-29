@@ -10,10 +10,15 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PpButton, PpField, PpNotice, PpTextField } from '@pantrypress/ui';
 import { ApiProblem } from '../../core/api/api-problem';
-import { SessionClient, SessionView } from '../../core/session/session-client';
+import { RuntimeConfigService } from '../../core/config/runtime-config.service';
+import {
+  SessionClient,
+  SessionView,
+  SIGN_IN_EXPIRED_CODE,
+} from '../../core/session/session-client';
 import { dashboardAddress, SignInReason } from '../../core/session/session-guards';
 import { AuthFrame } from './auth-frame';
-import { feedbackFor, FormFeedback, noFeedback } from './form-feedback';
+import { feedbackFor, FormFeedback, marksFields, noFeedback } from './form-feedback';
 
 type Step = 'password' | 'code';
 type SignInField = 'email' | 'password' | 'code';
@@ -21,11 +26,9 @@ type SignInField = 'email' | 'password' | 'code';
 /** Codes that are about the code the person typed, said under the code field rather than above the form. */
 const CODE_REFUSALS = new Set(['invalid-code', 'code-already-used']);
 
-/** A second step that can no longer be finished: the half-finished sign-in ran out or is gone, so it starts again. */
-const SIGN_IN_EXPIRED = 'sign-in-expired';
-
 const REASONS: Readonly<Record<SignInReason, string>> = {
   'signed-out': "You've been signed out. Sign in again to pick up where you left off.",
+  busy: 'PantryPress is busy right now. Wait a minute, then sign in or open your dashboard again.',
   unavailable:
     "We couldn't check whether you're signed in. If you were, signing in again takes you back.",
 };
@@ -46,6 +49,7 @@ export class SignIn {
   private readonly sessions = inject(SessionClient);
   private readonly router = inject(Router);
   private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+  private readonly config = inject(RuntimeConfigService).config;
   private readonly frame = viewChild.required(AuthFrame);
 
   protected readonly step = signal<Step>(
@@ -56,6 +60,9 @@ export class SignIn {
   protected readonly heading = computed(() =>
     this.step() === 'password' ? 'Sign in' : 'Enter your sign-in code',
   );
+
+  /** Sign-up is offered only while it is open (BIZ-009): the screen does not invite what the API would refuse. */
+  protected readonly signUpOpen = computed(() => this.config().publicSignUp);
 
   /** Why the visitor was sent here, if a guard said; shown until they try to sign in. */
   protected readonly reason = signal(this.reasonText(this.query.get('reason')));
@@ -75,16 +82,12 @@ export class SignIn {
     }
     const { email, password } = this.credentials.getRawValue();
     const result = await this.run(() => this.sessions.signIn(email, password));
-    if (result === null) {
-      return;
-    }
+    this.credentials.controls.password.reset();
     if (result.ok) {
-      this.credentials.controls.password.reset();
       await this.arrived(result.value);
       return;
     }
-    this.credentials.controls.password.reset();
-    this.feedback.set(feedbackFor(result.problem, ['email', 'password']));
+    this.show(feedbackFor(result.problem, ['email', 'password']));
   }
 
   protected async completeSecondStep(): Promise<void> {
@@ -94,9 +97,6 @@ export class SignIn {
     const result = await this.run(() =>
       this.sessions.completeSecondStep(this.code.getRawValue().code),
     );
-    if (result === null) {
-      return;
-    }
     this.code.reset();
     if (result.ok) {
       await this.arrived(result.value);
@@ -110,8 +110,12 @@ export class SignIn {
     if (this.busy()) {
       return;
     }
-    await this.run(() => this.sessions.signOut());
-    this.toPasswordStep(noFeedback());
+    const result = await this.run(() => this.sessions.signOut());
+    if (result.ok) {
+      this.toPasswordStep(noFeedback());
+    } else {
+      this.show({ fields: {}, notice: result.problem.title });
+    }
   }
 
   private async arrived(view: SessionView): Promise<void> {
@@ -124,11 +128,12 @@ export class SignIn {
   }
 
   private refusedCode(problem: ApiProblem): void {
-    if (problem.code === SIGN_IN_EXPIRED || problem.status === 401) {
+    // Expired at the API (400), or gone at the gateway (401 sign-in-required): either way it starts again.
+    if (problem.code === SIGN_IN_EXPIRED_CODE || problem.status === 401) {
       this.toPasswordStep({ fields: {}, notice: problem.title });
       return;
     }
-    this.feedback.set(
+    this.show(
       CODE_REFUSALS.has(problem.code)
         ? { fields: { code: problem.title }, notice: null }
         : feedbackFor(problem, ['code']),
@@ -141,8 +146,15 @@ export class SignIn {
     this.frame().focusHeading();
   }
 
+  private show(feedback: FormFeedback<SignInField>): void {
+    this.feedback.set(feedback);
+    if (marksFields(feedback)) {
+      this.frame().focusFirstInvalid();
+    }
+  }
+
   // One request at a time; the reason a guard gave is spent once the person acts.
-  private async run<T>(call: () => Promise<T>): Promise<T | null> {
+  private async run<T>(call: () => Promise<T>): Promise<T> {
     this.busy.set(true);
     this.reason.set(null);
     this.feedback.set(noFeedback());
@@ -154,6 +166,8 @@ export class SignIn {
   }
 
   private reasonText(reason: string | null): string | null {
-    return reason === 'signed-out' || reason === 'unavailable' ? REASONS[reason] : null;
+    return reason === 'signed-out' || reason === 'busy' || reason === 'unavailable'
+      ? REASONS[reason]
+      : null;
   }
 }

@@ -11,9 +11,11 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PpButton, PpField, PpNotice, PpProgress, PpTextField } from '@pantrypress/ui';
 import { AccountClient, INVALID_VERIFICATION_LINK_CODE } from '../../core/session/account-client';
+import { SECOND_FACTOR_REQUIRED_CODE } from '../../core/session/session-client';
 import { AuthFrame } from './auth-frame';
-import { feedbackFor, FormFeedback, noFeedback } from './form-feedback';
+import { feedbackFor, FormFeedback, marksFields, noFeedback, refusesLink } from './form-feedback';
 import { AccountLink, readAccountLink } from './link-fragment';
+import { PendingSignIn } from './pending-sign-in';
 
 type State = 'checking' | 'confirmed' | 'invalid' | 'failed';
 
@@ -35,6 +37,7 @@ const HEADINGS: Readonly<Record<State, string>> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AuthFrame,
+    PendingSignIn,
     PpButton,
     PpField,
     PpNotice,
@@ -54,6 +57,7 @@ export class VerifyEmail {
   protected readonly state = signal<State>('checking');
   protected readonly heading = computed(() => HEADINGS[this.state()]);
   protected readonly failure = signal<string | null>(null);
+  protected readonly pending = signal(false);
   protected readonly busy = signal(false);
   protected readonly feedback = signal<FormFeedback<'email'>>(noFeedback());
   protected readonly resent = signal(false);
@@ -79,14 +83,19 @@ export class VerifyEmail {
     }
     this.busy.set(true);
     this.failure.set(null);
+    this.pending.set(false);
     try {
       const result = await this.accounts.verifyEmail(this.link.accountId, this.link.token);
       if (result.ok) {
         this.moveTo('confirmed');
-      } else if (result.problem.code === INVALID_VERIFICATION_LINK_CODE) {
+      } else if (
+        result.problem.code === INVALID_VERIFICATION_LINK_CODE ||
+        refusesLink(result.problem)
+      ) {
         this.moveTo('invalid');
       } else {
-        this.failure.set(result.problem.title);
+        this.pending.set(result.problem.code === SECOND_FACTOR_REQUIRED_CODE);
+        this.failure.set(this.pending() ? null : result.problem.title);
         this.moveTo('failed');
       }
     } finally {
@@ -100,13 +109,20 @@ export class VerifyEmail {
     }
     this.busy.set(true);
     this.resent.set(false);
+    this.pending.set(false);
     this.feedback.set(noFeedback());
     try {
       const result = await this.accounts.resendVerification(this.form.getRawValue().email);
       if (result.ok) {
         this.resent.set(true);
+      } else if (result.problem.code === SECOND_FACTOR_REQUIRED_CODE) {
+        this.pending.set(true);
       } else {
-        this.feedback.set(feedbackFor(result.problem, ['email']));
+        const feedback = feedbackFor(result.problem, ['email']);
+        this.feedback.set(feedback);
+        if (marksFields(feedback)) {
+          this.frame().focusFirstInvalid();
+        }
       }
     } finally {
       this.busy.set(false);

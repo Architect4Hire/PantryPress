@@ -37,9 +37,17 @@ class RecordingApi {
   };
   private record(method: string, path: ApiPath): Promise<ApiResult<unknown>> {
     this.calls.push(`${method} ${path}`);
-    return method === 'GET' && path === 'account/session'
-      ? Promise.resolve(this.session)
-      : new Promise<never>(() => undefined);
+    if (method === 'GET' && path === 'account/session') {
+      return Promise.resolve(this.session);
+    }
+    // As today's server answers it: nothing published yet, so every switch keeps its closed default.
+    if (method === 'GET' && path === 'client-configuration') {
+      return Promise.resolve({
+        ok: false,
+        problem: { status: 404, code: 'not-found', title: "We couldn't find that." },
+      });
+    }
+    return new Promise<never>(() => undefined);
   }
   get = (path: ApiPath) => this.record('GET', path);
   post = (path: ApiPath) => this.record('POST', path);

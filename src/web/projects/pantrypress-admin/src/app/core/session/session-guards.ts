@@ -6,7 +6,7 @@ import { SESSION_ENDED_CODE, SessionClient } from './session-client';
 export const DASHBOARD = '/dashboard';
 
 /** Why the sign-in screen was sent to, said on it in words. */
-export type SignInReason = 'signed-out' | 'unavailable';
+export type SignInReason = 'signed-out' | 'busy' | 'unavailable';
 
 /**
  * The dashboard's door (PP3.8, ADR 0019). It asks the gateway each time the dashboard is entered, because the cookie
@@ -27,7 +27,9 @@ export const signedInGuard: CanActivateFn = async (_route, state) => {
       ? 'signed-out'
       : result.problem.status === 401
         ? null
-        : 'unavailable';
+        : result.problem.status === 429
+          ? 'busy'
+          : 'unavailable';
   return signInFor(router, state.url, reason);
 };
 

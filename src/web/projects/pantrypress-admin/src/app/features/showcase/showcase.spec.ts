@@ -41,9 +41,8 @@ describe('Showcase', () => {
     expect(missing).toEqual([]);
   });
 
-  it('holds the one toast region, outside the panels, since an app has only one', () => {
-    expect(root.querySelectorAll('pp-toast-region')).toHaveLength(1);
-    expect(root.querySelector('.panel pp-toast-region')).toBeNull();
+  it('draws no toast region of its own: the app shell holds the one an app has (PP3.8)', () => {
+    expect(root.querySelectorAll('pp-toast-region')).toHaveLength(0);
   });
 
   it('sets the page mode on <html>, and puts it back to none on leaving', async () => {

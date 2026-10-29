@@ -1,4 +1,8 @@
 <ppa-auth-frame [heading]="heading()">
+  @if (pending()) {
+    <ppa-pending-sign-in (cleared)="pending.set(false)" />
+  }
+
   @if (!open()) {
     <p class="lead">
       PantryPress is early in development, and we're building it in the open. You'll be able to
@@ -8,11 +12,17 @@
   } @else if (sentTo(); as email) {
     <div class="step">
       <p class="lead">
-        We sent a link to <strong>{{ email }}</strong
-        >. Open it to confirm your address, then sign in.
+        If <strong>{{ email }}</strong> is new to PantryPress, we've sent it a link. Open it to
+        confirm your address, then sign in.
+      </p>
+      <p class="lead">
+        Already have an account with that address? Sign in, or reset your password if you've
+        forgotten it.
       </p>
       @if (resent()) {
-        <pp-notice tone="success" announce>We sent another link.</pp-notice>
+        <pp-notice tone="success" announce>
+          If that address is waiting to be confirmed, we've sent it a new link.
+        </pp-notice>
       }
       @if (feedback().notice; as notice) {
         <pp-notice tone="danger" announce>{{ notice }}</pp-notice>
@@ -21,8 +31,14 @@
         <button pp-button variant="secondary" type="button" [busy]="busy()" (click)="resend()">
           Send the link again
         </button>
+        <button pp-button variant="quiet" type="button" (click)="useAnotherAddress()">
+          Use a different address
+        </button>
       </div>
-      <p class="links"><a routerLink="/sign-in">Sign in</a></p>
+      <p class="links">
+        <a routerLink="/sign-in">Sign in</a>
+        <a routerLink="/forgot-password">Reset your password</a>
+      </p>
     </div>
   } @else {
     @if (feedback().notice; as notice) {
@@ -30,7 +46,13 @@
     }
     <form class="form" [formGroup]="form" (ngSubmit)="register()" novalidate>
       <pp-field label="Email address" [error]="feedback().fields.email">
-        <input pp-text-field type="email" autocomplete="email" formControlName="email" />
+        <input
+          pp-text-field
+          type="email"
+          autocomplete="username"
+          required
+          formControlName="email"
+        />
       </pp-field>
       <pp-field
         label="Password"
@@ -41,6 +63,7 @@
           pp-text-field
           type="password"
           autocomplete="new-password"
+          required
           formControlName="password"
         />
       </pp-field>

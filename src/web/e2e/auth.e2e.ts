@@ -19,12 +19,21 @@ const VIEW = {
 interface Api {
   stage: 'none' | 'second-factor' | 'complete';
   twoStep: boolean;
+  signUpOpen: boolean;
+  wrongCode: boolean;
   readonly bodies: Record<string, unknown[]>;
 }
 
 /** Answers the admin surface the way the gateway and ApiService would for one browser. */
 async function standIn(page: Page, api: Partial<Api> = {}): Promise<Api> {
-  const state: Api = { stage: 'none', twoStep: false, bodies: {}, ...api };
+  const state: Api = {
+    stage: 'none',
+    twoStep: false,
+    signUpOpen: false,
+    wrongCode: false,
+    bodies: {},
+    ...api,
+  };
   const json = (route: Route, status: number, body?: unknown) =>
     route.fulfill({
       status,
@@ -49,7 +58,21 @@ async function standIn(page: Page, api: Partial<Api> = {}): Promise<Api> {
       case 'POST account/session':
         state.stage = state.twoStep ? 'second-factor' : 'complete';
         return json(route, 200, { ...VIEW, stage: state.stage });
+      case 'GET client-configuration':
+        return state.signUpOpen
+          ? json(route, 200, { publicSignUp: true })
+          : json(route, 404, { status: 404, code: 'not-found', title: "We couldn't find that." });
+      case 'POST account/register':
+      case 'POST account/email/resend':
+        return route.fulfill({ status: 202 });
       case 'POST account/session/second-factor':
+        if (state.wrongCode) {
+          return json(route, 400, {
+            status: 400,
+            code: 'invalid-code',
+            title: "That code isn't right.",
+          });
+        }
         state.stage = 'complete';
         return json(route, 200, { ...VIEW, stage: 'complete', secondFactorVerified: true });
       case 'POST account/email/verify':
@@ -135,6 +158,42 @@ test('a confirmation link confirms, keeps its token whole, and leaves the addres
   ).toBeVisible();
   expect(api.bodies['POST account/email/verify']).toEqual([{ accountId: ACCOUNT, token }]);
   expect(new URL(page.url()).hash).toBe('');
+});
+
+test('a refused code moves focus to the code field, which says why', async ({ page }) => {
+  await standIn(page, { stage: 'second-factor', wrongCode: true });
+  await page.goto('/sign-in');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Enter your sign-in code' }),
+  ).toBeVisible();
+
+  await page.getByLabel('Sign-in code', { exact: true }).fill('000000');
+  await page.keyboard.press('Enter');
+
+  const field = page.getByLabel('Sign-in code', { exact: true });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveAccessibleDescription(/That code isn't right\./);
+  expect(await violations(page)).toEqual([]);
+});
+
+test('sign-up, once open, says what happens and speaks a resend', async ({ page }) => {
+  await standIn(page, { signUpOpen: true });
+  await page.goto('/sign-up');
+  await expect(page.getByRole('heading', { level: 1, name: 'Create your account' })).toBeVisible();
+  expect(await violations(page)).toEqual([]);
+
+  await page.getByLabel('Email address').fill('cook@example.test');
+  await page.getByLabel('Password').fill('a long kitchen phrase');
+  await page.getByRole('button', { name: 'Create account' }).click();
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Check your email' })).toBeFocused();
+  expect(await violations(page)).toEqual([]);
+
+  await page.getByRole('button', { name: 'Send the link again' }).click();
+  // The polite announcer every page has (the app's one toast region) is where a success is spoken.
+  await expect(page.locator('pp-announcer [aria-live="polite"]')).toContainText(
+    "If that address is waiting to be confirmed, we've sent it a new link.",
+  );
 });
 
 test.describe('axe, contrast included', () => {

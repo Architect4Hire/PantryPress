@@ -111,14 +111,37 @@ describe('SessionClient', () => {
     ]);
   });
 
-  it('signs out at the gateway and forgets the session whatever it answers', async () => {
+  it('signs out at the gateway and forgets the session once the gateway says it is gone', async () => {
     const { api, sessions } = setUp();
-    api.answer({ ok: true, status: 200, value: VIEW }, refused(502, 'unexpected-error'));
+    api.answer({ ok: true, status: 200, value: VIEW }, { ok: true, status: 204, value: undefined });
     await sessions.current();
 
-    await sessions.signOut();
-
+    expect((await sessions.signOut()).ok).toBe(true);
     expect(api.calls.at(-1)).toEqual({ method: 'DELETE', path: 'account/session' });
+    expect(sessions.session()).toBeNull();
+  });
+
+  it('keeps the session when the gateway refused the sign-out before it ran, and says why', async () => {
+    const { api, sessions } = setUp();
+    api.answer({ ok: true, status: 200, value: VIEW }, refused(429, 'too-many-requests'));
+    await sessions.current();
+
+    const result = await sessions.signOut();
+
+    expect(result.ok ? null : result.problem.code).toBe('too-many-requests');
+    expect(sessions.session()).toEqual(VIEW);
+  });
+
+  it('forgets a half-finished sign-in the gateway has dropped as expired', async () => {
+    const { api, sessions } = setUp();
+    api.answer(
+      { ok: true, status: 200, value: { ...VIEW, stage: 'second-factor' } },
+      refused(400, 'sign-in-expired'),
+    );
+    await sessions.current();
+
+    await sessions.completeSecondStep('123456');
+
     expect(sessions.session()).toBeNull();
   });
 });

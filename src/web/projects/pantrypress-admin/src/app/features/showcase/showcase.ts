@@ -37,7 +37,6 @@ import {
   PpTextField,
   PpToaster,
   PpToastOptions,
-  PpToastRegion,
   PpToolbar,
   PpUploader,
 } from '@pantrypress/ui';
@@ -82,7 +81,6 @@ type PageMode = 'auto' | 'light' | 'dark';
     PpTabs,
     PpTextarea,
     PpTextField,
-    PpToastRegion,
     PpToolbar,
     PpUploader,
   ],

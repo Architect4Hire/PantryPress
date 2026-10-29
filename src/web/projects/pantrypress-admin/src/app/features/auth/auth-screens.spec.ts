@@ -325,7 +325,7 @@ describe('sign in (PP3.8)', () => {
     const screen = await open('/sign-in', (sessions) => {
       sessions.session.set({ ...VIEW, stage: 'second-factor' });
       sessions.codeCalls.answer(
-        refused(401, 'sign-in-expired', 'That took too long. Please sign in again.'),
+        refused(400, 'sign-in-expired', 'That took too long. Please sign in again.'),
       );
     });
     type(screen, 'Sign-in code', '123456');
@@ -348,6 +348,10 @@ describe('sign in (PP3.8)', () => {
   it.each([
     ['signed-out', "You've been signed out. Sign in again to pick up where you left off."],
     [
+      'busy',
+      'PantryPress is busy right now. Wait a minute, then sign in or open your dashboard again.',
+    ],
+    [
       'unavailable',
       "We couldn't check whether you're signed in. If you were, signing in again takes you back.",
     ],
@@ -361,11 +365,78 @@ describe('sign in (PP3.8)', () => {
     expect(notices(screen)).toEqual([]);
   });
 
-  it('passes axe and links to the other account screens', async () => {
+  it('passes axe and links to password help, and not to a sign-up that is closed', async () => {
     const screen = await open('/sign-in');
     const links = [...screen.root().querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/', '/forgot-password', '/sign-up']);
+    expect(links).toEqual(['/', '/forgot-password']);
     expect(await axeViolations(screen)).toEqual([]);
+  });
+
+  it('offers to create an account once sign-up is open', async () => {
+    const screen = await open('/sign-in', () => undefined, { publicSignUp: true });
+    expect(screen.root().querySelector('a[href="/sign-up"]')?.textContent?.trim()).toBe(
+      'Create an account',
+    );
+  });
+
+  it('moves focus to a field the server refused, so its error is heard', async () => {
+    const screen = await open('/sign-in', (sessions) =>
+      sessions.signInCalls.answer(
+        refused(400, 'validation-failed', 'Check the highlighted fields.', {
+          password: ['Enter your password.'],
+        }),
+      ),
+    );
+    await submit(screen);
+    await screen.settle();
+
+    expect(document.activeElement).toBe(control(screen, 'Password'));
+    expect(control(screen, 'Password').getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('moves focus to the code field when the code is refused', async () => {
+    const screen = await open('/sign-in', (sessions) => {
+      sessions.session.set({ ...VIEW, stage: 'second-factor' });
+      sessions.codeCalls.answer(refused(400, 'invalid-code', "That code isn't right."));
+    });
+    await submit(screen);
+    await screen.settle();
+
+    expect(document.activeElement).toBe(control(screen, 'Sign-in code'));
+  });
+
+  it('describes the code field with how to find a code', async () => {
+    const screen = await open('/sign-in', (sessions) =>
+      sessions.session.set({ ...VIEW, stage: 'second-factor' }),
+    );
+    const input = control(screen, 'Sign-in code');
+    const hint = screen.root().querySelector(`#${input.getAttribute('aria-describedby')}`);
+    expect(hint?.textContent).toContain('recovery codes');
+    expect(input.required).toBe(true);
+  });
+
+  it('stays on the code step and says why when leaving it was refused', async () => {
+    const screen = await open('/sign-in', (sessions) => {
+      sessions.session.set({ ...VIEW, stage: 'second-factor' });
+      sessions.signOutCalls.answer(
+        refused(429, 'too-many-requests', 'Too many requests. Please wait a minute and try again.'),
+      );
+    });
+    await press(screen, 'Sign in with a different account');
+
+    expect(heading(screen)).toBe('Enter your sign-in code');
+    expect(notices(screen)).toEqual([
+      'Error: Too many requests. Please wait a minute and try again.',
+    ]);
+  });
+
+  it('starts again when the gateway has no half-finished sign-in left (401)', async () => {
+    const screen = await open('/sign-in', (sessions) => {
+      sessions.session.set({ ...VIEW, stage: 'second-factor' });
+      sessions.codeCalls.answer(refused(401, 'sign-in-required', 'Please sign in to continue.'));
+    });
+    await submit(screen);
+    expect(heading(screen)).toBe('Sign in');
   });
 });
 
@@ -394,8 +465,60 @@ describe('sign up (PP3.8)', () => {
 
     await press(screen, 'Send the link again');
     expect(screen.accounts.on('resendVerification').made).toEqual([['cook@example.test']]);
-    expect(notices(screen)).toEqual(['Success: We sent another link.']);
+    expect(notices(screen)).toEqual([
+      "Success: If that address is waiting to be confirmed, we've sent it a new link.",
+    ]);
     expect(await axeViolations(screen)).toEqual([]);
+  });
+
+  it('never claims a link was sent: the server sends none to an address that has an account', async () => {
+    const screen = await open('/sign-up', () => undefined, { publicSignUp: true });
+    type(screen, 'Email address', 'cook@example.test');
+    await submit(screen);
+
+    const text = screen.root().textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(text).toContain("If cook@example.test is new to PantryPress, we've sent it a link.");
+    expect(text).not.toContain('We sent a link');
+  });
+
+  it('goes back to the form with the address kept, for a mistyped one', async () => {
+    const screen = await open('/sign-up', () => undefined, { publicSignUp: true });
+    type(screen, 'Email address', 'cook@exmaple.test');
+    await submit(screen);
+
+    await press(screen, 'Use a different address');
+
+    expect(heading(screen)).toBe('Create your account');
+    expect(control(screen, 'Email address').value).toBe('cook@exmaple.test');
+  });
+
+  it('offers to finish or drop a half-finished sign-in that stops it', async () => {
+    const screen = await open(
+      '/sign-up',
+      (_sessions, accounts) =>
+        accounts
+          .on('register')
+          .answer(
+            refused(
+              401,
+              'second-factor-required',
+              'Finish signing in with your authenticator code.',
+            ),
+          ),
+      { publicSignUp: true },
+    );
+    await submit(screen);
+
+    expect(notices(screen)[0]).toContain("You're part way through signing in");
+    expect(screen.root().querySelector('a[href="/sign-in"]')?.textContent?.trim()).toBe(
+      'Finish signing in',
+    );
+    expect(await axeViolations(screen)).toEqual([]);
+
+    await press(screen, 'Start again');
+
+    expect(screen.sessions.signOutCalls.made).toHaveLength(1);
+    expect(screen.root().querySelector('ppa-pending-sign-in')).toBeNull();
   });
 
   it("puts the server's field messages under their fields", async () => {
@@ -470,6 +593,46 @@ describe('verify email (PP3.8)', () => {
       expect(screen.accounts.on('verifyEmail').made).toEqual([]);
     },
   );
+
+  it.each([
+    [`account=00000000-0000-0000-0000-000000000000&token=x`],
+    [`account=${ACCOUNT}&token=${'x'.repeat(1025)}`],
+  ])(
+    'treats a link the server would refuse as malformed as one that does not work',
+    async (fragment) => {
+      const screen = await open(`/verify-email#${fragment}`);
+      expect(heading(screen)).toBe("This link doesn't work");
+      expect(screen.accounts.on('verifyEmail').made).toEqual([]);
+    },
+  );
+
+  it('treats a link the server refused field by field as one that does not work', async () => {
+    const screen = await open(`/verify-email#${LINK}`, (_sessions, accounts) =>
+      accounts.on('verifyEmail').answer(
+        refused(400, 'validation-failed', 'Some of the details need another look.', {
+          token: ['This link is not one of ours.'],
+        }),
+      ),
+    );
+    expect(heading(screen)).toBe("This link doesn't work");
+  });
+
+  it('offers to finish or drop a half-finished sign-in that stops the confirmation', async () => {
+    const screen = await open(`/verify-email#${LINK}`, (_sessions, accounts) =>
+      accounts
+        .on('verifyEmail')
+        .answer(
+          refused(401, 'second-factor-required', 'Finish signing in with your authenticator code.'),
+          { ok: true, status: 204, value: undefined },
+        ),
+    );
+    expect(notices(screen)[0]).toContain("You're part way through signing in");
+
+    await press(screen, 'Start again');
+    await press(screen, 'Try again');
+
+    expect(heading(screen)).toBe('Your email address is confirmed');
+  });
 
   it('offers to try again when the confirmation failed for another reason', async () => {
     const screen = await open(`/verify-email#${LINK}`, (_sessions, accounts) =>
@@ -566,6 +729,34 @@ describe('reset password (PP3.8)', () => {
 
     expect(fieldError(screen, 'New password')).toBe('Error: Use at least 12 characters.');
     expect(heading(screen)).toBe('Choose a new password');
+  });
+
+  it('says the password may already be changed when a retry after a lost answer finds the link used', async () => {
+    const screen = await open(`/reset-password#${LINK}`, (_sessions, accounts) =>
+      accounts
+        .on('reset')
+        .answer(
+          refused(
+            0,
+            'unreachable',
+            "We couldn't reach PantryPress. Check your connection and try again.",
+          ),
+          refused(400, 'invalid-reset-link', 'That link has expired.'),
+        ),
+    );
+    type(screen, 'New password', NEW_PHRASE);
+    await submit(screen);
+    expect(heading(screen)).toBe('Choose a new password');
+
+    type(screen, 'New password', NEW_PHRASE);
+    await submit(screen);
+
+    expect(heading(screen)).toBe('Your password may already be changed');
+    const actions = [...screen.root().querySelectorAll('.actions a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    expect(actions).toEqual(['/sign-in', '/forgot-password']);
+    expect(await axeViolations(screen)).toEqual([]);
   });
 
   it('says a missing link does not work without asking the server', async () => {

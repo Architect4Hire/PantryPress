@@ -21,6 +21,15 @@ export interface SessionView {
 /** The gateway's answer to a session that is over (PP1.12): the app says "you were signed out", not just "sign in". */
 export const SESSION_ENDED_CODE = 'session-ended';
 
+/** A second step that can no longer be finished (400): the gateway has already dropped the half-finished sign-in. */
+export const SIGN_IN_EXPIRED_CODE = 'sign-in-expired';
+
+/**
+ * The gateway's refusal of every admin request (401) from a browser part-way through a sign-in - the password given, the
+ * code not yet (`SessionIdentity`). Until it is finished or dropped, no other account screen can do its work.
+ */
+export const SECOND_FACTOR_REQUIRED_CODE = 'second-factor-required';
+
 const SESSION = toApiPath('account/session');
 const SECOND_FACTOR = toApiPath('account/session/second-factor');
 
@@ -52,16 +61,22 @@ export class SessionClient {
     return this.remember(await this.api.post<unknown>(SECOND_FACTOR, { body: { code } }));
   }
 
-  /** Ends the session at the API as well as in this browser; the gateway clears its cookies even if the API is down. */
+  /**
+   * Ends the session at the API as well as in this browser; the gateway clears its cookies even if the API is down. A
+   * refusal before that - too many requests, a stale antiforgery token twice over - leaves the cookies where they are,
+   * so the session is forgotten here only when the gateway said it is gone, and the caller shows anything else.
+   */
   async signOut(): Promise<ApiResult<void>> {
     const result = await this.api.delete<void>(SESSION);
-    this.last.set(null);
+    if (result.ok) {
+      this.last.set(null);
+    }
     return result;
   }
 
   private remember(result: ApiResult<unknown>): ApiResult<SessionView> {
     if (!result.ok) {
-      if (result.problem.status === 401) {
+      if (result.problem.status === 401 || result.problem.code === SIGN_IN_EXPIRED_CODE) {
         this.last.set(null);
       }
       return result;

@@ -82,7 +82,6 @@ describe('signedInGuard', () => {
   it.each([
     [502, 'unexpected-error'],
     [504, 'unexpected-error'],
-    [429, 'too-many-requests'],
     [0, 'unreachable'],
   ])(
     'sends a session it could not check (%i) to sign in, never to a page the gateway redirects',
@@ -93,6 +92,11 @@ describe('signedInGuard', () => {
       expect(url).not.toBe('/');
     },
   );
+
+  it('says the service is busy when the session check was turned away for too many requests', async () => {
+    const { url } = await visit('/dashboard', refused(429, 'too-many-requests'));
+    expect(url).toBe('/sign-in?reason=busy');
+  });
 
   it('sends a half-finished sign-in back to finish it', async () => {
     const { url } = await visit('/dashboard', {

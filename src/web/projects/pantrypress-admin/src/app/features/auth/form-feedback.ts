@@ -32,3 +32,16 @@ export function feedbackFor<TField extends string>(
 export function noFeedback<TField extends string>(): FormFeedback<TField> {
   return { fields: {}, notice: null };
 }
+
+/** Whether any field was marked, so the screen moves focus to it. */
+export function marksFields(feedback: FormFeedback<string>): boolean {
+  return Object.keys(feedback.fields).length > 0;
+}
+
+/**
+ * Whether the server refused the link itself as malformed - its account id or token - rather than a field the person
+ * typed. That is a link that does not work, said as one, not "check the details".
+ */
+export function refusesLink(problem: ApiProblem): boolean {
+  return Object.keys(problem.errors ?? {}).some((key) => key === 'accountId' || key === 'token');
+}

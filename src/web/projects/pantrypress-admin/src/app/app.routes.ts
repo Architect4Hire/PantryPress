@@ -1,4 +1,6 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { RuntimeConfigService } from './core/config/runtime-config.service';
 import { signedInGuard, signedOutGuard } from './core/session/session-guards';
 import { DEV_ROUTES } from './dev-routes';
 import { Landing } from './features/landing/landing';
@@ -58,6 +60,8 @@ export const routes: Routes = [
     path: 'sign-up',
     title: 'Create your account - PantryPress',
     canActivate: [signedOutGuard],
+    // Whether sign-up is open is read first, so the screen never shows one state and then the other.
+    resolve: { config: () => inject(RuntimeConfigService).load() },
     loadComponent: () => import('./features/auth/sign-up').then((m) => m.SignUp),
   },
   {

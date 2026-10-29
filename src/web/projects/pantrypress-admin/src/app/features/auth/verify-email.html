@@ -1,11 +1,15 @@
 <ppa-auth-frame [heading]="heading()">
+  @if (pending()) {
+    <ppa-pending-sign-in (cleared)="pending.set(false)" />
+  }
+
   @switch (state()) {
     @case ('checking') {
       <pp-progress label="Confirming your email address" />
     }
     @case ('confirmed') {
       <div class="step">
-        <p class="lead">Thanks. You can sign in and carry on.</p>
+        <p class="lead">Carry on to your dashboard. We'll ask you to sign in if you need to.</p>
         <div class="actions">
           <a pp-button variant="primary" routerLink="/dashboard">Go to your dashboard</a>
         </div>
@@ -13,19 +17,22 @@
     }
     @case ('failed') {
       <div class="step">
-        <pp-notice tone="danger" announce>{{ failure() }}</pp-notice>
+        @if (failure(); as failure) {
+          <pp-notice tone="danger" announce>{{ failure }}</pp-notice>
+        }
         <div class="actions">
           <button pp-button variant="primary" type="button" [busy]="busy()" (click)="confirm()">
             Try again
           </button>
         </div>
+        <p class="links"><a routerLink="/sign-in">Sign in</a></p>
       </div>
     }
     @case ('invalid') {
       <div class="step">
         <p class="lead">
-          It may have been used already, or be too old. Enter your email address and we'll send a
-          new one.
+          It may have been used already, be too old, or not have come through whole. Enter your
+          email address and we'll send a new one.
         </p>
         @if (resent()) {
           <pp-notice tone="success" announce>
@@ -37,7 +44,13 @@
         }
         <form class="form" [formGroup]="form" (ngSubmit)="resend()" novalidate>
           <pp-field label="Email address" [error]="feedback().fields.email">
-            <input pp-text-field type="email" autocomplete="email" formControlName="email" />
+            <input
+              pp-text-field
+              type="email"
+              autocomplete="email"
+              required
+              formControlName="email"
+            />
           </pp-field>
           <div class="actions">
             <button pp-button variant="primary" type="submit" [busy]="busy()">
