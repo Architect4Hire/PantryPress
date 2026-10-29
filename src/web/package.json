@@ -15,7 +15,8 @@
     "serve:ssr:pantrypress-site": "node dist/pantrypress-site/server/server.mjs",
     "lint": "ng lint",
     "test": "ng test pantrypress-ui --watch=false && ng test pantrypress-admin --watch=false && ng test pantrypress-site --watch=false",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@angular/common": "^22.2.0",
@@ -34,7 +35,9 @@
     "@angular/build": "^22.2.4",
     "@angular/cli": "^22.2.4",
     "@angular/compiler-cli": "^22.2.0",
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/express": "^5.0.1",
     "@types/node": "^24.19.2",
     "angular-eslint": "22.6.0",

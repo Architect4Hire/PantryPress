@@ -1,0 +1,51 @@
+:host {
+  display: block;
+}
+
+.specimen {
+  padding-block: var(--space-6);
+  border-block-start: 1px solid var(--line-subtle);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: var(--text-5);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
+  line-height: var(--leading-1);
+}
+
+.use {
+  margin-block: var(--space-2) var(--space-4);
+  max-inline-size: var(--measure);
+  color: var(--muted);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: var(--space-4);
+}
+
+/* Each panel is a page of its own mode: its own background and words, so every state is drawn as it would be. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.mode {
+  margin: 0;
+  font-size: var(--text-1);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

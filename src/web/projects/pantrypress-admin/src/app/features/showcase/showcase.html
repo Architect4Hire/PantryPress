@@ -1,0 +1,610 @@
+<div class="showcase">
+  <pp-page-header
+    heading="Component showcase"
+    description="Every @pantrypress/ui primitive in every state, drawn in light and dark. Development builds only."
+  />
+
+  <pp-radio-group
+    class="page-mode"
+    legend="Page mode"
+    hint="The page around the panels, and the toasts, follow this. Each panel keeps its own mode."
+    [options]="pageModes"
+    [formControl]="pageMode"
+  />
+
+  <!-- Actions and inputs (PP3.3) -->
+
+  <ppa-specimen
+    anchor="button"
+    heading="Button"
+    use="An action with words. Secondary unless a primary is chosen; one primary per step."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <button pp-button variant="primary">Publish</button>
+        <button pp-button>Save draft</button>
+        <button pp-button variant="quiet">Preview</button>
+        <button pp-button variant="danger">Delete</button>
+      </div>
+      <div class="row">
+        <button pp-button variant="primary" size="sm">Publish</button>
+        <button pp-button size="sm">Save draft</button>
+        <button pp-button variant="quiet" size="sm">Preview</button>
+        <button pp-button variant="danger" size="sm">Delete</button>
+      </div>
+      <div class="row">
+        <button pp-button variant="primary" disabled>Publish</button>
+        <button pp-button disabled>Save draft</button>
+        <button pp-button variant="primary" busy>Publishing</button>
+        <button pp-button busy>Saving</button>
+      </div>
+      <div class="row">
+        <a pp-button variant="primary" routerLink=".">Open the editor</a>
+        <a pp-button routerLink=".">View all posts</a>
+        <a pp-button busy routerLink=".">Loading posts</a>
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="icon-button"
+    heading="Icon button"
+    use="An action shown only as an icon. Its label is its name."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <button pp-icon-button label="Edit Apple pie">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" width="20" height="20">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+              d="M13.5 3.5l3 3L7 16H4v-3z"
+            />
+          </svg>
+        </button>
+        <button pp-icon-button label="Edit Banana bread" disabled>
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" width="20" height="20">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+              d="M13.5 3.5l3 3L7 16H4v-3z"
+            />
+          </svg>
+        </button>
+        <button pp-icon-button label="Edit Dutch baby" busy>
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" width="20" height="20">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+              d="M13.5 3.5l3 3L7 16H4v-3z"
+            />
+          </svg>
+        </button>
+        <a pp-icon-button label="Open Fig tart" routerLink=".">
+          <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" width="20" height="20">
+            <path
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M8 4h8v8M16 4L5 15"
+            />
+          </svg>
+        </a>
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="field"
+    heading="Field and text field"
+    use="A label, a hint above, and an error below, around one text control."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-field label="Post title" hint="Readers see this at the top of the post.">
+        <input pp-text-field value="Apple pie" />
+      </pp-field>
+      <pp-field label="Email address">
+        <input pp-text-field type="email" autocomplete="email" required />
+      </pp-field>
+      <pp-field label="Subtitle" optional>
+        <input pp-text-field />
+      </pp-field>
+      <pp-field
+        label="Web address"
+        hint="The end of the post's link."
+        error="Use only lowercase letters, numbers, and hyphens."
+      >
+        <input pp-text-field value="Apple Pie!" />
+      </pp-field>
+      <pp-field label="Site address" hint="This can't change yet.">
+        <input pp-text-field value="apple-pie" disabled />
+      </pp-field>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="textarea"
+    heading="Textarea"
+    use="Several lines of text, in a field like any text control."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-field label="Summary" hint="One or two sentences for search results and shares.">
+        <textarea pp-textarea rows="3"></textarea>
+      </pp-field>
+      <pp-field label="Chef's note" error="Keep the note to 280 characters or fewer.">
+        <textarea pp-textarea rows="3">A long note that runs past the limit.</textarea>
+      </pp-field>
+      <pp-field label="Imported text">
+        <textarea pp-textarea rows="2" disabled>Read only while the import runs.</textarea>
+      </pp-field>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="select"
+    heading="Select"
+    use="One choice from a longer list, on the browser's own select."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-field label="Course">
+        <select pp-select>
+          <option>Breakfast</option>
+          <option selected>Dinner</option>
+          <option>Dessert</option>
+        </select>
+      </pp-field>
+      <pp-field label="Category" error="Choose a category for this post.">
+        <select pp-select>
+          <option value="">Choose one</option>
+          <option>Pies</option>
+          <option>Breads</option>
+        </select>
+      </pp-field>
+      <pp-field label="Time zone">
+        <select pp-select disabled>
+          <option>Central Time (Chicago)</option>
+        </select>
+      </pp-field>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="checkbox"
+    heading="Checkbox"
+    use="Yes or no, kept until the form is saved."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-checkbox label="Show the recipe card" />
+      <pp-checkbox label="Allow comments" [checked]="true" />
+      <pp-checkbox label="Pin to the homepage" hint="Pinned posts show above newer ones." />
+      <pp-checkbox label="Include in the newsletter" disabled />
+      <pp-checkbox label="Listed in search results" [checked]="true" disabled />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="switch"
+    heading="Switch"
+    use="On or off, taking effect at once."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-switch label="Cook mode" />
+      <pp-switch label="Ratings" [checked]="true" />
+      <pp-switch label="Comments" hint="Readers can reply to each other." [checked]="true" />
+      <pp-switch label="Ads" disabled />
+      <pp-switch label="Search engines" [checked]="true" disabled />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="radio-group"
+    heading="Radio group"
+    use="One of a few, all shown. The arrow keys move between them."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-radio-group
+        legend="Newsletter"
+        hint="How often subscribers hear from you."
+        [options]="panel.frequencies"
+        [formControl]="panel.frequency"
+      />
+      <pp-radio-group
+        legend="Digest"
+        error="Choose how often the digest goes out."
+        required
+        [options]="panel.frequencies"
+        [formControl]="panel.frequencyRequired"
+      />
+      <pp-radio-group
+        legend="Reminders"
+        optional
+        [options]="panel.frequencies"
+        [formControl]="panel.frequencyDisabled"
+      />
+    </ng-template>
+  </ppa-specimen>
+
+  <!-- Layout and feedback (PP3.4) -->
+
+  <ppa-specimen
+    anchor="card"
+    heading="Card"
+    use="A raised panel grouping related content. The heading is the caller's."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-card>
+        <h3 class="card-heading">Apple pie</h3>
+        <p class="card-text">Published on Monday. 48 ratings.</p>
+        <div class="row">
+          <pp-status-pill tone="success">Published</pp-status-pill>
+          <button pp-button size="sm">Edit</button>
+        </div>
+      </pp-card>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="page-header"
+    heading="Page header"
+    use="The top of a dashboard page: its one main heading, a sentence, and its actions."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-page-header heading="Posts" description="Everything you've written, newest first.">
+        <button pp-button ppPageActions>Import</button>
+        <button pp-button ppPageActions variant="primary">New post</button>
+      </pp-page-header>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="tabs"
+    heading="Tabs"
+    use="Panels of one page, one at a time. Dashboard only."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-tabs
+        label="Posts by status"
+        [selected]="panel.tab()"
+        (selectedChange)="panel.tab.set($event)"
+      >
+        <pp-tab key="published" label="Published"><p>Twelve published posts.</p></pp-tab>
+        <pp-tab key="drafts" label="Drafts"><p>Three drafts.</p></pp-tab>
+        <pp-tab key="scheduled" label="Scheduled"><p>One post goes out on Friday.</p></pp-tab>
+      </pp-tabs>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="toolbar"
+    heading="Toolbar"
+    use="A row of related controls with one tab stop. The arrow keys move between its buttons."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-toolbar label="Formatting">
+        <button pp-button size="sm">Bold</button>
+        <button pp-button size="sm">Italic</button>
+        <button pp-button size="sm">Link</button>
+        <button pp-button size="sm" disabled>Undo</button>
+        <select pp-select aria-label="Text style">
+          <option>Paragraph</option>
+          <option>Heading</option>
+        </select>
+      </pp-toolbar>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="dialog"
+    heading="Dialog and drawer"
+    use="A modal question or task, and a side panel. Escape closes both; the page behind is out of reach."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <button pp-button (click)="rename.open.set(true)">Rename post</button>
+        <button pp-button (click)="share.open.set(true)">Share a preview</button>
+        <button pp-button variant="danger" (click)="remove.open.set(true)">Move to the bin</button>
+        <button pp-button (click)="history.open.set(true)">Compare revisions</button>
+        <button pp-button (click)="settings.open.set(true)">Post settings</button>
+      </div>
+
+      <pp-dialog #rename heading="Rename post">
+        <pp-field label="Post title"><input pp-text-field value="Apple pie" /></pp-field>
+        <button pp-button ppDialogActions (click)="rename.open.set(false)">Cancel</button>
+        <button pp-button ppDialogActions variant="primary" (click)="rename.open.set(false)">
+          Save
+        </button>
+      </pp-dialog>
+
+      <pp-dialog #share heading="Share a preview" size="sm" dismissible>
+        <p>Anyone with the link can see this draft for seven days.</p>
+        <button pp-button ppDialogActions (click)="share.open.set(false)">Done</button>
+      </pp-dialog>
+
+      <pp-dialog #remove heading="Move Apple pie to the bin?" kind="alert" size="sm">
+        <p>It comes off your site. You can bring it back from the bin, with its ratings.</p>
+        <button pp-button ppDialogActions ppInitialFocus (click)="remove.open.set(false)">
+          Keep it
+        </button>
+        <button pp-button ppDialogActions variant="danger" (click)="remove.open.set(false)">
+          Move to the bin
+        </button>
+      </pp-dialog>
+
+      <pp-dialog #history heading="Compare revisions" size="lg">
+        <p>Monday's version and today's, side by side. Nothing changes until you restore one.</p>
+        <button pp-button ppDialogActions (click)="history.open.set(false)">Close</button>
+      </pp-dialog>
+
+      <pp-drawer #settings heading="Post settings">
+        <pp-field label="Web address"><input pp-text-field value="apple-pie" /></pp-field>
+        <pp-switch label="Comments" [checked]="true" />
+        <button pp-button ppDialogActions variant="primary" (click)="settings.open.set(false)">
+          Done
+        </button>
+      </pp-drawer>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="toast"
+    heading="Toast"
+    use="What just happened. A success or note with nothing to do leaves after 8 seconds; anything else waits."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <button pp-button (click)="toast({ message: 'Apple pie is published.', tone: 'success' })">
+          Show a success
+        </button>
+        <button pp-button (click)="toast({ message: 'Your draft is saved.', tone: 'info' })">
+          Show a note
+        </button>
+        <button
+          pp-button
+          (click)="toast({ message: 'Two photos have no description yet.', tone: 'warning' })"
+        >
+          Show a warning
+        </button>
+        <button
+          pp-button
+          (click)="toast({ message: 'The post could not be saved. Try again.', tone: 'danger' })"
+        >
+          Show an error
+        </button>
+        <button pp-button (click)="toastWithUndo()">Show one with an action</button>
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="notice"
+    heading="Notice"
+    use="A status in the page's flow, in words and an icon, never color alone."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-notice tone="info" heading="Scheduled">This post goes out on Friday at 9:00.</pp-notice>
+      <pp-notice tone="success">Your site is live.</pp-notice>
+      <pp-notice tone="warning" heading="Missing descriptions"
+        >Two photos have no description, so screen readers skip them.</pp-notice
+      >
+      <pp-notice tone="danger" heading="Not published"
+        >The recipe needs at least one ingredient.</pp-notice
+      >
+      <div #tip class="tip">
+        @if (panel.noticeShown()) {
+          <pp-notice
+            tone="info"
+            dismissible
+            [announce]="panel.tipReturned()"
+            (dismissed)="dismissTip(panel, tip)"
+            >Tip: paste a whole ingredient list and it splits into lines.</pp-notice
+          >
+        } @else {
+          <button pp-button size="sm" (click)="returnTip(panel, tip)">Show the tip again</button>
+        }
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="empty-state"
+    heading="Empty state"
+    use="A page with nothing in it yet: a heading, a sentence, and the one next step."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-empty-state
+        heading="No posts yet"
+        description="Your first post is the start of your blog."
+        [level]="3"
+      >
+        <button pp-button variant="primary">Write your first post</button>
+      </pp-empty-state>
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="progress"
+    heading="Progress"
+    use="How far along something is, or that work goes on."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-progress label="Uploading photos" [value]="40" showValue />
+      <pp-progress label="Importing posts" [value]="70" />
+      <pp-progress label="Building your site" />
+      <pp-progress label="Photos sent" [value]="100" showValue />
+      <pp-progress label="Counting posts, no total yet" [value]="0" [max]="0" />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="status-pill"
+    heading="Status pill"
+    use="A short status beside an item. The words carry the meaning."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <pp-status-pill>Draft</pp-status-pill>
+        <pp-status-pill tone="info">Scheduled</pp-status-pill>
+        <pp-status-pill tone="success">Published</pp-status-pill>
+        <pp-status-pill tone="warning">Needs review</pp-status-pill>
+        <pp-status-pill tone="danger">Failed</pp-status-pill>
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
+  <!-- Data (PP3.5) -->
+
+  <ppa-specimen
+    anchor="list"
+    heading="List"
+    use="Everything around a list the app draws: search, filters, sort, and paging by cursor."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-radio-group legend="Show the list" [options]="panel.shapes" [formControl]="panel.shape" />
+      <pp-list
+        label="Recipes"
+        [status]="panel.shownStatus()"
+        [empty]="panel.listEmpty()"
+        [resultsText]="panel.resultsText()"
+        [sortOptions]="panel.sorts"
+        [sort]="panel.sort()"
+        (sortChange)="panel.sorted($event)"
+        [page]="panel.page()"
+        [hasPrevious]="panel.hasPrevious()"
+        [hasNext]="panel.hasNext()"
+        (pageChange)="panel.turn($event)"
+        (retry)="panel.retry()"
+      >
+        <pp-search-field
+          ppListSearch
+          label="Search recipes"
+          [query]="panel.searchText()"
+          (queryChange)="panel.searchText.set($event)"
+          (searched)="panel.search($event)"
+        />
+        <pp-chip-group
+          ppListFilters
+          legend="Course"
+          [options]="panel.courses"
+          [formControl]="panel.courseFilter"
+        />
+        <ul class="rows">
+          @for (recipe of panel.rows(); track recipe.title) {
+            <li class="recipe">
+              <span>{{ recipe.title }}</span>
+              @if (recipe.published) {
+                <pp-status-pill tone="success">Published</pp-status-pill>
+              } @else {
+                <pp-status-pill>Draft</pp-status-pill>
+              }
+            </li>
+          }
+        </ul>
+        @if (panel.narrowed()) {
+          <pp-empty-state
+            ppListEmpty
+            heading="No recipes match"
+            description="Try other words or another course."
+            [level]="3"
+          >
+            <button pp-button (click)="panel.showEverything()">Show every recipe</button>
+          </pp-empty-state>
+        } @else {
+          <pp-empty-state
+            ppListEmpty
+            heading="No recipes yet"
+            description="Recipes you write show up here."
+            [level]="3"
+          >
+            <button pp-button variant="primary">Write a recipe</button>
+          </pp-empty-state>
+        }
+      </pp-list>
+      <pp-list label="Members" status="loading" />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="search-field"
+    heading="Search field"
+    use="Words to look for in a list. Enter searches; Escape clears."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-search-field label="Search posts" hint="Titles and ingredients." />
+      <pp-search-field label="Search photos" query="pie" />
+      <pp-search-field label="Search comments" disabled />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="chip-group"
+    heading="Chip group"
+    use="Filters shown as chips. A chosen chip has a check mark as well as its fill."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-chip-group legend="Course" [options]="panel.courses" [formControl]="panel.courseChips" />
+      <pp-chip-group
+        legend="Published"
+        [multiple]="false"
+        [options]="panel.periods"
+        [formControl]="panel.periodChip"
+      />
+      <pp-chip-group legend="Diet" [options]="panel.diets" [formControl]="panel.disabledChips" />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="uploader"
+    heading="Uploader"
+    use="Choosing files and following them up. A drop is the extra, never the only way."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel let-panel>
+      <pp-uploader
+        label="Choose photos"
+        hint="JPEG or PNG, up to 1 MB each."
+        accept="image/jpeg,image/png"
+        acceptText="a JPEG or PNG photo"
+        [maxBytes]="1048576"
+        variant="primary"
+        itemsLabel="Photos"
+        [items]="panel.uploads()"
+        (filesChosen)="panel.chooseFiles($event)"
+        (retry)="panel.retryUpload($event)"
+        (remove)="panel.removeUpload($event)"
+      />
+      <pp-uploader label="Choose a cover photo" [multiple]="false" disabled />
+    </ng-template>
+  </ppa-specimen>
+
+  <!-- The app's one toast region, until PP3.9's shell holds it; then this one goes, since a second draws everything twice. -->
+  <pp-toast-region />
+</div>

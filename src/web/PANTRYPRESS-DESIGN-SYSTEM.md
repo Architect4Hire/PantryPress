@@ -204,6 +204,15 @@ form submission, `routerLink`, `autocomplete`, the keyboard, and Angular's react
   they cover: the text controls in `field.spec.ts` and `control.spec.ts`, the switch in `checkbox.spec.ts` and
   `choice.spec.ts`. jsdom draws nothing, so color contrast is `tokens.spec.ts`'s, and both modes as drawn are the
   showcase's (PP3.6).
+- **The showcase** (PP3.6) is `/showcase` in the admin app's development build only: `dev-routes.ts` is empty, and the
+  development configuration swaps in `dev-routes.development.ts`, so a production build carries none of it and the
+  apex's closed list of public paths never meets it. Every primitive has a section whose states are drawn twice, in a
+  `data-mode="light"` panel and a `data-mode="dark"` one, each with its own live state; the page's own mode, which the
+  toasts follow, is a choice that sets `data-mode` on `<html>`. A new primitive owes a section there: `showcase.spec.ts`
+  fails when a component the library exports is missing from either panel. `npm run e2e` (Playwright, in Chromium,
+  Firefox, and WebKit) runs axe over it with color contrast on, in every page mode and with every dialog, the drawer,
+  toasts, the list's other states, and the uploader's refusals showing. It also checks how the modes resolve, nested
+  and under each system preference, the native modal dialog, the radios' arrow keys, and the focus ring.
 
 ## Accessibility
 
@@ -257,7 +266,7 @@ third-party CSS shares the pages.
 | `/themes` is server-safe and deterministic | `eslint.ssr-safety.js`; golden files (ARCH-005)                                                           |
 | No literal color                           | Specs added with the tokens (PP3.2, PP7.4); `scripts/check-public-page.mjs` for the public page (PPL.6)   |
 | Contrast and focus ring                    | A contrast spec over the token pairs in both modes (PP3.2, PPL.6); the server's contrast report (THM-005) |
-| Accessibility                              | axe in component and Playwright tests, both modes                                                         |
+| Accessibility                              | axe in component tests; axe with contrast over the showcase in Playwright, both modes (`npm run e2e`)     |
 | Budget                                     | `npm run budget` (RND-007)                                                                                |
 
 ## The public page

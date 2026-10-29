@@ -3200,13 +3200,127 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
   - Not run: a browser, `aspire run`, a Playwright flow (there is still no screen; PP3.6's showcase is the first), or a
     screen reader.
 
-### PP3.6 Showcase
+### PP3.6 Showcase - done
 
 ```text
 SCOPE: Add a showcase route that renders every primitive in every state and both modes.
 CONSTRAINT: design-system.md.
 BEHAVIOR: Plan, wait for approval, implement with an accessibility smoke test.
 ```
+
+*PP3.6 delivery note (done 2026-10-29):*
+
+- **What shipped.**
+  - `/showcase` in `pantrypress-admin`, in the development build only.
+    - `dev-routes.ts` is empty. The development configuration swaps in `dev-routes.development.ts` through
+      `fileReplacements`, and that file lazy-loads `features/showcase/`.
+    - A production build carries none of it: a search of its output finds no trace. So the apex's closed list of public
+      paths never meets it, and PP3.8's `/dashboard` guard never stands in front of it.
+    - `app.routes.ts` spreads in `DEV_ROUTES` first, so PPL.2's not-found route goes after them.
+  - Every one of the library's 24 components has a section (`ppa-specimen`).
+    - Its states are drawn twice, in a `data-mode="light"` panel and a `data-mode="dark"` one, each a named group.
+    - Each panel has its own live state (`ShowcasePanel`). A list page, a search, or an upload "answers" after 600 ms,
+      the showcase's one wait, so the working states show.
+    - A page-mode control (Follow this device, Light, Dark) sets `data-mode` on `<html>`, and removes it on leaving.
+      The page around the panels and the toasts follow it.
+  - The page holds the app's one toast region until PP3.9's shell takes it.
+  - Owner-approved choices:
+    - the development-only route rather than a separate showcase app;
+    - both modes side by side;
+    - `@playwright/test` ^1.64.1 and `@axe-core/playwright` ^4.14.0 as new devDependencies, run in Chromium,
+      Firefox, and WebKit.
+  - `npm run e2e` runs `playwright.config.ts`. It serves its own development build on port 4310, so it never meets
+    the Aspire-hosted dev server. `e2e/tsconfig.json` type-checks the runs (`npx tsc -p e2e`). Playwright's output
+    folders are in `.prettierignore`.
+  - `PANTRYPRESS-DESIGN-SYSTEM.md` has a "The showcase" bullet, and the "Accessibility" row of "How the rules are
+    kept" now names this run.
+- **Tests.**
+  - `showcase.spec.ts` (Vitest, 5 tests):
+    - every component `@pantrypress/ui` exports is drawn in both panels, so a primitive with no section fails;
+    - one toast region, outside the panels;
+    - the page mode is set on `<html>` and cleared on leaving;
+    - each panel's state is its own;
+    - axe in jsdom, with contrast off.
+  - `e2e/showcase.e2e.ts`: 25 tests in each of three browsers, 75 runs, green on three runs in a row.
+    - axe with the same WCAG 2.x A and AA tags as the library's specs, **color contrast on**. It runs over:
+      - the whole page in each page mode, and following a device set to each;
+      - every dialog (`md`, `sm`, alert, `lg`) and the drawer, open in each panel;
+      - the toasts;
+      - the list's busy, narrowed-empty, empty, and error states;
+      - the uploader's refusals and a chosen file.
+      Contrast was measured on 414 elements, none left undecided.
+    - Modes as drawn (PP3.2): each panel's `--bg`, background, and `color-scheme` against `--L-bg` and `--D-bg`, under
+      every page mode and device preference, with the page's own body.
+    - The native dialog (PP3.4):
+      - Tab and Shift+Tab stay inside, and a script cannot focus anything behind it;
+      - Escape closes it, and focus goes back to the opener;
+      - `::backdrop` is `--overlay`;
+      - an alert starts on Keep it and ignores the backdrop;
+      - a dismissible dialog closes on a backdrop press.
+    - The keyboard:
+      - the radios' arrow keys (PP3.3);
+      - the focus ring as an offset outline in `--focus`, in each panel;
+      - focus kept when the tip is dismissed and brought back.
+  - These were shown failing on a deliberate break:
+    - a low-contrast `--muted` in the dark panels (47 contrast violations);
+    - a backdrop not drawn in `--overlay`;
+    - a dark panel drawn light;
+    - outlines removed;
+    - a section taken out (the coverage spec named the toolbar in both modes).
+- **Differs from the approved plan.**
+  - **The dialog focus-return test opens its dialog from the keyboard.** WebKit never focuses a button on a click, so
+    a dialog opened by mouse there has no opener, and focus falls to the page on closing. That is a library finding
+    (open, below), not a showcase one.
+  - **After `design-review`:**
+    - The list's pager shows only while it has rows. Before, the empty and error states drew an enabled Next.
+    - The list's empty state has its one next step. Narrowed, it is "No recipes match" with Show every recipe, which
+      clears the search and filter. Otherwise it is "No recipes yet" with Write a recipe.
+    - The dismissible tip is there at load, so it no longer announces; only its return does. Dismissing it moves focus
+      to Show the tip again, and bringing it back moves focus to its Dismiss button.
+    - States added:
+      - a `lg` dialog;
+      - a field with a hint and an error together;
+      - a finished progress bar;
+      - the max-of-zero bar, renamed for what it shows.
+    - Copy:
+      - the alert dialog now moves the post to the bin, as the toast's Undo implies;
+      - the Diet chips list diets;
+      - the time zone reads "Central Time (Chicago)".
+    - Each panel is a group named "Button, light" and so on. The headings take `--display-weight` and
+      `--display-track`. The e2e asserts one toast region on the page.
+- **Open, for later prompts.**
+  - **WebKit and mouse-opened dialogs (PP3.10 to decide).** `PpModalBase` takes its opener from `activeElement`, which a
+    click in Safari never sets. A keyboard or screen-reader user gets focus back; a mouse user in Safari does not. A fix
+    would record the pressed control from the event, as a library change with its own spec.
+  - **Rules the smoke test does not run.** axe runs the WCAG tags only, so the best-practice `heading-order` and
+    `landmark-unique` do not run.
+    - The showcase repeats each landmark name once per panel by design.
+    - The page-header specimens add `h1`s under `h2`s, and the shell's `<h1>PantryPress</h1>` stays until PPL.2
+      rewrites it.
+    - PP3.9's shell is where a page's real structure gets those rules.
+  - **Still for a person or a later run:**
+    - what screen readers say;
+    - a real drop and `dropEffect`;
+    - forced colors;
+    - `:dir(rtl)`;
+    - real Safari (WebKit on Windows is the engine only);
+    - the tab list's overflow;
+    - Escape in a search field inside a dialog;
+    - the switch's `::before` and Safari's native select as drawn.
+  - **PP3.9:** the toast region moves to the shell, and the showcase's own region goes then.
+  - **No CI yet.** There is no workflow in the repository, so `npm run e2e` is run by hand. `e2e/` is type-checked
+    and formatted but not under ESLint, which lints the three projects only.
+- **Verification.**
+  - Tests:
+    - `npm test`: 165 library, 6 admin, 1 site;
+    - `npm run e2e`: 75 of 75 in Chromium, Firefox, and WebKit, three runs in a row;
+    - `npx tsc -p e2e`.
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Builds:
+    - `ng build pantrypress-ui`;
+    - `ng build pantrypress-admin`, development and production, to scratch paths. The production output has no
+      showcase code.
+  - Not run: `aspire run` (the e2e serves its own build), or a screen reader.
 
 ### PP3.7 Runtime configuration and typed API base
 
