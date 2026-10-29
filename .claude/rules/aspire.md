@@ -9,6 +9,18 @@
   site refreshes the map. Both connect through `AddCacheConnection` (ServiceDefaults), which never waits for Redis and adds
   no readiness check for it: each host carries on without the cache. Locally a site answers at `{slug}.localhost` on the
   Site resource's port (SITE-009).
+- The development seed (PP3.9a) is local Development only, three ways: the AppHost declares the `dev-seed-password`
+  parameter inside its local-Development branch alone, so it is in no manifest and no IaC; the migration job registers
+  the seeder that does nothing - and none of what seeding needs - outside Development; and that job refuses to start
+  outside Development if it finds `DevSeed` configuration, rather than ignore it. It is the only host the setting is
+  given to and the only one that binds it, so it is the only one that can act on it or refuse it. Set it with
+  `dotnet user-secrets set DevSeed:Password <password> --project src/PantryPress.AppHost`; with none set the job seeds
+  nothing and logs that one command. It seeds `owner@pantrypress.test` and `editor@pantrypress.test` - addresses
+  confirmed, that one password, the second a member of no site - and two sites the first owns, at `apple-pie.localhost`
+  and `plum-tart.localhost`. Running again changes nothing. Because the seed creates its sites through the Sites module
+  exactly as the API does (PP2.10), the job also gets `Sites__SubdomainZone` and a Redis reference in Development, and
+  waits for neither. Integration tests never read the developer's secret: `EphemeralAppHost` decides the password, and
+  leaves it empty unless a test asks for one.
 - Developer tools exist only in local Development and are never published: the mail catcher, DbGate (child of
   `sql`), and Redis Insight (child of `redis`). Session lifetime, no volumes; `EphemeralAppHost` drops the explorers
   from integration tests. The API's dashboard links open its Scalar reference.

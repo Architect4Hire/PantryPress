@@ -52,6 +52,13 @@ public static class AccountsServiceCollectionExtensions
     /// </summary>
     private static IdentityBuilder AddAccountsIdentity(this IServiceCollection services)
     {
+        // The migration job registers the platform role and, in local Development, the seed (PP3.9a); both start here,
+        // so a second call must not add a second copy of Identity's stores, managers, or validators.
+        if (services.Any(d => d.ServiceType == typeof(AccountUserManager)))
+        {
+            return new IdentityBuilder(typeof(ApplicationUser), typeof(IdentityRole<Guid>), services);
+        }
+
         services.AddAccountsIdentitySchema();
         var identity = services.AddIdentityCore<ApplicationUser>(ConfigureIdentity)
             .AddRoles<IdentityRole<Guid>>()
@@ -82,6 +89,28 @@ public static class AccountsServiceCollectionExtensions
         // Only this process can compose a role change: the shared Accounts data layer has no role calls at all.
         services.AddScoped<AccountRolesDataLayer>();
         services.AddScoped<IAccountRoles, AccountRolesFacade>();
+        return services;
+    }
+
+    /// <summary>
+    /// What the local development seed needs from this module (PP3.9a): an account with a confirmed address, and the
+    /// three narrow read contracts the Sites module's facades take, since the seed creates its sites through
+    /// <c>ISitesFacade</c> exactly as the API does. No email, no link tokens, no account routes, no sign-up: the seed's
+    /// own operation is the only way in, and it is registered by the migration job in local Development alone, which is
+    /// what keeps <see cref="IDevelopmentAccounts"/> out of reach of every request-serving host.
+    /// </summary>
+    public static IServiceCollection AddAccountsDevelopmentSeed(this IServiceCollection services)
+    {
+        services.AddAccountsIdentity();
+
+        // The account store is built with a key ring it must never use here; see UnusedDataProtection. The same
+        // registration as AddAccountRoles', which this job also calls - both are TryAdd, so either order is one ring.
+        services.TryAddSingleton<IDataProtectionProvider, UnusedDataProtection>();
+
+        services.TryAddScoped<IDevelopmentAccounts, DevelopmentAccountsFacade>();
+        services.TryAddScoped<IAccountEmailConfirmation, AccountEmailConfirmation>();
+        services.TryAddScoped<IAccountAddressCheck, AccountAddressCheck>();
+        services.TryAddScoped<IAccountDirectory, AccountDirectory>();
         return services;
     }
 

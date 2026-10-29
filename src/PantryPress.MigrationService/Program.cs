@@ -12,6 +12,11 @@ builder.AddMigrationDbContext();
 // The operator's PlatformAdmin list (ACCT-005). This one-shot job, started by the operator, is the only process that
 // can assign the platform role: no API and no browser can reach it. With no list configured it changes nothing.
 builder.Services.AddPlatformAdministration(builder.Configuration.GetSection("Platform"));
+
+// The local development seed (PP3.9a): the accounts and sites a developer's machine starts with, since sign-up stays
+// closed until PPL.13. Development only, three ways - see AddDevelopmentSeed - and a host outside Development that
+// finds DevSeed configuration refuses to start here.
+builder.AddDevelopmentSeed();
 builder.Services.AddMigrationWorker();
 
 var host = builder.Build();

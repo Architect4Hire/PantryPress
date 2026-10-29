@@ -3613,7 +3613,7 @@ BEHAVIOR: Plan, wait for approval, implement.
   - Build: `npm run build`, with `check:admin-build`: 7 documents, no inline script.
   - Not run: `aspire run`, and a flow against the real gateway (PP3.10's contract fixture).
 
-### PP3.9a Local development seed accounts and sites
+### PP3.9a Local development seed accounts and sites - done
 
 Owner request after PP3.9: sign-up stays closed until PPL.13, so trying the dashboard locally meant registering through
 the browser console, confirming in Mailpit, and creating sites by hand. This seeds that starting point, in local
@@ -3667,6 +3667,84 @@ Update CLAUDE.md's Usage and aspire.md with how to set DevSeed:Password and whic
 reviewers, and report.
 ```
 
+- **What shipped.**
+  - **The seed** (`Modules/Platform/`, the `PlatformAdminReconciler` precedent): `IDevelopmentSeeder` in `Contracts/`,
+    run by `MigrationWorker` after the PlatformAdmin list. `DevelopmentSeedData` in `Business/` holds the fixed values;
+    the facade orchestrates and throws only on what it cannot explain.
+  - **The accounts** come from a new Accounts contract, `IDevelopmentAccounts.EnsureAsync`, which creates through the
+    same store and unit of work as sign-up and confirms the address in the same save. No email, no outbox message, no
+    link token. Audited `account.development-seeded` with a new actor kind, `development-seed`, which needs no migration
+    (`ActorKind` is a plain code column).
+  - **The sites** go through `ISitesFacade.CreateAsync` unchanged, each in its own DI scope (tenancy.md rule 2), so the
+    site, its Owner membership, and its canonical subdomain are written exactly as PP2.10 writes them - `site.created`
+    audited with the owner as its actor, like every other site creation.
+  - **Three Development guards.** The AppHost declares `dev-seed-password` inside its local-Development branch, so it is
+    in no manifest; outside Development the job binds `DisabledDevelopmentSeeder` and none of what seeding needs; and the
+    job refuses to start if it finds `DevSeed` configuration outside Development.
+  - **Idempotent.** A second run creates nothing. An existing account keeps its password and state, and a slug already
+    held is left alone.
+- **DECIDE defaults taken.** `owner@pantrypress.test` and `editor@pantrypress.test` (both accepted by sign-up's own
+  validator and the disposable-domain check, pinned by a test); slugs `apple-pie` and `plum-tart`; one password for both.
+- **Delivery notes.**
+  - **The addresses are constants in `Business/`.** The prompt said no address in code. `.test` resolves nowhere
+    (RFC 2606), so neither can be a person's mailbox; no real address is in code, settings, logs, or telemetry, and a
+    test proves the password and both addresses appear in no log line, exception, or structured state. Moving them to
+    `DevSeed:OwnerEmail`/`DevSeed:EditorEmail` is a one-line change if the owner prefers it.
+  - **"A host outside Development refuses to start" is the migration job.** It is the only host the setting is given to
+    and the only one that binds it. Making every host refuse would mean a string check in `ServiceDefaults`, which has no
+    Domain reference; the guard was left where it can matter, and `aspire.md` says so in those words.
+  - **The seed's sites are audited as the owner's doing**, not the seed's, because they are created through the
+    unchanged production facade. Giving that facade an actor of its own would change a production path for a
+    development one.
+  - **`CLAUDE.md` and `.claude/rules/aspire.md` were edited** (the Usage block and an aspire bullet), as the prompt asked.
+  - **`AddAccountsIdentity` is now idempotent.** The job calls both `AddAccountRoles` and the seed's registration, and
+    both start there; a second call returns the builder rather than registering Identity twice.
+  - **`EphemeralAppHost` now decides the seed password** (empty unless a test asks), so an integration test's database
+    never depends on the developer's own user-secrets.
+  - **Two pre-existing tests were made independent of the test process.** Both `IdentityModelTests` cases that ask EF
+    Core for their own internal services (`Context_refuses_a_host_that_did_not_pin_the_identity_schema`,
+    `Host_identity_settings_cannot_change_the_pinned_schema`) now ignore EF's `ManyServiceProvidersCreatedWarning`. EF
+    counts those providers across the whole process, and past twenty it raises the warning as an error - which replaced
+    the refusal under test once this change added test hosts. The count says nothing about the schema pin.
+  - **The job's end-to-end seed check went into `MigrationServiceTests`**, not a class of its own. A class of its own
+    started a third live AppHost beside that test's and the shared fixture's, and the resource contention failed about
+    twenty unrelated integration tests - the very thing `MigratedDatabase`'s own comment warns about. The existing
+    migration-run test now seeds and asserts the accounts and hosts, at no extra cost.
+- **From review.**
+  - **`site-isolation-auditor`:** no blockers. Fixed: `CreateAsync` can also answer `email-not-verified` - an existing
+    unconfirmed owner at its site limit - which would have thrown and failed the whole migration job, leaving a local
+    run unstarted. It is now an expected, logged outcome, with a unit test. Also strengthened: the tenant-root check now
+    wraps the run that writes, with two look-alike harness sites beside the seed's.
+  - **`architecture-reviewer`:** no blockers. Fixed: the third guard's wording in five places (above); a declared
+    file list in `DomainBoundaryTests` for the three Domain files that may make a DI scope, since a scope of its own is a
+    site context of its own; `DevelopmentSeedData.Sites` renamed `SiteRequests`, because a member access after `Sites`
+    reads as a module-edge violation to the source scan; and `NotConfigured` now documents that a refused password lands
+    there too.
+- **Known limitations.**
+  - **The job does not wait for Redis** (aspire.md: the cache is never waited for), so a site created while the local
+    cache is down leaves its host-map entry unrefreshed for up to ten minutes. The refresh logs when it skips. Waiting
+    would let an unhealthy local Redis block migrations, which is worse.
+  - **No test drives a seeded host through the public pipeline.** The seed calls the same facade PP2.12 and
+    `SiteHostTests` already cover over the two-site harness; the coverage is inherited, not its own.
+  - **A deployed job told `DOTNET_ENVIRONMENT=Development`** would want the local zone and the cache and refuse to start.
+    The IaC sets `Production` or `Staging` only; the dependency is now said out loud in the registration's comment.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: clean, no warnings. `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 2009 passed, 2 failed, 2011 total.
+  - Both failures are in `MigrationWorkerTests` (`Transient_errors_are_retried_then_fail_when_retries_run_out`,
+    `Stopping_mid_run_exits_with_failure_and_logs_a_cancellation_not_an_error`) and reproduce on a pristine `HEAD`
+    worktree with nothing else running, so they are pre-existing and untouched by this change. Both drive the fake SQL
+    endpoint (`ResettingSqlEndpoint`) rather than any seed code.
+  - New tests: `DevelopmentSeedTests` (the first run, the second run, no password, no secret or address in any log, the
+    tenant root of two look-alike sites unchanged across the run that writes), `DevelopmentSeederTests` (each answer the
+    seed can get, and which ones fail the job), `DevelopmentSeedGuardTests` (the two host-side guards, that configuration
+    cannot turn the seed on, and that both addresses pass sign-up's validator), `DevelopmentSeedWiringTests` (the
+    parameter is secret, reaches the job alone, and is absent from a publish), and the seeded accounts and hosts in
+    `MigrationServiceTests`' real job run.
+  - Not run: `aspire run` by hand. `MigrationServiceTests` runs the real job through the test AppHost instead.
+  - The suite is sensitive to how many live AppHosts run at once; a run alongside other container work failed unrelated
+    integration tests, and each of those passed on its own.
+
 ### PP3.10 Front-end foundation audit
 
 ```text
@@ -3675,6 +3753,126 @@ CONSTRAINT: Template L.
 UTILIZATION: design-review.
 BEHAVIOR: Return findings and checkpoint evidence.
 ```
+
+*PP3.10 delivery note (2026-10-29):* the audit (Template L; `design-review` twice, once over `@pantrypress/ui` with its
+showcase and once over `pantrypress-admin`) found no blocker: 4 high, 8 medium, and about a dozen low findings, and it
+answers the three questions PP3 left to this prompt. Nothing was fixed and no file changed - Template L holds the fix
+for the owner's approval - so the heading stays unmarked. Every finding carries a file and line, a test, or a run.
+
+- **Blockers.** None. PP3 holds no site-owned, public, or reader data. No literal color, no `outline: none` on a
+  control, no `any`, no per-element styling hatch (`[style]`, `ngClass`, `::ng-deep`, `::part`), and
+  `ChangeDetectionStrategy.OnPush` on every component in scope.
+- **High.**
+  - **A dialog or drawer opened with the mouse in WebKit never gives focus back.** `PpModalBase` takes its opener from
+    `document.activeElement` and keeps `null` when that is the body (`modal-base.ts:53`), so `returnFocus` restores
+    nothing (`:108`) and focus lands on `<body>`. Safari focuses no clicked button. Against the design system's own
+    "back to the opener on closing" (`PANTRYPRESS-DESIGN-SYSTEM.md:161`) and WCAG 2.4.3; the browser test opens from the
+    keyboard on purpose to step around it (`showcase.e2e.ts:219`). PP3.6 left the decision here; see below.
+  - **The router's waiting bar is a status message nothing announces, and no test covers it.** `app.html:1` draws
+    `<pp-progress label="Loading" />`, and `pp-progress` renders a label and `<progress>` with no `role="status"`,
+    `aria-live`, or `aria-busy` (`progress.ts:18`), so a screen reader says nothing while `signedInGuard` waits on
+    `GET /session`. WCAG 4.1.3 (AA) and the document's "async results speak through a polite live region" (:237);
+    `pp-list` marks its own loading state, so the library already knows how. No spec names the bar - `app.spec.ts:14`
+    checks the outlet and the toast region only. Related: `waiting()` needs `drawn()`, set in `afterNextRender`
+    (`app.ts:40`), so the bar probably cannot appear during the first navigation, which is the case PP3.8 logged and
+    PP3.9's note claims to have closed.
+  - **`npm run e2e` does not pass on the engines PP3.6 and PP3.9 recorded.** Run on 2026-10-29: Chromium 60 of 60;
+    WebKit 58 of 60, failing the same two every time; Firefox none at all. WebKit fails `the focus ring is an offset
+    outline in --focus`, light and dark, at `showcase.e2e.ts:309`: the test focuses Publish and presses Tab expecting
+    Save draft, and macOS WebKit tabs to no button unless full keyboard access is on. The test stops there, so the ring
+    assertions themselves never run in that engine. Firefox fails `browserType.launch` for every test with "Could not
+    find profile folder", and survives `npx playwright install --force firefox` (Playwright 1.64.1, firefox-1555,
+    macOS 27.2): the machine, not the product, but the suite is the only cross-browser and drawn-contrast evidence PP3
+    has. The fix is to skip the tab-order half on WebKit with a comment naming the macOS preference while still
+    asserting the ring, and to pin the browser builds so the gate repeats.
+  - **The dashboard's primitives ship on every landing-page load.** `PpDropdown`, `PpDropdownItem`, and `PpList` are
+    compiled into the initial `main-*.js` though only lazy dashboard routes import them (`site-switcher.ts`,
+    `account-menu.ts`, `dashboard-home.ts`): three lazy chunks share them, so they are hoisted to the common parent,
+    and both `index.html` and `pricing/index.html` load it. Angular reports 97.34 kB initial transfer; `gzip -9` over
+    the four initial files measures 107.5 kB, so whether the page sits inside the platform's 100 kB yardstick depends on
+    the content encoding. No requirement caps the apex today - RND-007 is written for site pages and PPL-010 budgets
+    Lighthouse metrics - which is the point: nothing measures the one page every visitor loads. PP3.9 left this here or
+    to PPL.
+- **Medium.**
+  - **The showcase has three `h1`s, two of them under an `h2`.** `showcase.html:2` is the page's, and `:270` draws
+    `pp-page-header` again inside each panel of a `<section><h2>` (`specimen.ts:37`). Against frontend.md's one `h1` a
+    page, and invisible to both axe runs, which carry the WCAG tags only (`showcase.e2e.ts:11`). PP3.6 disclosed it, so
+    a decision is owed: a `level` input on `PpPageHeader`, as `PpEmptyState` already has, used `[level]="3"` in the
+    showcase alone, or `heading-order` with a named exception.
+  - **The "no literal color" guard does not read inline `styles:`.** `tokens.spec.ts:253` applies `namesAColor` only to
+    a `.css` file. Hex and `rgb()` are caught everywhere, but `color: teal` in a component's inline styles is not, and
+    seven primitives carry inline styles (`status-pill.ts:13`, `page-header.ts:19`, `empty-state.ts:27`, `tabs.ts:98`,
+    `toolbar.ts:31`, `status/tone.ts:48,69`). The rule holds by hand, not by test.
+  - **`server.spec.ts` does not render every primitive, though the document says it does.**
+    `PANTRYPRESS-DESIGN-SYSTEM.md:200` claims every one is rendered twice; `server.spec.ts:33` omits `PpIconButton`,
+    `PpSelect`, and `PpTextarea` - the controls PPL.6's prerendered pages will use. Fix the spec or narrow the claim.
+  - **Five shipped admin states have no accessibility run.** The dashboard's own not-found page, the "No sites yet"
+    empty state (`dashboard-home.ts:67`), the list's error state, `site-area`'s failed state, and the apex 404 appear in
+    no axe loop (`dashboard.e2e.ts:260`); the jsdom run turns `color-contrast` off and covers one route
+    (`dashboard.spec.ts:217`). Auth is thorough beside them.
+  - **Signing out is silent to a sighted person.** The menu closes, so the pressed button is gone, and the only
+    feedback is `toaster.announce('Signing you out…')`, which draws nothing; `busy()` is never bound in the template
+    (`account-menu.ts:28`). Against PP3.9's own "each button shows its own busy state". Either `toaster.show`, which
+    announces as well, or keep the panel open and bind `[busy]`.
+  - **The catalogue test PP3.7 left here is still missing.** `api-client.ts` re-sends a write once on
+    `antiforgery-failed`, which rests on that code being the gateway's alone. It is declared in
+    `GatewayAntiforgery.cs:36` and in OpenAPI prose (`ApiOpenApi.cs:232`); `ProblemCodeCatalogueTests` has four facts,
+    none of them this one. A future ApiService or Domain code of that name would turn into a silent duplicate `POST`.
+  - **No CI exists, so every gate is run by hand.** There is no `.github/` in the repository; `ng lint` covers the three
+    projects, so `e2e/` and `scripts/` are unlinted (PP3.6's open item, still true); and `npm run budget` is in
+    CLAUDE.md's Usage block but is no script in `src/web/package.json` (PP7.2 owns it). RND-007's "CI fails on a breach"
+    has nothing to fail.
+  - **One-off surfaces where `pp-card` exists.** `dashboard-home.css:18` and `app.css:1` each rebuild the card's border,
+    radius, and surface with a padding of their own. A padding input on `PpCard`, or the card around those two, keeps
+    one definition.
+- **Low.**
+  - The library: three `pp-list` booleans skip `booleanAttribute` (`list.ts:129,141,142`); two durations sit outside the
+    `--dur-*` family (`button.css:101`, `progress.css:53`, both correctly instant under reduced motion); a one-off
+    `36rem` where `var(--measure)` is the token (`empty-state.ts:48`); `pp-search-field` has no invalid state, and its
+    copied styles have already lost `[aria-invalid]`, `::placeholder`, and `[readonly]` from `control.css`; `pp-field`'s
+    `for` can point at nothing with no development-mode check (`field.ts:23`); the checkbox and the switch still have no
+    `error` or `required`, which PP3.3 raised for a consent box that never shipped; `toast-region.ts:62` builds a
+    selector from an `aria-label` without `CSS.escape`.
+  - The admin app: a 3 px focus ring in `auth-form.css:37` where everything else uses 2 px; `.main:focus { outline:
+    none }` with no replacement (`dashboard-shell.css:119`); the apex 404 is unstyled and token-free
+    (`not-found.ts:10`); the waiting bar and the toast region sit outside any landmark; `verify-email.ts:132` moves
+    focus only when the state changes, so the same refusal twice says nothing, where `join-site.ts:186` speaks; and
+    `tabIndex = -1` is set by hand in two places, which wants one helper.
+- **The three questions PP3 left to this prompt.**
+  - **WebKit and mouse-opened dialogs (PP3.6):** fix it. It is a focus-order failure for most Safari readers, and the
+    change is a capture listener and a spec in the library.
+  - **The contract fixture (PP3.8):** add the catalogue assertion now, which closes the one unsafe assumption, and keep
+    the shared fixture or the flow against the real gateway for the prompt that takes admin v1 out of pre-release.
+  - **The library as one module (PP3.9):** split it. Nothing else in PP3 sits on a page every visitor loads, and the
+    leak grows with each primitive the shell adopts.
+- **Traceability.**
+  - **PP3.1** (PP-D07): the document, with both entry-point names pinned by `public-api.spec.ts:5`. Pass, less the claim
+    under Medium.
+  - **PP3.2:** `tokens.css` and `tokens.spec.ts`' 20 facts - contrast measured in both modes, every role switched in all
+    three mode blocks, literal colors refused across the library and the admin app. Pass, less the inline-styles gap.
+  - **PP3.3 to PP3.5:** 176 library tests, axe per primitive in jsdom, the field and control wiring at
+    `control.ts:30`, 40 and 32 px targets, and a drop that is always the extra path. Pass, with the low findings.
+  - **PP3.6:** `showcase.spec.ts:32` fails on any export the showcase does not exhibit, but `npm run e2e` is red.
+    Conditional.
+  - **PP3.7** (frontend.md): `HttpClient` only in `core/api`, by lint; `refuse-on-server.ts:11`. Pass, less the
+    catalogue test.
+  - **PP3.8** (ACCT-001, ACCT-002, PP-D19): `app.routes.spec.ts:228` for the prerender split, no token in the browser,
+    axe over every auth screen in both modes. Pass, less the waiting bar.
+  - **PP3.9** (SITE-010, PP-D19): `dashboard.spec.ts:234` (one `main`, one `h1`, focus to the heading),
+    `dashboard.e2e.ts:187` (the skip link), `:214` (an invitation's token in no address), `:239` (320 px). Pass, with
+    the four findings above.
+  - **THM-003 for the admin side:** contrast is measured in jsdom and drawn in Chromium alone. Partial.
+- **Not verified.** Firefox at all, and WebKit's focus ring in either mode (the test stops first). Forced colors: no
+  `forced-colors` block exists anywhere and nothing tests it, and a disabled switch is believed to look enabled there.
+  Native widget internals as drawn (the unchecked checkbox and radio, Safari's own `<select>`). `:dir(rtl)` as drawn,
+  since `shared/keys.ts` reads the `dir` attribute rather than CSS `direction`. WCAG 2.4.11 against the fixed toast
+  region. 200% zoom, and reflow above 320 px. What a screen reader says for toasts, notices, speech inside a dialog, and
+  the parked `main` focus. Escape in a search field inside a dialog. Whether the waiting bar is drawn during the first
+  navigation, which needs a throttled browser run. A flow through the real gateway, and `aspire run`.
+- **Verification.** `npm run lint` and `npm run format:check`: clean. `npm test`: 436 pass (176 library, 259 admin, 1
+  site). `npm run build` with `check:admin-build`: clean, 6 prerendered routes, no inline script, admin initial total
+  97.34 kB. `npm run e2e`: Chromium 60 of 60, WebKit 58 of 60, Firefox 0 (see High). Playwright's Firefox and WebKit
+  builds were installed into the user's own cache to try that run; the repository tree is unchanged.
 
 ## PP4 — Recipes and calculations
 

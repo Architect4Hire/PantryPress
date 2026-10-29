@@ -71,12 +71,13 @@ public sealed class ModuleBoundaryTests
     /// administers. Sites names the account a membership belongs to by its <c>AccountId</c> (PP2.3), asks whether an
     /// account's email address is confirmed before letting it own more sites (PP2.10), whether an account holds the
     /// address an invitation went to before letting it join (PP2.11), and its members' addresses to show their Owner
-    /// (PP2.11b). Nothing goes the
+    /// (PP2.11b). Platform also asks Sites to create the local development seed's sites, through the same facade the API
+    /// calls (PP3.9a). Nothing goes the
     /// other way, so the graph stays acyclic. Add an edge here only with a reason.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedModuleEdges = new(StringComparer.Ordinal)
     {
-        ["Platform"] = ["Accounts"],
+        ["Platform"] = ["Accounts", "Sites"],
         ["Sites"] = ["Accounts"],
     };
 

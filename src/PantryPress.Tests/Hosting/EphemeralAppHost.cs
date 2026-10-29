@@ -14,16 +14,30 @@ internal static class EphemeralAppHost
     // drops them rather than pull and start two more containers for every integration test.
     public static readonly (string Name, string Parent)[] DataExplorers = [("dbgate", "sql"), ("redisinsight", "redis")];
 
+    /// <summary>The development seed's password as the migration job reads it (PP3.9a).</summary>
+    public const string DevelopmentSeedVariable = "DevSeed__Password";
+
     /// <param name="runWorker">
     /// False for a fixture whose tests move a fake clock over the shared database. The Worker sweeps expired rows on the
     /// real clock (PP1.10), so it would purge idempotency keys a test is still using, its fake hours already behind.
     /// </param>
+    /// <param name="developmentSeedPassword">
+    /// What the migration job seeds its development accounts with (PP3.9a), or null - the default - for no seed at all.
+    /// The password is always decided here, never left to the developer's own user-secrets, which the AppHost's
+    /// configuration would otherwise supply: an integration test's database must be the same on every machine.
+    /// </param>
     public static async Task<IDistributedApplicationTestingBuilder> CreateAsync(
         CancellationToken cancellationToken,
-        bool runWorker = true)
+        bool runWorker = true,
+        string? developmentSeedPassword = null)
     {
         var appHost = await DistributedApplicationTestingBuilder.CreateAsync<Projects.PantryPress_AppHost>(
             cancellationToken);
+
+        // Last callback wins, so this decides the value whatever the AppHost's parameter resolved to.
+        appHost.Resources.Single(r => r.Name == "migrationservice").Annotations.Add(
+            new EnvironmentCallbackAnnotation(context =>
+                context.EnvironmentVariables[DevelopmentSeedVariable] = developmentSeedPassword ?? string.Empty));
 
         foreach (var explorer in appHost.Resources.Where(r => DataExplorers.Any(e => e.Name == r.Name)).ToList())
         {

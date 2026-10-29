@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Audit;
 using PantryPress.Domain.Managers.Idempotency;
@@ -114,13 +115,16 @@ public sealed class IdentityModelTests
     }
 
     // EF Core caches the model per context type, so this context gets its own internal services; otherwise it could
-    // reuse a model another test built with the pin.
+    // reuse a model another test built with the pin. Asking for its own is what EF Core counts, and it counts across the
+    // whole test process - every test host builds one - so the count is ignored here: it says nothing about the pin, and
+    // without this the refusal under test is replaced by a warning about how many hosts other tests happened to build.
     [Fact]
     public void Context_refuses_a_host_that_did_not_pin_the_identity_schema()
     {
         using var db = new PantryPressDbContext(new DbContextOptionsBuilder<PantryPressDbContext>()
             .UseSqlServer(MigrationServiceExtensions.UseMigrationsAssembly)
             .EnableServiceProviderCaching(false)
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning))
             .Options,
             new SiteContext());
 
@@ -142,7 +146,11 @@ public sealed class IdentityModelTests
         });
         services.AddPantryPressDbContext((_, options) => options
             .UseSqlServer(MigrationServiceExtensions.UseMigrationsAssembly)
-            .EnableServiceProviderCaching(false));
+
+            // Its own internal services, so another test's model cannot stand in - and the count of those, which EF Core
+            // keeps for the whole test process, says nothing about the pin this test is about.
+            .EnableServiceProviderCaching(false)
+            .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)));
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();

@@ -11,6 +11,12 @@ public enum AuditActorKind
 
     /// <summary>PantryPress itself, acting on a rule rather than on anyone's request, such as a lockout.</summary>
     System = 3,
+
+    /// <summary>
+    /// The local development seed, applied by the migration job in Development only (PP3.9a). Its own kind, so an
+    /// entry a developer's machine wrote is never read as an operator's or a person's doing.
+    /// </summary>
+    DevelopmentSeed = 4,
 }
 
 /// <summary>
@@ -33,6 +39,9 @@ public readonly record struct AuditActor
     public static AuditActor OperatorConfiguration { get; } = new(AuditActorKind.OperatorConfiguration, null);
 
     public static AuditActor System { get; } = new(AuditActorKind.System, null);
+
+    /// <summary>The development seed, which exists on a developer's machine alone (PP3.9a).</summary>
+    public static AuditActor DevelopmentSeed { get; } = new(AuditActorKind.DevelopmentSeed, null);
 
     public static AuditActor Account(Guid accountId) =>
         accountId == Guid.Empty

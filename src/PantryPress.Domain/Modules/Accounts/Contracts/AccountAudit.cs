@@ -18,6 +18,12 @@ public static class AccountAudit
     /// <summary>The wrong password or code that locked the account; the attempts before it are not audited.</summary>
     public const string LockedOut = "account.locked-out";
 
+    /// <summary>
+    /// An account the local development seed created, with its address confirmed and no email sent (PP3.9a). Only a
+    /// developer's own database can hold one: the seed runs in local Development alone.
+    /// </summary>
+    public const string DevelopmentSeeded = "account.development-seeded";
+
     public const string PlatformAdminGranted = "account.platform-admin-granted";
     public const string PlatformAdminRevoked = "account.platform-admin-revoked";
 

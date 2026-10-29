@@ -123,6 +123,7 @@ dotnet test PantryPress.slnx                # unit, integration, two-site, golde
 dotnet format PantryPress.slnx --verify-no-changes
 dotnet tool restore                         # pinned dotnet-ef
 dotnet ef migrations add <Name> --project src/PantryPress.MigrationService  # applied only by MigrationService
+dotnet user-secrets set DevSeed:Password <password> --project src/PantryPress.AppHost  # seeds local accounts (PP3.9a)
 cd src/web && npm ci
 npm run lint && npm test
 npm run build:site && npm run budget        # SSR build plus the RND-007 first-party budget check
@@ -130,6 +131,12 @@ npm run build:site && npm run budget        # SSR build plus the RND-007 first-p
 
 Local hosts: the platform home (landing, sign-in, `/dashboard`) at `localhost` through the gateway, sites at
 `{slug}.localhost` (SITE-009, PP-D19, PPL.1).
+
+Local sign-in (PP3.9a, local Development only): with `DevSeed:Password` set in the AppHost's user-secrets, the
+migration job seeds `owner@pantrypress.test` and `editor@pantrypress.test` - both addresses confirmed, both with that
+one password - and two sites the first owns, `apple-pie` and `plum-tart`, at `apple-pie.localhost` and
+`plum-tart.localhost`. The second account belongs to no site, for trying invitations. With no password set nothing is
+seeded and the job says so. A second run changes nothing, and an account or address already there is left alone.
 
 Skills (`.claude/skills/`): `add-endpoint`, `add-site-entity`, `add-public-endpoint`,
 `add-recipe-feature`, `add-editor-block`, `add-media-feature`, `add-background-job`,

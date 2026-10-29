@@ -65,6 +65,11 @@ internal sealed partial class MigrationWorker(
             // The reconciler logs what it applied; this job only needs the run to succeed.
             await scope.ServiceProvider.GetRequiredService<IPlatformAdminReconciler>().RunAsync(stoppingToken);
 
+            // After the list, because the seed's accounts are ordinary accounts and the list may name one of them
+            // (PP3.9a). On any host but a Development one this does nothing at all. A failure fails the run: a developer
+            // whose machine could not be seeded must see it rather than find half of it later.
+            await scope.ServiceProvider.GetRequiredService<IDevelopmentSeeder>().RunAsync(stoppingToken);
+
             outcome.MarkSucceeded();
         }
         // SqlClient often reports a cancelled command as SqlException, so judge cancellation by the token.

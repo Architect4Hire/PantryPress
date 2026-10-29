@@ -8,7 +8,10 @@ using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Platform;
+using PantryPress.Domain.Modules.Sites;
 using PantryPress.MigrationService;
+using PantryPress.ServiceDefaults.Caching;
+using StackExchange.Redis;
 
 namespace PantryPress.Tests.Persistence;
 
@@ -58,4 +61,45 @@ internal static class TestDatabase
             .Build());
         return services.BuildServiceProvider();
     }
+
+    /// <summary>
+    /// The local development seed over the same migrated database (PP3.9a), composed exactly as the migration job's
+    /// Development run composes it: the operator's platform-role path with no list, the seed itself, the Accounts
+    /// module's development-only account operation, and the Sites module as the API registers it - so the sites it
+    /// makes are made the way PP2.10 makes one, host-map refresh included.
+    /// </summary>
+    /// <param name="password">The seed's password, or empty for a run with none configured.</param>
+    public static async Task<ServiceProvider> CreateDevelopmentSeedServicesAsync(
+        DistributedApplication app,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        var connectionString = await app.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, cancellationToken)
+            ?? throw new InvalidOperationException("The test AppHost has no pantrypress connection string.");
+        var cacheConnection = await app.GetConnectionStringAsync(CacheConnection.ConnectionName, cancellationToken)
+            ?? throw new InvalidOperationException("The test AppHost has no redis connection string.");
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Sites:SubdomainZone"] = SubdomainZone })
+            .Build());
+        services.AddFakeLogging();
+        services.AddApplicationClock();
+        services.AddPantryPressDbContext((_, options) => options.UseSqlServer(
+            connectionString,
+            MigrationServiceExtensions.UseMigrationsAssembly));
+        services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheConnection));
+        services.AddPlatformAdministration(new ConfigurationBuilder().Build());
+        services.AddDevelopmentSeed(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Password"] = password })
+                .Build(),
+            isDevelopmentHost: true);
+        services.AddAccountsDevelopmentSeed();
+        services.AddSites();
+        return services.BuildServiceProvider(validateScopes: true);
+    }
+
+    /// <summary>The zone the seed's sites answer under locally (SITE-009), as the AppHost sets it for the job.</summary>
+    public const string SubdomainZone = "localhost";
 }

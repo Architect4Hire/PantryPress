@@ -204,6 +204,23 @@ public sealed class DomainBoundaryTests
         Path.Combine("PantryPress.Domain", "Managers", "Outbox", "OutboxHandlerRegistration.cs"),
     ];
 
+    // PP3.9a (architecture review): a DI scope of its own is how work gets a site context of its own, so a scope factory
+    // in the wrong hands is a way around "one scope, one site" (tenancy.md rule 2). The three files that may make one are
+    // listed, with each one's reason, as the resolvers are.
+    private const string ScopeFactoryReference = @"\bIServiceScopeFactory\b|\bCreateAsyncScope\b|\bCreateScope\b";
+
+    private static readonly string[] ScopeFactories =
+    [
+        // The outbox dispatcher: each delivery runs in its own scope, on the site its message was staged under (PP1.10).
+        Path.Combine("PantryPress.Domain", "Managers", "Outbox", "OutboxStore.cs"),
+
+        // The idempotency store: a key is completed outside the request's own transaction (PP1.9).
+        Path.Combine("PantryPress.Domain", "Managers", "Idempotency", "IdempotencyStore.cs"),
+
+        // The development seed: one scope per site it creates, because a scope may enter only one (PP3.9a).
+        Path.Combine("PantryPress.Domain", "Modules", "Platform", "Facades", "DevelopmentSeeder.cs"),
+    ];
+
     // PP2.12 (isolation audit): the public tier's resolver enters a site from a Host with no membership behind it, which is
     // right only on the anonymous public host. So only the Sites module and the Site host name it or its registration, and
     // only the Site host's resolution middleware names the holder its endpoints read the site from.
@@ -391,6 +408,40 @@ public sealed class DomainBoundaryTests
         Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
         Assert.All(allowed, a => Assert.True(File.Exists(a) || Directory.Exists(a), $"{a} is listed as a resolver but is not there."));
     }
+
+    [Fact]
+    public void Only_the_declared_files_make_a_di_scope()
+    {
+        var domain = DomainSource.Project;
+        var allowed = ScopeFactories.Select(r => Path.Combine(domain.Parent!.FullName, r)).ToList();
+
+        var scanned = 0;
+        foreach (var file in domain.EnumerateFiles("*.cs", SearchOption.AllDirectories))
+        {
+            if (allowed.Any(a => file.FullName.Equals(a, StringComparison.OrdinalIgnoreCase))
+                || file.FullName.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                || file.FullName.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            scanned++;
+            Assert.False(
+                Regex.IsMatch(File.ReadAllText(file.FullName), ScopeFactoryReference),
+                $"{Path.GetRelativePath(domain.FullName, file.FullName)} makes a DI scope, which only a declared file may do: "
+                + "a scope of its own is a site context of its own (tenancy.md rule 2).");
+        }
+
+        Assert.True(scanned > 100, "The scan found too few source files to be looking in the right place.");
+        Assert.All(allowed, a => Assert.True(File.Exists(a), $"{a} is listed as a scope factory but is not there."));
+    }
+
+    [Theory]
+    [InlineData("IServiceScopeFactory scopes", true)]
+    [InlineData("await using var scope = scopes.CreateAsyncScope();", true)]
+    [InlineData("IServiceProvider services", false)]
+    public void The_scope_scan_catches_a_scope(string code, bool makes) =>
+        Assert.Equal(makes, Regex.IsMatch(code, ScopeFactoryReference));
 
     // PP2.14: the membership decision enters the site it admits (tenancy.md rule 4), so only the site policy's handler asks
     // it, with the slug from the route. A question about a site from anywhere else is FindAsync, which enters nothing.

@@ -150,6 +150,27 @@ else
 // not wait for the dev server, so an admin compile error never blocks the gateway's own routes.
 if (isLocalDevelopment)
 {
+    // The accounts and sites a developer's machine starts with (PP3.9a), seeded by the migration job after the
+    // platform-role list. Sign-up stays closed until PPL.13, so without this a local run has nobody to sign in as.
+    // Declared here, inside the local-Development branch, like the mail catcher and the data explorers: the parameter
+    // is never in a published manifest or the IaC, and a deployed job runs exactly what it ran before. A secret
+    // parameter, so the password is masked in the dashboard; its value comes from this AppHost's user-secrets
+    // ("DevSeed:Password") and from nowhere else. With none set the seed does nothing and says how to set one.
+    var devSeedPassword = builder.AddParameter(
+        "dev-seed-password",
+        () => builder.Configuration["DevSeed:Password"] ?? string.Empty,
+        secret: true);
+
+    migrations
+        .WithEnvironment("DevSeed__Password", devSeedPassword)
+
+        // The seed creates its sites through the Sites module exactly as the API does (PP2.10), so this job needs the
+        // zone a new site's address sits under - localhost locally (SITE-009) - and Redis, because creating a site
+        // refreshes the public tier's host map (PP2.12). It never waits for Redis: the refresh is skipped if the cache
+        // cannot be reached (aspire.md).
+        .WithEnvironment("Sites__SubdomainZone", "localhost")
+        .WithReference(redis);
+
     var admin = builder.AddJavaScriptApp("admin", "../web", "start:admin")
         .WithHttpEndpoint()
         .WithEnvironment("NG_CLI_ANALYTICS", "false")

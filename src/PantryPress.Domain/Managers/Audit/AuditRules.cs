@@ -53,6 +53,7 @@ public static partial class AuditRules
         AuditActorKind.Account => "account",
         AuditActorKind.OperatorConfiguration => "operator-configuration",
         AuditActorKind.System => "system",
+        AuditActorKind.DevelopmentSeed => "development-seed",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not an audit actor kind."),
     };
 
