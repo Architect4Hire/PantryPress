@@ -3322,7 +3322,7 @@ BEHAVIOR: Plan, wait for approval, implement with an accessibility smoke test.
       showcase code.
   - Not run: `aspire run` (the e2e serves its own build), or a screen reader.
 
-### PP3.7 Runtime configuration and typed API base
+### PP3.7 Runtime configuration and typed API base - done
 
 ```text
 SCOPE: Add runtime configuration and a typed API base service in pantrypress-admin.
@@ -3330,6 +3330,90 @@ CONSTRAINT: frontend.md.
 RESTRICTION: Components never inject HttpClient.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
+
+*PP3.7 delivery note (done 2026-10-29):*
+
+- **What shipped.** `core/` in `pantrypress-admin`. There are no new dependencies and no screens.
+  - `core/api/`:
+    - `api-constants.ts`: `API_BASE` (`/api/v1`) and the antiforgery names. These are constants, not runtime values,
+      because the app and the gateway share one origin (PP-D19).
+    - `api-problem.ts`: `ApiProblem` and `ApiResult<T>`. A failure is a value. The client reads the problem document's
+      `code`, `title`, `errors`, `traceId`, and `Retry-After`, and takes the status from the answer itself. It adds two
+      codes of its own: `unreachable` when no answer came, and `unexpected-error` when an answer came that is not one
+      of ours.
+    - `api-path.ts`: `ApiPath`, `toApiPath`, and the `apiPath` template. Each spliced value is encoded as exactly one
+      segment. A leading or doubled slash, a query, a fragment, and a dot segment in any spelling are refused.
+    - `api-client.ts`: `ApiClient`, the one class that injects `HttpClient`.
+      - It has `get`, `post`, `put`, `patch`, and `delete`, each answering a `Promise<ApiResult<T>>`.
+      - It sends `Idempotency-Key` only when its caller gives one, checked as `ApiIdempotency.TryParseKey` reads it.
+      - It sends a write again once, only after the gateway's own 400 `antiforgery-failed`.
+    - `provide-api.ts`: `withFetch()` and `withXsrfConfiguration` over `__Host-pp-xsrf` and `X-PP-Xsrf`.
+  - `core/config/`:
+    - `RuntimeConfig`, a typed document with no fields yet. PPL.13 adds `publicSignUp`, defaulting to `false`.
+    - `readRuntimeConfig`, which reads known fields only and defaults the rest.
+    - `RuntimeConfigService`, with `config` and `status` signals. It reads once, in the browser only, and never holds
+      up the app's start (`provideRuntimeConfig`).
+  - **The owner-approved choice (option A).** The configuration is read from `GET /api/v1/client-configuration`, and
+    PPL.13 adds that ApiService route with its first field. Until then the read gets a 404 and the defaults stay.
+  - **The admin `eslint.config.js`.** Outside `core/api/`, no file may import `@angular/common/http` or its subpaths.
+    No admin file may use `fetch`, `XMLHttpRequest`, `EventSource`, or `WebSocket`, bare or through `window`,
+    `globalThis`, or `self`, or `navigator.sendBeacon`. The PP-D07 themes boundary is kept in both blocks.
+- **Tests.** The admin project has 35 specs, up from 6.
+  - `api-client.spec.ts`:
+    - paths, queries, and a 204;
+    - no `X-PP-*` header but the write token, and no cookie header;
+    - the JSON body;
+    - idempotency keys, refused and accepted as the server parses them;
+    - the token echoed on a write and not on a read;
+    - the one retry with the fresh token, giving up after it, and no retry for a read, another 400, or another
+      status;
+    - reading a problem: field errors, `Retry-After`, the trace id, the status from the answer, a code with no title,
+      and an empty `errors`;
+    - an unreadable body and no answer;
+    - path shapes, encoded dots included.
+  - `runtime-config.service.spec.ts`: defaults then the read, a 404 and no answer, a body that is not an object, one
+    read for many callers, and no read on the server.
+  - Shown failing on a deliberate break:
+    - the retry turned off (2 failures);
+    - `withXsrfConfiguration` removed (2 failures);
+    - a component importing `HttpClient` and `HttpTestingController` and calling `fetch` (3 lint errors);
+    - `window.fetch`, `navigator.sendBeacon`, `new WebSocket`, and `globalThis.XMLHttpRequest` (4 lint errors);
+    - a themes import inside and outside `core/api/` (both refused).
+- **Differs from the approved plan.**
+  - **After `design-review`:**
+    - Dot segments are refused when escaped too (`%2e%2e`, `.%2e`, `%2e.`).
+    - The lint net is wider: property access, `EventSource`, `WebSocket`, and `sendBeacon`.
+    - The service's doc says screens draw from `config()` alone. `status` stays `loading` on the server, so a waiting
+      state drawn from it would prerender and then shift.
+  - **After `api-contract-checker`:**
+    - The key check matches the server's: one pair of wrapping quotes comes off, and `"`, `\`, and `,` are refused.
+    - A problem with a `code` but no `title` keeps its code and takes a plain title. A trace id is kept whenever the
+      body has one.
+    - An empty `errors` reads as none.
+    - The no-`X-PP-*` claim names the write token as its one exception, and its spec sets the cookie.
+  - **Docs reconciled (CLAUDE.md: documents that disagree are reconciled before the code).** PPL.15 said
+    `/api/v1/plans` would be the only anonymous route outside the account routes. It now names both. PPL.13 has an
+    "Owed by PP3.7" note: the route's seam, record, `Cache-Control`, its own per-address limit (never
+    `account-anonymous`), its pins and contract test, and a CTA drawn from `config()` that hydrates eagerly. The
+    decision log has the entry.
+- **Open, for later prompts.**
+  - **Until PPL.13, every browser start logs a 404.** The read reaches ApiService on every page load, the landing page
+    included, and shows in the console and the API's logs. This is accepted rather than hidden behind a build flag.
+  - **The retry relies on `antiforgery-failed` being the gateway's alone.** It is today: ApiService names it only in
+    OpenAPI prose. No catalogue test pins that ApiService and the Domain never declare it (or `cross-origin-blocked`).
+    PP3.10, or the next prompt that touches `ProblemCodeCatalogueTests`, should add one.
+  - **Over plain HTTP the retry is wasted.** The gateway refuses without re-minting there, so the second try fails the
+    same way. Nobody meets the admin app over plain HTTP (PP1.8).
+  - **Hydration (PPL.2, PPL.13).** Once the apex prerenders, the read usually lands after the first hydration. A switch
+    must not sit in a lazily hydrated block.
+  - **No cancellation.** A call answers a promise and cannot be cancelled. An opted-in write runs to its end anyway
+    (PP1.9). Add an `AbortSignal` option when a screen needs to drop stale reads, such as a search.
+- **Verification.**
+  - Tests: `npm test` (165 library, 35 admin, 1 site) and `npm run e2e` (75 of 75 in Chromium, Firefox, and WebKit).
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Builds: `ng build pantrypress-admin`, development and production, to scratch paths. The production initial total
+    is 59.35 kB compressed.
+  - Not run: `aspire run`, or a read through the real gateway, which has no route to answer yet.
 
 ### PP3.8 BFF auth client and guards
 

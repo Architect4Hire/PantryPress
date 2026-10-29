@@ -583,6 +583,24 @@ BEHAVIOR: Show the flag's states, the problem document, and the CTA's two states
 and component tests. Report.
 ```
 
+*Owed to PPL.13 by PP3.7 (owner-approved: the runtime configuration is a server read, not a deployed file):*
+
+- **The route.** The admin app already reads `GET /api/v1/client-configuration` (`RUNTIME_CONFIG_PATH`) once per
+  browser start, and keeps its defaults on the 404 it gets until this prompt. Add it on ApiService's admin v1 surface
+  as an `[AllowAnonymous]` read, through Controller → Facade, with a response record in a module's `Contracts/`
+  (`publicSignUp`, camelCase). It needs no gateway route: `api-v1` forwards it already.
+- **What it may say.** One answer for every caller: no session, account, site, or price (frontend.md). Its
+  `Cache-Control` is chosen on purpose. Fields are additive only, and each one's default in `readRuntimeConfig` is its
+  closed or hidden state.
+- **Its limit.** It is read on every page load, the prerendered landing page included, so it gets a per-address limit of
+  its own. It never shares `account-anonymous` with sign-up and password reset, so page loads cannot crowd those out
+  (the gateway.md session-check rule).
+- **Its pins.** Add it to `ApiServiceHostTests`' pinned admin paths, write a contract test for its statuses, name it in
+  `api-contract.md`'s first bullet beside `/api/v1/plans`, and add a decision-log entry.
+- **The CTA.** Draw it from `config()` alone, never from `status`, which stays `loading` on the server. Keep it in the
+  eagerly hydrated tree (or switch after `afterNextRender`), so the first browser render matches the prerendered
+  closed state. A spec should prove they match.
+
 ## PPL.14 "Your content stays yours"
 
 ```text
@@ -616,7 +634,8 @@ configuration); api-contract.md (a declared surface, kebab-case enums, an OpenAP
 docs/features/plans/ for the field set.
 RESTRICTION:
 - Catalogue data only: no account, site, or usage.
-- The only anonymous route outside the account routes, and it says why in its doc comment.
+- One of the two anonymous routes outside the account routes, beside PPL.13's `GET /api/v1/client-configuration`
+  (PP3.7), and it says why in its doc comment.
 - No price literal anywhere in code.
 - Startup refuses a published catalogue that is incomplete: a missing price or currency, or a plan key that is not
   URL-safe.
