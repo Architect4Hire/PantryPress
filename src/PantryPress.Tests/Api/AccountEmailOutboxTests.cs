@@ -234,7 +234,7 @@ public sealed class AccountEmailDeliveryTests
     [Fact]
     public void Without_an_email_gateway_the_worker_refuses_to_start()
     {
-        using var services = Worker(gateway: null, appBaseUrl: "https://app.localhost");
+        using var services = Worker(gateway: null, appBaseUrl: "https://localhost");
 
         var error = Assert.Throws<OptionsValidationException>(
             () => services.GetRequiredService<IOptions<AccountsOptions>>().Value);
@@ -245,7 +245,7 @@ public sealed class AccountEmailDeliveryTests
     [Fact]
     public void Without_a_valid_admin_app_origin_the_worker_refuses_to_start()
     {
-        using var services = Worker(gateway: new RecordingEmailGateway(), appBaseUrl: "http://app.pantrypress.app");
+        using var services = Worker(gateway: new RecordingEmailGateway(), appBaseUrl: "http://pantrypress.app");
 
         var error = Assert.Throws<OptionsValidationException>(
             () => services.GetRequiredService<IOptions<AccountsOptions>>().Value);
@@ -256,9 +256,9 @@ public sealed class AccountEmailDeliveryTests
     [Fact]
     public void With_both_the_worker_has_a_handler_for_account_email()
     {
-        using var services = Worker(gateway: new RecordingEmailGateway(), appBaseUrl: "https://app.localhost");
+        using var services = Worker(gateway: new RecordingEmailGateway(), appBaseUrl: "https://localhost");
 
-        Assert.Equal("https://app.localhost", services.GetRequiredService<IOptions<AccountsOptions>>().Value.AppBaseUrl);
+        Assert.Equal("https://localhost", services.GetRequiredService<IOptions<AccountsOptions>>().Value.AppBaseUrl);
         Assert.Contains(
             services.GetServices<OutboxHandlerRegistration>(),
             r => r.Type == AccountEmailMessage.OutboxType);

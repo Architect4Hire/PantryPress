@@ -1,0 +1,53 @@
+<ppa-auth-frame [heading]="heading()">
+  @if (!open()) {
+    <p class="lead">
+      PantryPress is early in development, and we're building it in the open. You'll be able to
+      create an account here when it launches.
+    </p>
+    <p class="links"><a routerLink="/sign-in">Already have an account? Sign in</a></p>
+  } @else if (sentTo(); as email) {
+    <div class="step">
+      <p class="lead">
+        We sent a link to <strong>{{ email }}</strong
+        >. Open it to confirm your address, then sign in.
+      </p>
+      @if (resent()) {
+        <pp-notice tone="success" announce>We sent another link.</pp-notice>
+      }
+      @if (feedback().notice; as notice) {
+        <pp-notice tone="danger" announce>{{ notice }}</pp-notice>
+      }
+      <div class="actions">
+        <button pp-button variant="secondary" type="button" [busy]="busy()" (click)="resend()">
+          Send the link again
+        </button>
+      </div>
+      <p class="links"><a routerLink="/sign-in">Sign in</a></p>
+    </div>
+  } @else {
+    @if (feedback().notice; as notice) {
+      <pp-notice tone="danger" announce>{{ notice }}</pp-notice>
+    }
+    <form class="form" [formGroup]="form" (ngSubmit)="register()" novalidate>
+      <pp-field label="Email address" [error]="feedback().fields.email">
+        <input pp-text-field type="email" autocomplete="email" formControlName="email" />
+      </pp-field>
+      <pp-field
+        label="Password"
+        hint="Use at least 12 characters."
+        [error]="feedback().fields.password"
+      >
+        <input
+          pp-text-field
+          type="password"
+          autocomplete="new-password"
+          formControlName="password"
+        />
+      </pp-field>
+      <div class="actions">
+        <button pp-button variant="primary" type="submit" [busy]="busy()">Create account</button>
+      </div>
+    </form>
+    <p class="links"><a routerLink="/sign-in">Already have an account? Sign in</a></p>
+  }
+</ppa-auth-frame>

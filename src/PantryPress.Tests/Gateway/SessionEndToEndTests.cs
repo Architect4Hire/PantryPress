@@ -22,9 +22,9 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", timeout.Token);
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
         // Over TLS, because that is the only way the gateway is reached (PP1.6) and the only way its Secure cookies -
-        // the session's and the antiforgery token's - come back. The certificate is not checked: the test connects to
-        // the local endpoint while presenting the app.localhost host the gateway answers on, so the development
-        // certificate cannot match both names.
+        // the session's and the antiforgery token's - come back. The certificate is not checked: what is under test is
+        // the gateway's session, not whether this machine trusts the development certificate. The Host is set to
+        // localhost, the local apex the gateway answers on (PP-D19).
         using var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
@@ -33,7 +33,7 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
             UseCookies = false,
         };
         using var client = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "https") };
-        var host = $"app.localhost:{client.BaseAddress!.Port}";
+        var host = $"localhost:{client.BaseAddress!.Port}";
         var email = $"cook-{Guid.NewGuid():N}@example.test";
         const string passphrase = "a long kitchen phrase";
 
@@ -91,7 +91,7 @@ public sealed class SessionEndToEndTests(MigratedDatabase system)
             view.RootElement.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
 
         // The gateway holds the session; the browser holds a cookie and no token. A real browser is sent here over
-        // HTTPS (app.localhost locally), which is what a Secure cookie needs; this test replays the cookie by hand.
+        // HTTPS (at the apex, localhost, locally), which is what a Secure cookie needs; this test replays the cookie by hand.
         var session = Cookie(signedIn, SessionCookie.CompleteName);
         Assert.NotNull(session);
 

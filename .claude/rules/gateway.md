@@ -4,18 +4,46 @@
 `pantrypress-admin` app's files - the prerendered landing page at `/` and `/pricing`, the legal pages, the sign-in and
 sign-up screens, and the dashboard under `/dashboard/…` - and the admin API surface (`/api/v1/...`) proxied to
 `PantryPress.ApiService`. `app.pantrypress.app` and `www.pantrypress.app` are 301s to the apex at Front Door, never
-gateway hosts. **Until PPL.1 lands, the code still answers on `app.pantrypress.app` and `app.localhost`.**
+gateway hosts: the gateway answers either with its neutral 404 (PPL.1). **Deployed, the Terraform still names
+`app.<zone>` until PP9.1a and PP9.2 move the records, the Front Door route, and the gateway's settings to the apex.**
 
 - In local Development the gateway is the browser's entry point at `localhost` (the local zone's apex, on the
   gateway's own port; sites are `{slug}.localhost` on the Site resource's); a catch-all route in
   `appsettings.Development.json` forwards the SPA to the Aspire-hosted admin dev server (PP0.7). Dev is
   `dev.pantrypress.app`.
-- **A signed-in visitor never sees marketing (PPL.3).** A `GET` of `/` or `/pricing` carrying a complete session ticket
-  is answered 302 to `/dashboard` before any document is read. The gateway decides it from its own cookie alone and asks
-  ApiService nothing; the dashboard's guard confirms the session. A half-finished ticket is not a session here either.
-- **Documents are never shared-cached.** Every HTML answer on the apex is `Cache-Control: no-cache`, because `/` answers a
-  signed-in visitor differently; only fingerprinted static assets are long-lived, and the Front Door route for the apex
-  caches nothing else (PP9.2). Prerendered pages carry no price, plan figure, or account data.
+- **A signed-in visitor never sees marketing (PPL.3).** A `GET` or `HEAD` of `/` or `/pricing` carrying a complete
+  session ticket is answered 302 to `/dashboard` (`no-store`) before any document is read, in every environment, ahead
+  of the dev server too. The gateway decides it from its own cookie alone and asks ApiService nothing; the dashboard's
+  guard confirms the session. A half-finished ticket is not a session here either, nor is one past its sliding or
+  absolute lifetime. The legal pages are public but never redirected. A public path spelled as the router would also
+  read it (`/pricing/`, `/pricing;x=1`, `//`) is first answered 301 to its own spelling, query kept, so no spelling
+  reaches the landing page past this check.
+- **The pages and their lists (PPL.3).** `Gateway:AdminApp` holds `PublicPaths`, `SignedInRedirectPaths`, and
+  `SignedInHome`; a test reads the admin app's `public-paths.ts` as text and fails when they drift from `PUBLIC_PATHS`
+  and `SIGNED_IN_REDIRECT_PATHS`. The host refuses to start on a list that could loop (the home redirected or public, a
+  redirected path that is not public) or a malformed path. Outside Development, `Gateway:AdminApp:Root` names the admin
+  app's build (`dist/pantrypress-admin/browser`; the image puts it there, PP19) and the gateway serves it itself, at the
+  lowest route order, `GET` and `HEAD` only:
+  - a public path gets its prerendered `{path}/index.html`;
+  - any other page path - everything under `/dashboard`, a last segment with no dot, or one ending `.html`, so
+    `/index.html` cannot step around the redirect - gets `index.csr.html`, and the app draws the page or its not-found
+    page (a 200);
+  - `/api` in any case and the probe paths (`/health`, `/alive`, and below) are never pages: deployed, the probes are
+    not mapped until PP19.2, and they skip the host check and the HTTPS redirect;
+  - any other path is a file of the build or the gateway's problem 404, never a document, so a stale chunk fails as
+    missing. Dotfiles and paths that leave the root are never served.
+
+  It refuses to start without the build, without a public path's document or `index.csr.html`, or when a document
+  carries inline script or an inline event handler, which `script-src 'self'` would block; `npm run build` checks the
+  same before anything ships (`check:admin-build`). In Development `Root` must be unset and the `admin-spa` catch-all
+  serves every page; the two never coexist.
+- **Documents are never shared-cached.** Every HTML answer on the apex is `Cache-Control: no-cache` (the dev server's
+  too, set on the way through), because `/` answers a signed-in visitor differently; only fingerprinted files
+  - Angular's bundles at the root (`main-`, `chunk-`, `styles-`, `polyfills-`, `worker-`) and `media/name-HASH.ext` -
+  are `public, max-age=31536000, immutable`; anything copied from `public/` keeps its own name and is `no-cache`.
+  Document tags are their content's hash. Any page or file answer that sets or clears a cookie is
+  `no-cache, no-store`, whatever it would otherwise be. The Front Door route
+  for the apex caches nothing else (PP9.2). Prerendered pages carry no price, plan figure, or account data.
 - Routes are declared in configuration and versioned (`/api/v1/...`). Every other path under `/api` gets a
   problem-details 404 from the gateway itself (PP1.5), so nothing falls through to the SPA: the publishing API
   is not routed through the gateway (it has its own Front Door route), the public site API answers on site

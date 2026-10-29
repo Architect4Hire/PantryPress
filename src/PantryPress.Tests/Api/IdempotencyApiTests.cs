@@ -35,7 +35,7 @@ public sealed class IdempotencyApiTests(MigratedDatabase database) : IAsyncLifet
             new Dictionary<string, string?>
             {
                 ["ConnectionStrings:pantrypress"] = connectionString,
-                ["Accounts:AppBaseUrl"] = "https://app.localhost",
+                ["Accounts:AppBaseUrl"] = "https://localhost",
                 ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,
             },
             services =>

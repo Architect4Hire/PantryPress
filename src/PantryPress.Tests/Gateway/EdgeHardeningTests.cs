@@ -125,7 +125,7 @@ public sealed class EdgeHardeningTests
         using var response = await gateway.CreatePlain().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.TemporaryRedirect, response.StatusCode);
-        Assert.Equal($"https://app.localhost{path}", response.Headers.Location?.ToString());
+        Assert.Equal($"https://localhost{path}", response.Headers.Location?.ToString());
         Assert.Empty(gateway.Forwarded);
     }
 
@@ -251,12 +251,18 @@ public sealed class EdgeHardeningTests
 
     [Theory]
     [InlineData("cook.localhost")]
+    [InlineData("app.localhost")]
+    [InlineData("www.localhost")]
+    [InlineData("app.pantrypress.app")]
+    [InlineData("www.pantrypress.app")]
     [InlineData("evil.example")]
-    [InlineData("app.pantrypress.app.evil.example")]
+    [InlineData("localhost.evil.example")]
+    [InlineData("pantrypress.app.evil.example")]
     public async Task A_host_that_is_not_ours_gets_the_neutral_404(string host)
     {
         // Front Door routes a tenant host to the public site; one arriving here came from somewhere that is not a
-        // browser following our DNS, and it is told nothing about what it guessed.
+        // browser following our DNS, and it is told nothing about what it guessed. The platform home is the apex
+        // (PP-D19): app. and www. are Front Door's 301s to it, never hosts the gateway answers.
         await using var gateway = new GatewayFactory("Development");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, AdminRoute);
@@ -275,7 +281,7 @@ public sealed class EdgeHardeningTests
         await using var gateway = new GatewayFactory("Development");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, AdminRoute);
-        request.Headers.Host = "app.localhost.";
+        request.Headers.Host = "localhost.";
         using var response = await gateway.CreateBare().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -346,7 +352,7 @@ public sealed class EdgeHardeningTests
         await using var gateway = new GatewayFactory("Development");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, AdminRoute);
-        request.Headers.Host = "APP.LOCALHOST";
+        request.Headers.Host = "LOCALHOST";
         using var response = await gateway.CreateBare().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

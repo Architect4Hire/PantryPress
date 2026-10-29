@@ -20,7 +20,8 @@ public static class ReservedSlugs
 
     public static IReadOnlyList<ReservedSlugEntry> All { get; } =
     [
-        // Hosts PantryPress answers on or holds DNS records under. "app" is the admin app (gateway.md); "dev" is the dev
+        // Hosts PantryPress answers on or holds DNS records under. "app" and "www" redirect to the platform home on the
+        // zone's apex (PP-D19, gateway.md), which has no label of its own for a slug to name; "dev" is the dev
         // environment's zone, delegated under the production one (docs/infrastructure); "mail" sends account email.
         .. Entries(
             ReservedSlugReason.PlatformHost,

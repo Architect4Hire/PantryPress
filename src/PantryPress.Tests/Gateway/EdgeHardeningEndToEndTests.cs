@@ -26,7 +26,7 @@ public sealed class EdgeHardeningEndToEndTests(MigratedDatabase system)
             AllowAutoRedirect = false,
         };
         using var secure = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "https") };
-        var host = $"app.localhost:{secure.BaseAddress!.Port}";
+        var host = $"localhost:{secure.BaseAddress!.Port}";
 
         using var answer = await SendAsync(secure, host, HttpMethod.Get, "/api/v1/account/session", timeout.Token);
         Assert.Equal("nosniff", Header(answer, SecurityHeaders.ContentTypeOptions));
@@ -53,10 +53,14 @@ public sealed class EdgeHardeningEndToEndTests(MigratedDatabase system)
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, refused.StatusCode);
         Assert.Equal(GatewayApi.TooLargeCode, await refused.CodeAsync());
 
-        // A host that is not the gateway's gets the neutral 404, whatever it asks for.
-        using var stranger = await SendAsync(secure, "cook.localhost", HttpMethod.Get, "/api/v1/account/session", timeout.Token);
-        Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
-        Assert.Equal(GatewayApi.NotFoundCode, await stranger.CodeAsync());
+        // A host that is not the gateway's gets the neutral 404, whatever it asks for: a blog's, and since PP-D19 the
+        // app. host the platform home used to answer on (PPL.1), in the configuration this host really runs with.
+        foreach (var other in new[] { "cook.localhost", "app.localhost", "www.localhost" })
+        {
+            using var stranger = await SendAsync(secure, other, HttpMethod.Get, "/api/v1/account/session", timeout.Token);
+            Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
+            Assert.Equal(GatewayApi.NotFoundCode, await stranger.CodeAsync());
+        }
     }
 
     [Fact]
@@ -68,7 +72,7 @@ public sealed class EdgeHardeningEndToEndTests(MigratedDatabase system)
 
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         using var plain = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "http") };
-        var host = $"app.localhost:{plain.BaseAddress!.Port}";
+        var host = $"localhost:{plain.BaseAddress!.Port}";
 
         using var redirected = await SendAsync(plain, host, HttpMethod.Get, "/api/v1/account/session", timeout.Token);
         Assert.Equal(HttpStatusCode.TemporaryRedirect, redirected.StatusCode);

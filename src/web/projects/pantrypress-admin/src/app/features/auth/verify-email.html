@@ -1,0 +1,52 @@
+<ppa-auth-frame [heading]="heading()">
+  @switch (state()) {
+    @case ('checking') {
+      <pp-progress label="Confirming your email address" />
+    }
+    @case ('confirmed') {
+      <div class="step">
+        <p class="lead">Thanks. You can sign in and carry on.</p>
+        <div class="actions">
+          <a pp-button variant="primary" routerLink="/dashboard">Go to your dashboard</a>
+        </div>
+      </div>
+    }
+    @case ('failed') {
+      <div class="step">
+        <pp-notice tone="danger" announce>{{ failure() }}</pp-notice>
+        <div class="actions">
+          <button pp-button variant="primary" type="button" [busy]="busy()" (click)="confirm()">
+            Try again
+          </button>
+        </div>
+      </div>
+    }
+    @case ('invalid') {
+      <div class="step">
+        <p class="lead">
+          It may have been used already, or be too old. Enter your email address and we'll send a
+          new one.
+        </p>
+        @if (resent()) {
+          <pp-notice tone="success" announce>
+            If that address has an account waiting to be confirmed, we've sent it a new link.
+          </pp-notice>
+        }
+        @if (feedback().notice; as notice) {
+          <pp-notice tone="danger" announce>{{ notice }}</pp-notice>
+        }
+        <form class="form" [formGroup]="form" (ngSubmit)="resend()" novalidate>
+          <pp-field label="Email address" [error]="feedback().fields.email">
+            <input pp-text-field type="email" autocomplete="email" formControlName="email" />
+          </pp-field>
+          <div class="actions">
+            <button pp-button variant="primary" type="submit" [busy]="busy()">
+              Send a new link
+            </button>
+          </div>
+        </form>
+        <p class="links"><a routerLink="/sign-in">Sign in</a></p>
+      </div>
+    }
+  }
+</ppa-auth-frame>

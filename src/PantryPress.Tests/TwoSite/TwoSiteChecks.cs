@@ -26,7 +26,8 @@ internal static class TwoSiteChecks
     /// <summary>
     /// The host-header tricks a public path owes (tenancy.md, "Two-site test"; PP2.12): Hosts that sit next to the two
     /// sites' own - <c>www.</c> before either, one slug under the other's host, near-miss slugs, a foreign suffix, a slug
-    /// under another zone, the platform's own <c>app</c> host, an <c>xn--</c> look-alike, the bare zone, and IP literals -
+    /// under another zone, the platform's <c>app</c> and <c>www</c> hosts, an <c>xn--</c> look-alike, the bare zone and the
+    /// bare <c>localhost</c> (the platform home since PP-D19, never a tenant), and IP literals -
     /// none of which may reach either site. Case, a trailing dot, and a port are the same host, and are owed as such.
     /// </summary>
     public static IReadOnlyList<string> HostTricks(TwoSiteWorld world)
@@ -45,7 +46,9 @@ internal static class TwoSiteChecks
             $"{a}.evil.example",
             $"{world.A.Slug}.localhost",
             $"app.{zone}",
+            $"www.{zone}",
             "app.localhost",
+            "localhost",
             $"{new System.Globalization.IdnMapping().GetAscii(world.A.Slug[..10] + "ö")}.{zone}",
             zone,
             "127.0.0.1",

@@ -45,9 +45,11 @@ public sealed class GatewayCorsTests
 
     [Theory]
     [InlineData(Elsewhere)]
-    [InlineData("http://app.localhost")] // our host, another scheme
-    [InlineData("https://app.localhost:8443")] // our host and scheme, another port
-    [InlineData("https://app.localhost.evil.example")] // our host as a prefix of theirs
+    [InlineData("http://localhost")] // our host, another scheme
+    [InlineData("https://localhost:8443")] // our host and scheme, another port
+    [InlineData("https://localhost.evil.example")] // our host as a prefix of theirs
+    [InlineData("https://cook.localhost")] // a blog under the apex: same-site since PP-D19, never same-origin
+    [InlineData("https://cook.pantrypress.app")] // the same, deployed
     [InlineData("null")] // a sandboxed frame
     public async Task A_write_from_another_origin_is_refused_and_never_forwarded(string origin)
     {

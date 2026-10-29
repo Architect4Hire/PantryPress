@@ -95,10 +95,17 @@ describe('RuntimeConfigService', () => {
 });
 
 describe('readRuntimeConfig', () => {
-  it('keeps only the fields the app knows', () => {
+  it('keeps only the fields the app knows, each of its own type', () => {
     expect(readRuntimeConfig({ somethingNew: true, publicSignUp: 'yes' })).toEqual(
       RUNTIME_CONFIG_DEFAULTS,
     );
+  });
+
+  it('reads the sign-up switch, closed unless the server says it is open', () => {
+    expect(RUNTIME_CONFIG_DEFAULTS.publicSignUp).toBe(false);
+    expect(readRuntimeConfig({ publicSignUp: true })).toEqual({ publicSignUp: true });
+    expect(readRuntimeConfig({ publicSignUp: false })).toEqual({ publicSignUp: false });
+    expect(readRuntimeConfig({})).toEqual({ publicSignUp: false });
   });
 
   it('reads nothing from a body that is not an object', () => {

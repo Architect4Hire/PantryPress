@@ -11,7 +11,7 @@ using PantryPress.Gateway.Hosting;
 namespace PantryPress.Tests.Hosting;
 
 // PP1.2c: under the real AppHost, a sign-up on ApiService reaches the local mail catcher through the development sink,
-// with a confirmation link on the gateway's app.localhost origin. Since PP1.10b the Worker sends it, from the outbox.
+// with a confirmation link on the gateway's origin, the local apex (localhost; PP-D19). Since PP1.10b the Worker sends it, from the outbox.
 // PP1.12: and the phase checkpoint, end to end - a blogger registers, confirms the address from the email, signs in
 // through the BFF, comes back to the app, and signs out, without a token ever reaching the browser.
 public sealed partial class AccountEmailEndToEndTests
@@ -32,14 +32,14 @@ public sealed partial class AccountEmailEndToEndTests
             await app.ResourceNotifications.WaitForResourceHealthyAsync(resource, timeout.Token);
         }
 
-        // Over TLS at app.localhost, the only way the gateway is reached; cookies are sent by hand, as a browser would.
+        // Over TLS at the apex, localhost, the only way the gateway is reached; cookies are sent by hand, as a browser would.
         using var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
             UseCookies = false,
         };
         using var client = new HttpClient(handler) { BaseAddress = app.GetEndpoint("gateway", "https") };
-        var host = $"app.localhost:{client.BaseAddress!.Port}";
+        var host = $"localhost:{client.BaseAddress!.Port}";
         var email = $"cook-{Guid.NewGuid():N}@example.test";
         var credentials = new Dictionary<string, string> { ["email"] = email, ["password"] = Passphrase };
 
@@ -58,7 +58,7 @@ public sealed partial class AccountEmailEndToEndTests
         // The link opens the admin app on the gateway's own origin, never a host taken from a request.
         using var catcher = new HttpClient { BaseAddress = app.GetEndpoint("mail", "http") };
         var text = await WaitForTextToAsync(catcher, email, timeout.Token);
-        Assert.Contains($"https://app.localhost:{client.BaseAddress.Port}/verify-email#account=", text, StringComparison.Ordinal);
+        Assert.Contains($"https://localhost:{client.BaseAddress.Port}/verify-email#account=", text, StringComparison.Ordinal);
         var link = LinkPattern().Match(text);
         Assert.True(link.Success, "The confirmation email has no link.");
         using var confirmed = await SendAsync(

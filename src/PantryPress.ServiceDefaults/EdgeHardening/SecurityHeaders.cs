@@ -105,8 +105,10 @@ public static class ContentSecurityPolicies
         "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox";
 
     /// <summary>
-    /// The admin app: its own origin and nothing else. <c>style-src 'unsafe-inline'</c> is Angular's component styles;
-    /// PP19 replaces it with a nonce when the built files are served from here rather than proxied.
+    /// The admin app: its own origin and nothing else. <c>style-src 'unsafe-inline'</c> is Angular's component styles,
+    /// which a prerendered page carries inline. The gateway serves those pages as static files (PPL.3), so a nonce
+    /// cannot replace it; per-document hashes could. <c>script-src</c> admits no inline script at all, and the gateway
+    /// refuses to start on a build whose documents carry one.
     /// </summary>
     public const string Document =
         "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; "

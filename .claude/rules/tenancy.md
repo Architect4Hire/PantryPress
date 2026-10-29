@@ -216,8 +216,8 @@ host map (PP2.12): `CreateAsync(withSite: true)` starts it over the shared datab
 change to a host, a canonical host, a site's status, or its name, tagline, or locale owes, over it: the new answer at once after its refresh, the
 other site's entry unchanged, and a lookup that raced it refused. A public path owes the host-header tricks
 `SiteHostTests` sends: the other site's host, `X-Forwarded-Host` and its kin, case, a trailing dot, a port, `www.` before
-either site's host, the other site's custom domain, `app.<zone>`, the bare `<zone>` itself (the platform home since
-PP-D19, never a tenant), an `xn--` look-alike, IP literals, and `X-PP-Reader-Host` naming the other site (believed
+either site's host, the other site's custom domain, `app.<zone>` and `www.<zone>`, the bare `<zone>` itself and the
+bare `localhost` (the platform home since PP-D19, never a tenant), an `xn--` look-alike, IP literals, and `X-PP-Reader-Host` naming the other site (believed
 from PP9.3 only with the edge secret; never before).
 
 ## Review

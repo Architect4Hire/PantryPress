@@ -637,7 +637,7 @@ public sealed class OutboxTests(MigratedDatabase database) : IAsyncLifetime
         services.AddSingleton<IEmailGateway>(new RecordingEmailGateway());
         services.AddAccountsWorker(
             new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://app.localhost" })
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://localhost" })
                 .Build(),
             sendsEmail: true);
         services.AddSingleton(_ledger);

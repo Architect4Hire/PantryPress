@@ -67,10 +67,10 @@ public sealed class EdgeMiddlewareTests
 
         var seen = await AskAsync(host, "internal-name", address: Proxy, headers: new Dictionary<string, string>
         {
-            ["X-Forwarded-Host"] = "app.pantrypress.app",
+            ["X-Forwarded-Host"] = "pantrypress.app",
         });
 
-        Assert.Equal("app.pantrypress.app", seen.Host);
+        Assert.Equal("pantrypress.app", seen.Host);
     }
 
     [Fact]

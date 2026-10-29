@@ -82,25 +82,25 @@ public sealed class SiteInvitationRulesTests
     public void The_email_names_the_site_and_role_and_carries_the_token_in_the_fragment(SiteRole role, string inWords)
     {
         var id = Guid.NewGuid();
-        var email = new SiteInvitationEmails("https://app.pantrypress.app/")
+        var email = new SiteInvitationEmails("https://pantrypress.app/")
             .Invitation(id, "pat@example.com", "Pie & <Co>", role, 7, "a+b/c=");
 
         Assert.Equal((id, "pat@example.com"), (email.Id, email.To));
         Assert.DoesNotContain("Pie", email.Subject, StringComparison.Ordinal);
         Assert.Contains($"\"Pie & <Co>\" on PantryPress, as {inWords}", email.TextBody, StringComparison.Ordinal);
-        Assert.Contains("https://app.pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("https://pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D", email.TextBody, StringComparison.Ordinal);
         Assert.Contains("works for 7 days and only once", email.TextBody, StringComparison.Ordinal);
 
         // The blogger's name is encoded in the HTML part, never markup.
         Assert.Contains("Pie &amp; &lt;Co&gt;", email.HtmlBody, StringComparison.Ordinal);
         Assert.DoesNotContain("<Co>", email.HtmlBody, StringComparison.Ordinal);
-        Assert.Contains("href=\"https://app.pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://pantrypress.app/dashboard/join#token=a%2Bb%2Fc%3D\"", email.HtmlBody, StringComparison.Ordinal);
     }
 
     [Fact]
     public void A_one_day_invitation_says_one_day()
     {
-        var email = new SiteInvitationEmails("https://app.pantrypress.app")
+        var email = new SiteInvitationEmails("https://pantrypress.app")
             .Invitation(Guid.NewGuid(), "pat@example.com", "Pie", SiteRole.Author, 1, "t");
 
         Assert.Contains("works for 1 day and only once", email.TextBody, StringComparison.Ordinal);

@@ -41,7 +41,7 @@ internal sealed class ApiServiceFactory(
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:pantrypress"] = UnreachableDatabase,
-            ["Accounts:AppBaseUrl"] = "https://app.localhost",
+            ["Accounts:AppBaseUrl"] = "https://localhost",
 
             // The API refuses to start without the gateway's secret (PP1.6).
             ["Gateway:SharedSecret"] = TestSecrets.GatewaySecret,

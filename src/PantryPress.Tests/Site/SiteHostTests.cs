@@ -145,6 +145,14 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
             Assert.True(answer.IsCanonical);
             Assert.Equal(answer.SiteId, answer.ContextSite);
         }
+
+        // PPL.1 (PP-D19): in a local run the platform home is the bare localhost, and app. and www. under it are hosts
+        // the gateway refuses; none of them is a site, whatever port it is asked on.
+        foreach (var host in new[] { "localhost", "localhost:7044", "LOCALHOST.", "app.localhost", "www.localhost", $"www.{slug}.localhost" })
+        {
+            using var response = await local.ReadAsAsync(host);
+            await AssertNotFoundAsync(response, host);
+        }
     }
 
     [Fact]
@@ -451,6 +459,43 @@ public sealed class SiteHostTests(MigratedDatabase database) : IAsyncLifetime
         await using var scope = services.CreateAsyncScope();
         Assert.Null(scope.ServiceProvider.GetService<UserManager<ApplicationUser>>());
         Assert.Null(scope.ServiceProvider.GetService<SignInManager<ApplicationUser>>());
+    }
+
+    // PPL.1 (PP-D19): the platform home is the bare localhost, and a browser does not keep localhost's cookies apart by
+    // port, so the gateway's session and antiforgery cookies reach the Site's port too. They must buy nothing here: the
+    // apex is still the neutral 404, a site still resolves by its Host alone, and nothing is set in answer.
+    [Fact]
+    public async Task The_platform_homes_cookies_change_nothing_here()
+    {
+        var cookies = string.Join("; ", new[]
+        {
+            PantryPress.Gateway.Hosting.SessionCookie.CompleteName,
+            PantryPress.Gateway.Hosting.SessionCookie.SecondFactorName,
+            PantryPress.Gateway.Hosting.GatewayAntiforgery.CookieName,
+            PantryPress.Gateway.Hosting.GatewayAntiforgery.TokenCookieName,
+        }.Select(name => $"{name}=forged"));
+        void WithCookies(HttpRequestMessage r) => r.Headers.TryAddWithoutValidation("Cookie", cookies);
+
+        foreach (var apex in new[] { "localhost", "localhost:7044", "localhost:7053" })
+        {
+            using var bare = await _harness.ReadAsAsync(apex);
+            using var carrying = await _harness.ReadAsAsync(apex, configure: WithCookies);
+            await TwoSiteChecks.AssertIndistinguishableAsync(bare, carrying, HttpStatusCode.NotFound, "not-found");
+            Assert.False(carrying.Headers.Contains("Set-Cookie"), apex);
+        }
+
+        using var site = await _harness.ReadAsAsync(_world.A.Host, configure: WithCookies);
+        Assert.Equal(_world.A.Id.Value, (await site.Content.ReadFromJsonAsync<SiteProbeAnswer>())!.SiteId);
+        Assert.False(site.Headers.Contains("Set-Cookie"));
+
+        // The site context is cached publicly, so it must not vary by, or carry, anything a cookie said.
+        using var context = await _harness.ReadAsAsync(_world.A.Host, "/api/public/v1/site");
+        using var contextWithCookies = await _harness.ReadAsAsync(_world.A.Host, "/api/public/v1/site", WithCookies);
+        Assert.Equal(HttpStatusCode.OK, contextWithCookies.StatusCode);
+        Assert.Equal(await context.Content.ReadAsStringAsync(), await contextWithCookies.Content.ReadAsStringAsync());
+        Assert.Equal(context.Headers.CacheControl, contextWithCookies.Headers.CacheControl);
+        Assert.DoesNotContain("Cookie", contextWithCookies.Headers.Vary, StringComparer.OrdinalIgnoreCase);
+        Assert.False(contextWithCookies.Headers.Contains("Set-Cookie"));
     }
 
     [Fact]

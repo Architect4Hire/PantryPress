@@ -89,8 +89,7 @@ aspire run
 ```
 
 The Aspire dashboard shows every resource. The platform home (the landing page, sign-in, and the dashboard
-under `/dashboard`) runs at `localhost` through the gateway, and sites at `{slug}.localhost` (ADR 0019; until
-PPL.1 moves it, the gateway still answers at `app.localhost`).
+under `/dashboard`) runs at `localhost` through the gateway, and sites at `{slug}.localhost` (ADR 0019).
 
 ## Building with Claude Code
 

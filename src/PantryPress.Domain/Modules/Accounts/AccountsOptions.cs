@@ -6,8 +6,8 @@ namespace PantryPress.Domain.Modules.Accounts;
 public sealed class AccountsOptions
 {
     /// <summary>
-    /// The admin app's public origin, used for links in account emails (<c>https://app.pantrypress.app</c>; the gateway
-    /// at <c>https://app.localhost:…</c> in local runs). Set by the AppHost; never derived from a request's Host header,
+    /// The platform home's public origin, used for links in account emails (<c>https://pantrypress.app</c>, the zone's
+    /// apex; the gateway at <c>https://localhost:…</c> in local runs; PP-D19). Set by the AppHost; never derived from a request's Host header,
     /// so a forged Host cannot point a reset link somewhere else.
     /// </summary>
     public string AppBaseUrl { get; set; } = string.Empty;

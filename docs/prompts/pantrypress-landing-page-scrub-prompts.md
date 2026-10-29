@@ -315,7 +315,49 @@ dashboard, email links). Wait for approval. Implement, then run dotnet build, do
 --verify-no-changes. Sign up and sign in at https://localhost:<port> under aspire run. Report.
 ```
 
-## PPL.2 The platform home's route table and prerendering
+**Delivery note (2026-10-29).**
+
+- **What changed: the host alone.**
+  - `Gateway:Hosts` is `pantrypress.app` in `appsettings.json` and `localhost` in Development.
+  - The AppHost names `localhost` for the gateway's dashboard link and hands `https://localhost:{gateway https port}`
+    to `Accounts:AppBaseUrl`, so account and invitation emails open the local apex.
+  - Every test, comment, and message that named `app.localhost` or `app.pantrypress.app` as the platform home now
+    names the apex. Where they remain, it is as hosts that are refused.
+  - The cookies, antiforgery, the same-origin check, CORS, the CSP, HSTS, the trusted-proxy step, and the neutral 404
+    are unchanged.
+- **New proof.**
+  - The gateway answers `app.` and `www.` under either zone with its neutral 404, both under test and on the real
+    gateway (`EdgeHardeningTests`, `EdgeHardeningEndToEndTests`).
+  - A write from a blog's origin is refused (`GatewayCorsTests`). Since PP-D19 a blog is same-site with the apex,
+    though never same-origin.
+  - `HostTricks` gains `www.<zone>` and the bare `localhost`.
+  - `SiteHostTests` runs the platform home's hosts under a run whose zone really is `localhost`.
+  - The gateway's session and antiforgery cookies are sent to the Site host at `localhost` and on a site's own host,
+    to the probe and to `/api/public/v1/site`. They change no status, body, or cache header, add no
+    `Vary: Cookie`, and set nothing.
+- **Differs from the prompt.**
+  - The reserved-slug test cannot find `www` in the Terraform, which names only `app` (as `admin_host`) until PP9.1a.
+    So it pins `app` and `www` as `PlatformHost` by hand, and checks that every gateway host is the zone's apex, which
+    has no label to reserve. When PP9.1a adds `www`, the Terraform scan's known set should gain it.
+  - The rule text for `tenancy.md`'s host tricks and `aspire.md`'s local hosts was brought up to date.
+- **Open, for later prompts.**
+  - **Deployed hosts still answer on `app.<zone>`** until PP9.1a and PP9.2. The Terraform's `admin_host` sets
+    `Gateway__Hosts__0`, `Gateway__PublicOrigin`, and `Accounts__AppBaseUrl` over `appsettings.json`.
+  - **PP17.2 owes a check in the schema.** Today only site creation writes a `SiteHost`. Custom domains must refuse
+    the apex, `app.`/`www.<zone>`, and any deeper name under the zone. Nothing below the facade refuses them yet.
+  - **Cookie flooding (record in ADR 0019 or with PP9.1a).** A third-party script on a blog can set
+    `Domain=<zone>` cookies that reach the apex. They cannot overwrite the `__Host-` cookies, but enough of them
+    could make the dashboard's requests too large (431). Putting the zone on the Public Suffix List would close this.
+  - **Locally, `localhost` cookies are shared by port.** The session cookie also reaches Mailpit, DbGate, Redis
+    Insight, the Aspire dashboard, and ApiService's direct port on this machine. Only the Site host was checked.
+- **Verification.**
+  - `dotnet build` and `dotnet format --verify-no-changes`, both clean.
+  - `dotnet test`: 1,804 of 1,804. This includes the AppHost tests, which sign up, confirm by email, and sign in
+    through the real gateway at `https://localhost:<port>`.
+  - Reviews: `architecture-reviewer` and `site-isolation-auditor` found no blockers. Their test gaps were added
+    above, and the rest are under "Open".
+
+## PPL.2 The platform home's route table and prerendering - done
 
 ```text
 SCOPE: In pantrypress-admin, write the route table for the apex:
@@ -338,7 +380,72 @@ BEHAVIOR: Show the route table and the build's output layout (which file the gat
 and show that the prerendered '/' contains the h1 with JavaScript disabled. Report.
 ```
 
-## PPL.3 Gateway: prerendered pages, the signed-in redirect, and document headers
+**Delivery note (2026-10-29).**
+
+- **What shipped.**
+  - `pantrypress-admin` builds with `outputMode: "static"` and a `server` entry (Angular 22.2.4's application builder;
+    `@angular/ssr`'s `withRoutes`). `app.routes.server.ts` prerenders exactly `PUBLIC_PATHS` and sends everything
+    else (`'**'`) to `RenderMode.Client`. No route renders on a server, and the build emits no server.
+  - Build output (`dist/pantrypress-admin/browser/`): `index.html` is `/`, `pricing/index.html`, and
+    `terms|privacy|acceptable-use|dmca/index.html`. `index.csr.html` is the browser-rendered document for every other
+    path: `/dashboard/x` and `/nope` both draw the not-found page from it. **PPL.3 must fall back to `index.csr.html`,
+    never `index.html`**, which is now the landing page.
+  - The route table:
+    - `/` and `/pricing` share the eager `Landing` shell; `/pricing` carries `data { title, scrollTo }`.
+    - The four legal paths render a placeholder `h1` until PPL.19.
+    - The reserved auth paths render the not-found page until PP3.8.
+    - `/dashboard` lazy-loads `dashboard.routes.ts`, a placeholder with no guard.
+    - `'**'` is the not-found page.
+  - The app shell is a bare router outlet. Each page owns its `<main>` and its one `h1`, and the showcase is now a
+    `<main>`.
+  - Hydration is on (`provideClientHydration(withEventReplay())`): the prerendered page is taken over where it
+    stands, not drawn again. With hydration off, the prerendered `h1` was torn down on bootstrap; with it on, it never
+    was.
+- **Differs from the prompt.**
+  - `forgot-password` is reserved as well, because `frontend.md` lists it among the client-rendered routes.
+  - Reserved paths render the not-found page rather than a placeholder, because nothing is there yet.
+  - **The redirect list is not `PUBLIC_PATHS`.** As first written, PPL.3's drift test would have redirected a signed-in
+    owner away from `/terms`, against ADR 0019, which redirects only `/` and `/pricing`. `public-paths.ts` now also
+    exports `SIGNED_IN_REDIRECT_PATHS = ['', 'pricing']`. PPL.3's text and `frontend.md` were reconciled to name it.
+  - The no-HTTP rule has two parts:
+    - `provideApi()` refuses every request on the server (`refuse-on-server.ts`, a plain error that `ApiClient`
+      rethrows rather than drawing it as a refusal).
+    - The route spec renders every public path on the server platform with a recording `ApiClient` and asserts no
+      call. A browser-side control shows the recorder does see calls.
+  - Added after `architecture-reviewer`:
+    - The not-found page's home link is a plain `href`, because a `routerLink` to `/` would skip the gateway's
+      signed-in redirect. `frontend.md` now says so for `/` and `/pricing`.
+    - The SSR-safety lint (`eslint.ssr-safety.js`) now covers the admin app's prerendered code (`src/app/*.ts`,
+      `core/**`, landing, legal, not-found, `main.server.ts`), with the HTTP net carried into that block.
+    - A spec fails on a top-level route that is neither in `PUBLIC_PATHS` nor browser-only.
+- **Open, for later prompts.**
+  - **PPL.3:** the build's critical-CSS inlining (Beasties) writes an inline `<script>` into every document, which the
+    gateway's `script-src 'self'` will block, leaving `styles-*.css` as `media="print"`. Either turn off
+    `optimization.styles.inlineCritical` for the admin build or admit the script by its `sha256`; never
+    `unsafe-inline`.
+  - **PPL.3:** unknown paths are a 200 with the not-found page (a soft 404). Static output cannot say otherwise, and the
+    gateway cannot know the dashboard's child routes. PPL.20 should give the not-found page `noindex`.
+  - **PPL.3:** nothing automated pins the build layout yet. The gateway's tests should assert one `index.html` per
+    public path, plus `index.csr.html`.
+  - **PPL.3:** its C# test should read `public-paths.ts` from `export const … = [` to the matching `]` across lines,
+    because Prettier wraps a longer list.
+  - **PP3.8:** the guard returns a `UrlTree` to `/sign-in`. A `canMatch` that answers `false` would fall through to the
+    not-found page. The reserved list is written twice (`app.routes.ts` and its spec), and both go when the screens
+    arrive.
+  - **PP3.9:** `dashboard.routes.ts` has only `''`, so `/dashboard/join` and `/dashboard/account/security` (the links
+    email sends) fall to the top-level not-found page until the shell and its routes exist.
+  - **Under `aspire run`:** `ng serve` now renders the public paths per request. A direct run served `/`, `/pricing`,
+    and `/terms` with their `h1` and the other paths as the browser document. Restart the `admin` resource to pick up
+    the `angular.json` change; it was not re-checked through the gateway's catch-all.
+- **Verification.**
+  - `npm test`: every suite passes, the admin app's 75 tests among them.
+  - `npm run lint` and `npm run format:check`: clean.
+  - `npm run build`: "Prerendered 6 static routes", with no server output.
+  - The showcase e2e passes on Chromium: 25 of 25.
+  - Chromium with JavaScript disabled shows the `h1` in the prerendered `/`, `/pricing`, and `/terms`.
+  - `architecture-reviewer`: no blockers. Its four should-fixes are resolved above, and its notes are under "Open".
+
+## PPL.3 Gateway: prerendered pages, the signed-in redirect, and document headers - done
 
 ```text
 SCOPE: Make the gateway serve pantrypress-admin's build output:
@@ -348,8 +455,9 @@ A GET or HEAD of '/' or '/pricing' that carries a complete session ticket gets a
 document is read. Headers:
 - Cache-Control: no-cache on every document;
 - long-lived immutable caching on fingerprinted assets only.
-The gateway's list of redirected paths lives in configuration. A test reads PPL.2's PUBLIC_PATHS file as text and
-fails if the two lists drift.
+The gateway's list of redirected paths lives in configuration. A test reads PPL.2's public-paths.ts as text and
+fails if the list drifts from SIGNED_IN_REDIRECT_PATHS (the legal pages are public but never redirected), or if the
+documents the gateway serves drift from PUBLIC_PATHS.
 CONSTRAINT: PP-D19 (ADR 0019); gateway.md, auth.md; the PSEC-002 headers.
 RESTRICTION:
 - The redirect reads only the gateway's own cookie and asks ApiService nothing.
@@ -365,6 +473,78 @@ BEHAVIOR: Show the request table: anonymous, half-finished, complete, and revoke
 '/dashboard/x', '/nope', and '/api/nope', giving the status, Location, and Cache-Control for each. Wait for approval.
 Implement with gateway tests through the real pipeline. Report.
 ```
+
+**Delivery note (2026-10-29).**
+
+- **What shipped.**
+  - **Serving the build.** Outside Development the gateway serves the admin app's build from `Gateway:AdminApp:Root`
+    (`AdminApp.cs`), as one `GET`/`HEAD` route at the lowest order:
+    - a public path gets its prerendered document;
+    - every other page path gets `index.csr.html`. That covers everything under `/dashboard`, a last segment with no
+      dot, and any `.html` name, so `/index.html` cannot step around the redirect;
+    - anything else is a file of the build or the gateway's problem 404. A stale chunk is never answered with HTML;
+    - `/api` (in any case) and the probe paths are never pages.
+  - **The signed-in redirect.** It runs after `UseAuthentication` in every environment, ahead of the dev server too.
+    `GET`/`HEAD` of `/` or `/pricing` with a complete session is answered 302 `/dashboard`, `no-store`, from the
+    gateway's own cookie alone. A public path spelled as the router would also read it (`/pricing/`, `/pricing;x=1`,
+    `//`) is first answered 301 to its own spelling.
+  - **Caching.**
+    - Documents are `no-cache`, and their tag is their content's hash.
+    - Angular's bundles and `media/` files are immutable for a year. Anything copied from `public/` is `no-cache`.
+    - Any page or file answer that sets or clears a cookie is `no-cache, no-store`.
+    - The dev server's HTML is made `no-cache` on the way through.
+  - **Configuration.** `Gateway:AdminApp` holds `PublicPaths`, `SignedInRedirectPaths`, `SignedInHome`, and `Root`
+    (default `admin`, under the content root).
+  - **Startup refusals.** The host refuses to start on:
+    - a list that could loop, or a malformed path;
+    - a missing build, document, or `index.csr.html`;
+    - a document with inline script or an inline event handler;
+    - `Root` set in Development, or the `admin-spa` route beside a build.
+  - **CSP: option 1, as approved.** The document policy is unchanged (`script-src 'self'`, `font-src 'self'`). The admin
+    production build turns off critical-CSS inlining, and hydration runs without event replay. `npm run build` now runs
+    `check:admin-build`, which applies the gateway's rule to the real output and fails the build on a breach.
+- **Verified in a browser.** The real gateway ran in Production mode against the real build, in Chromium with
+  JavaScript on:
+  - no CSP violations;
+  - the stylesheet applied;
+  - hydration tore nothing down;
+  - every Cache-Control as in the table.
+- **Differs from the prompt.**
+  - **The drift test reads two lists.** It compares the redirected paths with `SIGNED_IN_REDIRECT_PATHS` and the
+    served documents with `PUBLIC_PATHS` (the prompt text was reconciled at PPL.2).
+  - **Rules added after review.** The 301 for other spellings, dotted dashboard paths as pages, the probe paths as 404,
+    content-hash document tags, and the cookie rule were not in the approved table. They came from review.
+  - **A real bug the review's tests found.** A session past its 12-hour limit, signed out on a request for a
+    fingerprinted file, was answered `public, immutable` with the clearing `Set-Cookie`. Fixed by the cookie rule above.
+  - **A PPL.2 test, fixed here.** PPL.2 left `AdminAppTests.Gateway_serves_the_admin_app...` failing: the dev server
+    now renders `/`, so `<ppa-root>` has attributes. It now asserts the rendered `h1` and `no-cache` through the real
+    gateway. PPL.2's run had covered only the web suites.
+- **Open, for later prompts.**
+  - **PP19.2 and PP19.4 (now written into both prompts).** A gateway image without the build at `/app/admin` refuses to
+    start. Until PP19.2 maps them, `/health` and `/alive` are the gateway's 404 outside Development.
+  - **PP3.8.** The guard turns `session-ended` into `/sign-in`, and never sends a 502 or a timeout to `/` or `/pricing`
+    by a full page load, or "API down" becomes a 302 loop.
+  - **Unknown page paths are a 200.** The app's not-found page is drawn by the browser; PPL.20 should give it `noindex`.
+  - **Later PPL prompts (no event replay, no critical-CSS inlining).** A click before hydration is lost, so PPL.8,
+    PPL.13, and PPL.16 controls work as links or forms first. The stylesheet blocks rendering; PPL.21 measures LCP with
+    that in place.
+  - **`style-src 'unsafe-inline'` stays** for Angular's inline component styles. Static files cannot carry a nonce;
+    per-document hashes could replace it later.
+  - **No rate limit on pages or files at the gateway.** The apex is left to the PP9.2 WAF. The redirect is not under
+    the session limiter.
+  - **Test fixture builds are not deleted.** Each test run leaves a few small folders under `%TEMP%`.
+- **Verification.**
+  - `dotnet build`: clean. `dotnet test`: 1,989 of 1,989. `dotnet format --verify-no-changes`: clean.
+  - `npm test`, `npm run lint`, `npm run format:check`, and `npm run build` (with `check:admin-build`): all clean. The
+    check was also shown to fail on a planted inline script.
+  - The showcase e2e: 25 of 25 on Chromium.
+  - Reviews:
+    - `architecture-reviewer`: no blockers. Its three should-fixes are resolved, with one change of approach: the
+      fingerprint rule keys on Angular's own names, because its real chunk hashes are mixed case.
+    - `test-gap-analyzer`: its major gaps are covered. Those tests are the request table cell by cell; tampered,
+      renamed, swapped, and foreign-key-ring tickets; revalidation after sign-in; `Set-Cookie` on cacheable answers;
+      probes; traversal against a real file beside the build; and the drift parser's self-test. Its minor items on
+      rate limits and trusted proxies on page paths are recorded, not tested.
 
 ## PPL.4 Capability review (report only)
 

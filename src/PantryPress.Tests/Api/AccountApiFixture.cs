@@ -90,7 +90,7 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
             // The Worker's half of account email, in this host: the handler that sends it and the processor that
             // delivers the outbox (PP1.10b).
             var accounts = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://app.localhost" })
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["AppBaseUrl"] = "https://localhost" })
                 .Build();
             services.AddAccountEmailDelivery(accounts);
             services.AddOutboxStore(new ConfigurationBuilder().Build());
@@ -251,6 +251,6 @@ public sealed partial class AccountApiFixture : IAsyncLifetime
         return await work(scope.ServiceProvider.GetRequiredService<TService>());
     }
 
-    [GeneratedRegex(@"https://app\.localhost/(?<page>[a-z-]+)#account=(?<account>[0-9a-f-]{36})&token=(?<token>[A-Za-z0-9%_.~-]+)")]
+    [GeneratedRegex(@"https://localhost/(?<page>[a-z-]+)#account=(?<account>[0-9a-f-]{36})&token=(?<token>[A-Za-z0-9%_.~-]+)")]
     private static partial Regex LinkPattern();
 }

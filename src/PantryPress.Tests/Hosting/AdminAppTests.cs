@@ -67,20 +67,26 @@ public sealed class AdminAppTests
 
         await app.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
         await app.ResourceNotifications.WaitForResourceHealthyAsync("admin", timeout.Token);
-        // Over TLS: since PP1.8 the gateway sends a plain-HTTP caller to HTTPS, and the certificate is not checked
-        // because the test presents the app.localhost host while connecting to the local endpoint (PP1.6).
+        // Over TLS: since PP1.8 the gateway sends a plain-HTTP caller to HTTPS. The certificate is not checked: what is
+        // under test is the gateway's answer, not whether this machine trusts the development certificate.
         using var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
         };
         using var client = new HttpClient(handler) { BaseAddress = app.GetEndpoint("gateway", "https") };
 
-        // Browsers send the app.localhost host the dashboard links to (SITE-009).
+        // Browsers send the host the dashboard links to: the local apex, localhost (PP-D19).
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/", UriKind.Relative));
-        request.Headers.Host = $"app.localhost:{client.BaseAddress!.Port}";
+        request.Headers.Host = $"localhost:{client.BaseAddress!.Port}";
         using var page = await client.SendAsync(request, timeout.Token);
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
-        Assert.Contains("<ppa-root>", await page.Content.ReadAsStringAsync(timeout.Token), StringComparison.Ordinal);
+
+        // '/' is a public path, so the dev server renders it as the build prerenders it (PPL.2): the page arrives with
+        // its heading, not an empty root. A document is never kept without asking (PPL.3).
+        var html = await page.Content.ReadAsStringAsync(timeout.Token);
+        Assert.Contains("<ppa-root", html, StringComparison.Ordinal);
+        Assert.Contains("<h1>PantryPress</h1>", html, StringComparison.Ordinal);
+        Assert.True(page.Headers.CacheControl?.NoCache, page.Headers.CacheControl?.ToString());
 
         // The catch-all SPA route must not shadow the gateway's own endpoints.
         using var health = await client.GetAsync(new Uri("/health", UriKind.Relative), timeout.Token);

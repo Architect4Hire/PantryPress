@@ -15,17 +15,17 @@ public sealed class SitesWorkerRegistrationTests
     [Fact]
     public void With_a_provider_and_an_origin_the_worker_has_a_handler_for_invitation_email()
     {
-        using var services = Worker(new RecordingEmailGateway(), "https://app.localhost");
+        using var services = Worker(new RecordingEmailGateway(), "https://localhost");
 
-        Assert.Equal("https://app.localhost", services.GetRequiredService<IOptions<SiteInvitationEmailOptions>>().Value.AppBaseUrl);
+        Assert.Equal("https://localhost", services.GetRequiredService<IOptions<SiteInvitationEmailOptions>>().Value.AppBaseUrl);
         Assert.Contains(services.GetServices<OutboxHandlerRegistration>(), r => r.Type == SiteInvitationEmailMessage.OutboxType);
     }
 
     [Theory]
     [InlineData(null)]
-    [InlineData("app.localhost")]
-    [InlineData("http://app.pantrypress.app")]
-    [InlineData("https://app.pantrypress.app/admin")]
+    [InlineData("localhost")]
+    [InlineData("http://pantrypress.app")]
+    [InlineData("https://pantrypress.app/admin")]
     public void A_worker_that_sends_invitations_needs_the_admin_origin(string? origin)
     {
         using var services = Worker(new RecordingEmailGateway(), origin);
@@ -38,7 +38,7 @@ public sealed class SitesWorkerRegistrationTests
     [Fact]
     public void A_worker_that_sends_invitations_needs_a_provider()
     {
-        using var services = Worker(gateway: null, "https://app.localhost");
+        using var services = Worker(gateway: null, "https://localhost");
 
         var error = Assert.Throws<OptionsValidationException>(
             () => services.GetRequiredService<IOptions<SiteInvitationEmailOptions>>().Value);

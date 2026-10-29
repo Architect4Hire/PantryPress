@@ -30,7 +30,7 @@ public sealed class ApiServiceWiringTests
         Assert.Contains("DevelopmentMail__Host", variables.Keys);
         Assert.Contains("DevelopmentMail__Port", variables.Keys);
         var origin = Assert.IsType<ReferenceExpression>(variables["Accounts__AppBaseUrl"]);
-        Assert.StartsWith("https://app.localhost:", origin.Format, StringComparison.Ordinal);
+        Assert.StartsWith("https://localhost:", origin.Format, StringComparison.Ordinal);
         Assert.Contains(
             origin.ValueProviders.OfType<EndpointReferenceExpression>(),
             e => e.Endpoint.Resource.Name == "gateway" && e.Endpoint.EndpointName == "https");

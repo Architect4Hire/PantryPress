@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.form,
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lead {
+  margin: 0;
+  color: var(--ink);
+  max-inline-size: var(--measure);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.links {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.links a {
+  color: var(--accent-text);
+}
+
+.links a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}

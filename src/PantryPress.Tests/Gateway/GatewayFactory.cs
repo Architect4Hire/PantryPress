@@ -38,7 +38,7 @@ internal sealed class GatewayFactory(
     /// The admin app's own origin. HTTPS, because the session cookies are <c>Secure</c> and a cookie jar will not send
     /// a Secure cookie over plain HTTP - which is also true of the browser this stands in for.
     /// </summary>
-    public static readonly Uri AdminOrigin = new("https://app.localhost");
+    public static readonly Uri AdminOrigin = new("https://localhost");
 
     private readonly RecordingForwarder forwarder = new(forward);
     private readonly ConcurrentQueue<SessionCall> sessionCalls = new();
@@ -54,7 +54,7 @@ internal sealed class GatewayFactory(
     public IReadOnlyCollection<SessionCall> SessionCalls => sessionCalls;
 
     /// <summary>
-    /// A client that keeps cookies, like a browser at <c>app.localhost</c>, and carries the antiforgery token the way
+    /// A client that keeps cookies, like a browser at <c>localhost</c>, and carries the antiforgery token the way
     /// the admin app will (PP1.7): it reads the request token from the cookie the gateway set and sends it back in
     /// <c>X-PP-Xsrf</c> on every write, fetching one with a read first when it has none - which is what the app does
     /// at startup. Tests that prove the refusals send their own headers through <see cref="CreateBare"/>.
@@ -76,7 +76,7 @@ internal sealed class GatewayFactory(
     public HttpClient CreatePlain() =>
         CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = new Uri("http://app.localhost"),
+            BaseAddress = new Uri("http://localhost"),
             HandleCookies = false,
             AllowAutoRedirect = false,
         });
@@ -89,7 +89,7 @@ internal sealed class GatewayFactory(
     public const string RemoteAddressHeader = "X-Test-Remote";
 
     /// <summary>
-    /// Every client this factory makes talks to <c>https://app.localhost</c>, because that is the only way the gateway
+    /// Every client this factory makes talks to <c>https://localhost</c>, because that is the only way the gateway
     /// is reached: Front Door terminates TLS in production, and locally the AppHost offers its HTTPS address alone
     /// (PP1.6). A <c>Secure</c> cookie and the antiforgery token it carries exist only on that scheme.
     /// </summary>
@@ -110,16 +110,23 @@ internal sealed class GatewayFactory(
         // told the one a browser meets: https on 443, exactly as it is behind Front Door.
         builder.UseSetting("HTTPS_PORT", "443");
 
-        // The hosts these tests reach the gateway on, in every environment they run it in: deployed configuration
-        // names the deployed host and Development names app.localhost, and a Production test host is neither. The
-        // bare "localhost" is here because WebApplicationFactory puts its own default address on a client after
-        // ConfigureClient has run, so a client made without options talks to it.
+        // The host these tests reach the gateway on, in every environment they run it in: deployed configuration
+        // names the deployed apex and Development names localhost, the local zone's apex (PP-D19), and a Production
+        // test host is neither. It is also the address WebApplicationFactory puts on a client after ConfigureClient
+        // has run, so a client made without options talks to it.
         builder.UseSetting("Gateway:Hosts:0", AdminOrigin.Host);
-        builder.UseSetting("Gateway:Hosts:1", "localhost");
 
         // A deployed host refuses to start without a named proxy (PP1.8); a test host says the empty default is
         // deliberate, and the tests that care configure a peer of their own.
         builder.UseSetting("Edge:TrustedProxies:TrustNobody", "true");
+
+        // Outside Development the gateway serves the admin app's build and will not start without one (PPL.3). Tests
+        // share a stand-in; the ones about the build pass their own.
+        if (!string.Equals(environment, "Development", StringComparison.Ordinal))
+        {
+            builder.UseSetting("Gateway:AdminApp:Root", AdminAppBuild.Root);
+        }
+
         foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
         {
             builder.UseSetting(key, value);

@@ -61,4 +61,10 @@ internal static class GatewayRoutes
     /// (PP1.7), and a test pins it against the route's configured path.
     /// </summary>
     public const string AdminApiPath = "/api/v1";
+
+    /// <summary>
+    /// The Development catch-all to the admin dev server (PP0.7), declared in <c>appsettings.Development.json</c>. Outside
+    /// Development the gateway serves the admin app's build itself (PPL.3) and this route must not exist.
+    /// </summary>
+    public const string AdminDevServer = "admin-spa";
 }

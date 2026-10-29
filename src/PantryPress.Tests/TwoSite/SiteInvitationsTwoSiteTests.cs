@@ -36,7 +36,7 @@ using PantryPress.Domain.Modules.Sites.Repositories;
 public sealed class SiteInvitationsTwoSiteTests(MigratedDatabase database) : IAsyncLifetime
 {
     private const string Accept = "/api/v1/site-invitations/accept";
-    private const string AppBaseUrl = "https://app.localhost";
+    private const string AppBaseUrl = "https://localhost";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {

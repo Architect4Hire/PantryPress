@@ -10,9 +10,9 @@ namespace PantryPress.Domain.Modules.Sites;
 public sealed class SiteInvitationEmailOptions
 {
     /// <summary>
-    /// The admin app's public origin, where an invitation's link opens (<c>https://app.pantrypress.app</c>; the gateway at
-    /// <c>https://app.localhost:…</c> in local runs - the apex and <c>localhost</c> once PPL.1 lands, PP-D19). Set by the
-    /// AppHost, the same origin account email links use.
+    /// The platform home's public origin, where an invitation's link opens (<c>https://pantrypress.app</c>, the zone's
+    /// apex; the gateway at <c>https://localhost:…</c> in local runs; PP-D19). Set by the AppHost, the same origin
+    /// account email links use.
     /// </summary>
     public string AppBaseUrl { get; set; } = string.Empty;
 

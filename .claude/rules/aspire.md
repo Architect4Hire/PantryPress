@@ -16,7 +16,10 @@
   the migration service.
 - Connection strings and secrets flow through Aspire references and parameters. No hard-coded endpoints.
 - Local hosts: `localhost` for the platform home through the gateway (the landing page, sign-in, and `/dashboard`;
-  PP-D19, moved from `app.localhost` in PPL.1) and `{slug}.localhost` for sites (SITE-009).
+  PP-D19, PPL.1) and `{slug}.localhost` for sites (SITE-009). Account and invitation email links open
+  `https://localhost:{gateway https port}`. A browser keeps `localhost` cookies apart by host, not port, so the
+  gateway's cookies also reach the other resources on `localhost`. The Site host registers no cookie handling and a test
+  proves they change nothing there; the developer tools are local only.
 - ServiceDefaults provides OpenTelemetry, health checks (`/health`, `/alive`), service discovery, resilience,
   and the edge hardening every host shares (`EdgeHardening/`: security response headers, trusted proxies and the
   forwarding-header strip, body size limits, the HTTPS redirect). Every service calls `AddServiceDefaults()`;

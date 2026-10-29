@@ -138,15 +138,15 @@ public sealed class AccountRulesTests
     }
 
     [Theory]
-    [InlineData("https://app.pantrypress.app", true)]
-    [InlineData("https://app.localhost:7044", true)]
-    [InlineData("http://app.localhost:5239", true)]
+    [InlineData("https://pantrypress.app", true)]
+    [InlineData("https://localhost:7044", true)]
     [InlineData("http://localhost:5239", true)]
-    [InlineData("http://app.pantrypress.app", false)]
-    [InlineData("https://app.pantrypress.app/admin", false)]
-    [InlineData("https://app.pantrypress.app/?x=1", false)]
-    [InlineData("https://user@app.pantrypress.app", false)]
-    [InlineData("app.pantrypress.app", false)]
+    [InlineData("http://cook.localhost:5239", true)]
+    [InlineData("http://pantrypress.app", false)]
+    [InlineData("https://pantrypress.app/admin", false)]
+    [InlineData("https://pantrypress.app/?x=1", false)]
+    [InlineData("https://user@pantrypress.app", false)]
+    [InlineData("pantrypress.app", false)]
     [InlineData("", false)]
     public void Email_links_need_an_absolute_HTTPS_origin_except_on_this_machine(string url, bool valid)
     {
@@ -156,12 +156,12 @@ public sealed class AccountRulesTests
     [Fact]
     public void Account_emails_put_tokens_in_the_fragment_and_encode_the_html()
     {
-        var emails = new AccountEmails("https://app.localhost:7044/");
+        var emails = new AccountEmails("https://localhost:7044/");
         var account = new AccountId(Guid.Parse("6f9619ff-8b86-d011-b42d-00cf4fc964ff"));
 
         var message = emails.PasswordReset(Guid.NewGuid(), "cook@example.com", account, "a+b/c=");
 
-        const string link = "https://app.localhost:7044/reset-password#account=6f9619ff-8b86-d011-b42d-00cf4fc964ff&token=a%2Bb%2Fc%3D";
+        const string link = "https://localhost:7044/reset-password#account=6f9619ff-8b86-d011-b42d-00cf4fc964ff&token=a%2Bb%2Fc%3D";
         Assert.Contains(link, message.TextBody, StringComparison.Ordinal);
         Assert.Contains(link.Replace("&", "&amp;", StringComparison.Ordinal), message.HtmlBody!, StringComparison.Ordinal);
         Assert.DoesNotContain("?", link, StringComparison.Ordinal);
@@ -171,7 +171,7 @@ public sealed class AccountRulesTests
     [Fact]
     public void Recovery_code_notice_says_how_many_codes_are_left()
     {
-        var emails = new AccountEmails("https://app.pantrypress.app");
+        var emails = new AccountEmails("https://pantrypress.app");
 
         Assert.Contains("You have 1 code left.", emails.RecoveryCodeUsed(Guid.NewGuid(), "cook@example.com", 1).TextBody, StringComparison.Ordinal);
         Assert.Contains("You have 9 codes left.", emails.RecoveryCodeUsed(Guid.NewGuid(), "cook@example.com", 9).TextBody, StringComparison.Ordinal);

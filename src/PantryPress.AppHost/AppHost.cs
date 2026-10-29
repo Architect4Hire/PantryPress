@@ -101,10 +101,12 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
     .WaitForCompletion(migrations)
     .WithUrls(context =>
     {
-        // Browsers resolve *.localhost to loopback, so the admin app opens at app.localhost (SITE-009).
+        // The platform home is the local zone's apex, localhost, on the gateway's own port (PP-D19); sites are
+        // {slug}.localhost on the Site's (SITE-009). Named here, so the dashboard links to the one host the gateway
+        // answers.
         foreach (var url in context.Urls)
         {
-            var rewritten = new UriBuilder(url.Url) { Host = "app.localhost" };
+            var rewritten = new UriBuilder(url.Url) { Host = "localhost" };
             url.Url = rewritten.Uri.ToString();
 
             // The BFF session cookie is `__Host-` prefixed and Secure (PP-D13, PSEC-003), and a browser will not keep
@@ -118,8 +120,8 @@ var gateway = builder.AddProject<Projects.PantryPress_Gateway>("gateway")
     });
 
 // Links in account emails open the admin app (PP1.2). The Worker writes them, since it sends account email from the
-// outbox (PP1.10b). The origin is set here, never taken from a request's Host header: locally the gateway at
-// app.localhost, elsewhere the deployed admin origin from a parameter.
+// outbox (PP1.10b). The origin is set here, never taken from a request's Host header: locally the gateway at the
+// apex, localhost, elsewhere the deployed platform home's origin from a parameter (PP-D19).
 var isLocalDevelopment = builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment();
 // Invitation links open it too (PP2.11), so the Worker writes both from the one origin, under the one key (PP2.14).
 if (!isLocalDevelopment)
@@ -140,7 +142,8 @@ else
     apiService.WithEnvironment("Sites__SubdomainZone", builder.AddParameter("site-subdomain-zone"));
 }
 
-// The admin SPA's dev server (PP-D08: client-rendered). Browsers are meant to reach it through the gateway's catch-all
+// The admin app's dev server (PP-D08: the dashboard is client-rendered; since PPL.2 it also renders the public paths
+// per request, as the production build prerenders them). Browsers are meant to reach it through the gateway's catch-all
 // YARP route, so cookies and antiforgery behave as they will in production. That route lives in the gateway's
 // appsettings.Development.json and names this resource ("admin"), so both exist only in local Development runs: in
 // production the gateway serves the built files, and publishing must not produce an admin container. The gateway does
@@ -174,9 +177,9 @@ if (isLocalDevelopment)
         }
     });
 
-    // Locally, email links open the admin app through the gateway at app.localhost.
+    // Locally, email links open the platform home through the gateway at the apex, localhost (PP-D19).
     var localAppBaseUrl = ReferenceExpression.Create(
-        $"https://app.localhost:{gateway.GetEndpoint("https").Property(EndpointProperty.Port)}");
+        $"https://localhost:{gateway.GetEndpoint("https").Property(EndpointProperty.Port)}");
     worker.WithEnvironment("Accounts__AppBaseUrl", localAppBaseUrl);
 
     // The development email sink's catcher (external.md: every provider has a local fake). Mail the Worker sends through the

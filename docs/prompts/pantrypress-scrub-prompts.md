@@ -5447,6 +5447,11 @@ endpoints, WAF, delete locks, and 35-day restore. This prompt replaces the place
 probes, persists the data-protection key ring (which lifts the gateway's single-replica limit), and confirms the
 sizes against PP19.1's cost estimate.
 
+Owed since PPL.3 (2026-10-29): the gateway serves the admin app's build itself and refuses to start without one. Its
+image carries `dist/pantrypress-admin/browser/*` at `/app/admin` (`Gateway:AdminApp:Root`'s default, `admin` under the
+content root), or the deployment sets `Gateway__AdminApp__Root`. The HTTP probes this prompt maps must be the real
+health endpoints: until then `/health` and `/alive` answer the gateway's 404 outside Development.
+
 ### PP19.3 CI additions
 
 ```text
@@ -5464,6 +5469,10 @@ rendered sites are unaffected by an app deploy.
 CONSTRAINT: OPS-002, OPS-003.
 BEHAVIOR: Plan, wait for approval, implement and dry-run.
 ```
+
+Owed since PPL.3 (2026-10-29): the gateway's image is built after `npm run build` (which checks the admin build with
+`check:admin-build`) and copies `src/web/dist/pantrypress-admin/browser/*` to `/app/admin`. A gateway image without it
+refuses to start, which the health-gated rollout should report as the reason.
 
 ### PP19.5 Platform admin: site search and detail
 

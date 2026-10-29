@@ -21,6 +21,8 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "projects/pantrypress-admin/src/main.ts",
+            "server": "projects/pantrypress-admin/src/main.server.ts",
+            "outputMode": "static",
             "tsConfig": "projects/pantrypress-admin/tsconfig.app.json",
             "assets": [
               {
@@ -47,7 +49,15 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,

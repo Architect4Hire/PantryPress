@@ -25,7 +25,7 @@ internal static class GatewayCors
         ArgumentNullException.ThrowIfNull(services);
         services.AddOptions<GatewayOriginOptions>()
             .Bind(configuration)
-            .Validate(o => o.IsValid(), "Gateway:PublicOrigin must be an absolute origin, such as https://app.pantrypress.app.")
+            .Validate(o => o.IsValid(), "Gateway:PublicOrigin must be an absolute origin, such as https://pantrypress.app.")
             .ValidateOnStart();
 
         return services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins()));

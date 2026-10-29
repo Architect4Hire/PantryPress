@@ -8,7 +8,7 @@ using PantryPress.Tests.Persistence;
 
 namespace PantryPress.Tests.Gateway;
 
-// PP1.5 end to end: the real gateway at app.localhost reaches the real ApiService, reports it reachable, and the API's
+// PP1.5 end to end: the real gateway at the apex, localhost, reaches the real ApiService, reports it reachable, and the API's
 // documentation is readable in a local run (ACCT-002, gateway.md, API-009's local half). It shares the running system
 // with the other integration tests rather than starting its own: several AppHosts at once outrun what a developer
 // machine can start inside the timeout (see MigratedDatabase).
@@ -23,14 +23,14 @@ public sealed class GatewayApiIntegrationTests(MigratedDatabase system)
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("apiservice", timeout.Token);
         await system.App.ResourceNotifications.WaitForResourceHealthyAsync("gateway", timeout.Token);
         // Over TLS: since PP1.8 the gateway sends a plain-HTTP caller to HTTPS, so the http endpoint answers 307 and
-        // nothing else. The certificate is not checked, because the test presents the app.localhost host the gateway
-        // answers on while connecting to the local endpoint (SessionEndToEndTests says the same).
+        // nothing else. The certificate is not checked: what is under test is the gateway's answer, not whether this
+        // machine trusts the development certificate (SessionEndToEndTests says the same).
         using var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
         };
         using var client = new HttpClient(handler) { BaseAddress = system.App.GetEndpoint("gateway", "https") };
-        var host = $"app.localhost:{client.BaseAddress!.Port}";
+        var host = $"localhost:{client.BaseAddress!.Port}";
 
         // A signed-in route: the API's own 401 problem proves the request crossed the gateway into ApiService.
         using var signedIn = await SendAsync(client, host, "/api/v1/account/two-factor", timeout.Token);

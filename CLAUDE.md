@@ -129,7 +129,7 @@ npm run build:site && npm run budget        # SSR build plus the RND-007 first-p
 ```
 
 Local hosts: the platform home (landing, sign-in, `/dashboard`) at `localhost` through the gateway, sites at
-`{slug}.localhost` (SITE-009, PP-D19; the code moves from `app.localhost` in PPL.1).
+`{slug}.localhost` (SITE-009, PP-D19, PPL.1).
 
 Skills (`.claude/skills/`): `add-endpoint`, `add-site-entity`, `add-public-endpoint`,
 `add-recipe-feature`, `add-editor-block`, `add-media-feature`, `add-background-job`,

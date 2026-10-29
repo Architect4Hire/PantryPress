@@ -9,12 +9,13 @@ builder.AddServiceDefaults();
 // Routes and clusters are declared in configuration (gateway.md). Destinations name Aspire resources
 // (http://apiservice, http://admin) and resolve through service discovery, so no service address is written down. The
 // admin API route ships in every environment; Development adds a catch-all route to the admin dev server, and
-// production has no SPA route yet (PP19 serves the built files).
+// everywhere else the gateway serves the admin app's build itself (PPL.3, below).
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
     .AddServiceDiscoveryDestinationResolver()
     .AddTransforms(EdgeHeaders.AddForwardedTransforms)
-    .AddTransforms(SessionIdentity.AddSessionTransforms);
+    .AddTransforms(SessionIdentity.AddSessionTransforms)
+    .AddTransforms(AdminApp.AddDevServerTransforms);
 
 // Identity forwarding, header hygiene, and the session's response handling all key on this route id, and cookie
 // stripping would fail silently if it were renamed in configuration. So the host says so at startup instead.
@@ -24,6 +25,11 @@ if (!builder.Configuration.GetSection($"ReverseProxy:Routes:{GatewayRoutes.Admin
         $"No YARP route '{GatewayRoutes.AdminApi}' is configured. The admin API route carries the session identity "
         + "the API is told about (PP1.6), so the gateway will not start without it.");
 }
+
+// The platform home's pages (PP-D19, PPL.3): which paths are public, which of them a signed-in visitor is sent past, and
+// the build they are served from. The configuration is checked here, and the build with it, so a gateway that would
+// serve a missing page or one its own policy blocks does not start.
+builder.Services.AddAdminApp(builder.Configuration, builder.Environment);
 
 builder.Services.AddApiProblems();
 builder.Services.AddApiReachabilityCheck();
@@ -114,9 +120,14 @@ app.UseRateLimiter();
 // session themselves.
 app.UseAuthentication();
 
+// A signed-in visitor never sees marketing (PPL-001): '/' and '/pricing' with a complete session are sent to the
+// dashboard here, from the cookie alone, before a document is read or the dev server is asked.
+app.UseSignedInRedirect();
+
 app.MapDefaultEndpoints();
 app.MapApiFallback();
 app.MapSessionEndpoints();
+app.MapAdminApp();
 
 // The identity the API is allowed to believe is added inside the proxy pipeline, where the matched route is known and
 // a half-finished sign-in can be refused instead of forwarded. The rest of the pipeline is YARP's own default.

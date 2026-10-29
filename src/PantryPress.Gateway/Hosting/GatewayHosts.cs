@@ -12,7 +12,7 @@ namespace PantryPress.Gateway.Hosting;
 public sealed class GatewayOriginOptions
 {
     /// <summary>
-    /// An absolute origin - scheme, host, and port - such as <c>https://app.pantrypress.app</c>. When set, the
+    /// An absolute origin - scheme, host, and port - such as <c>https://pantrypress.app</c>. When set, the
     /// same-origin check compares against it instead of working one out from the request. Unset locally and in
     /// tests, where the request's own origin is the browser's.
     /// </summary>

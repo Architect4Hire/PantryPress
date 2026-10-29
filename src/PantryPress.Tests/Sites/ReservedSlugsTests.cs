@@ -36,24 +36,32 @@ public sealed partial class ReservedSlugsTests
         Assert.All(ReservedSlugs.All, e => Assert.InRange(e.Since, 1, ReservedSlugs.Version));
     }
 
-    // The BFF's __Host- cookies are host-only for the admin host, so a tenant site there would share its origin (PP1.12).
-    [Fact]
-    public void The_admin_app_host_is_reserved_as_a_platform_host()
+    // Since PP-D19 app.<zone> and www.<zone> are Front Door's 301s to the platform home on the apex, which holds the BFF's
+    // host-only __Host- cookies: a tenant site at either would pose as the platform. app has been reserved since the
+    // first version; www with it. The Terraform names app today (admin_host, until PP9.1a moves it) and www from PP9.1a.
+    [Theory]
+    [InlineData("app")]
+    [InlineData("www")]
+    public void The_hosts_that_redirect_to_the_platform_home_are_reserved_as_platform_hosts(string label)
     {
-        Assert.Contains(new ReservedSlugEntry("app", ReservedSlugReason.PlatformHost, 1), ReservedSlugs.All);
+        Assert.Contains(new ReservedSlugEntry(label, ReservedSlugReason.PlatformHost, 1), ReservedSlugs.All);
     }
 
+    // PP-D19: the gateway answers on the zone's apex alone - the production zone deployed, localhost (the local zone,
+    // SITE-009) in Development - so no slug can name it and it has no label to reserve. A gateway host with a label would
+    // be a subdomain a site could otherwise take; this fails until that label is the apex again.
     [Theory]
     [InlineData("appsettings.json")]
     [InlineData("appsettings.Development.json")]
-    public void Every_host_the_gateway_answers_on_is_reserved(string file)
+    public void Every_host_the_gateway_answers_on_is_the_zones_apex(string file)
     {
         using var settings = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(Repository.FullName, "src", "PantryPress.Gateway", file)));
         var hosts = settings.RootElement.GetProperty("Gateway").GetProperty("Hosts").EnumerateArray().Select(h => h.GetString()!).ToList();
+        var prod = File.ReadAllText(Path.Combine(Repository.FullName, "docs", "infrastructure", "terraform", "pantrypress", "env", "prod.tfvars"));
+        var apex = file == "appsettings.Development.json" ? "localhost" : ZoneName().Match(prod).Groups["zone"].Value;
 
-        Assert.NotEmpty(hosts);
-        Assert.All(hosts, host => AssertReservedAsPlatformHost(host.Split('.')[0]));
+        Assert.Equal([apex], hosts);
     }
 
     // Every host label the Terraform writes: each "<label>.${var.dns_zone_name}" it builds, each DNS record it names

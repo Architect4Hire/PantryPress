@@ -258,7 +258,7 @@ internal static class SessionCookie
         options.Cookie.HttpOnly = true;
 
         // Always, in every environment: a cookie that is allowed over plain HTTP once is a cookie that can be taken
-        // over plain HTTP. Locally the gateway is reached over HTTPS at app.localhost.
+        // over plain HTTP. Locally the gateway is reached over HTTPS at the apex, localhost.
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.Path = "/";

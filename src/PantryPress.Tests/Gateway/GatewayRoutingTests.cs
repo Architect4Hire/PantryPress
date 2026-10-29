@@ -167,12 +167,13 @@ public sealed class GatewayRoutingTests
     [InlineData("/posts/new")]
     public async Task Outside_Development_nothing_reaches_the_dev_server(string path)
     {
-        // The catch-all route lives in appsettings.Development.json; PP19 serves the built files instead.
+        // The catch-all route lives in appsettings.Development.json; elsewhere the gateway serves the build (PPL.3).
         await using var gateway = new GatewayFactory("Production");
 
         using var response = await gateway.CreateClient().GetAsync(path);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
         Assert.Empty(gateway.Forwarded);
     }
 
