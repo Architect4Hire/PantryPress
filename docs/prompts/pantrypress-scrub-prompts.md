@@ -3515,7 +3515,7 @@ BEHAVIOR: Plan, wait for approval, implement.
   - `api-contract-checker` and `design-review`: their blockers and should-fixes are resolved above, and the rest are
     recorded under "Open".
 
-### PP3.9 Admin shell and site switcher
+### PP3.9 Admin shell and site switcher - done
 
 ```text
 SCOPE: Add the admin shell (navigation, header, account menu) under /dashboard and a site switcher that sets the
@@ -3523,6 +3523,148 @@ route's site (PP-D19), and the /dashboard/join screen an invitation's email link
 fragment, keeps it through sign-in or sign-up, and accepts it (PP2.11; path fixed at PP2.14).
 CONSTRAINT: SITE-010; Template H.
 BEHAVIOR: Plan, wait for approval, implement.
+```
+
+**Delivery note (2026-10-29).**
+
+- **What shipped.**
+  - **`pp-dropdown` and `pp-dropdown-item`** (`@pantrypress/ui`). A disclosure: a button with `aria-expanded` and
+    `aria-controls`, over a `hidden` panel of ordinary links and buttons.
+    - `prefix` and `label` are shown and form the button's name. `caption` describes the button.
+    - Escape closes it and returns focus, from anywhere while it is open. So do choosing an item, a press outside, and
+      Tab leaving it.
+    - It has its own spec, a server render, a showcase section, and a row in the design system doc.
+  - **The shell** (`features/dashboard/`):
+    - a skip link, then a header with the product name, the site switcher, and the account menu;
+    - the navigation, which lists only screens that exist (`site-sections.ts`);
+    - the one `<main>`.
+    - After each move inside the dashboard, focus goes to the new screen's `h1`. While a site loads, focus waits on
+      `<main>`.
+    - Nothing in it is fixed or sticky, so no scroll padding is owed (the PP3.6 note).
+  - **Sites by route.**
+    - A site's screens live under `/dashboard/sites/{siteSlug}/…`.
+    - `DashboardSites` hands the slug to the API. 404 is one answer, "We couldn't find that site", for no such site
+      and no membership alike.
+    - The switcher links to each site and keeps the section the reader is in.
+    - `/dashboard` lists "Your sites" a page at a time, by cursor.
+    - `SiteHome` shows the site's name, address, role, and status until PP10.2 takes it over.
+  - **The account menu** shows who is signed in. It signs out with `SessionClient.signOut()` and then loads `/` as a new
+    document. A refusal is shown as a toast.
+  - **Joining** (`/dashboard/join`).
+    - `keepInvitationLink`, on the parent of the dashboard route, keeps the token in `PendingInvitation` (local
+      storage) before `signedInGuard` can send the visitor to sign in.
+    - The screen takes the token out of the address bar and accepts it as it opens. Each answer has its own state, and
+      only refusals that can never work forget the link.
+    - The sign-in screen says to use the invited address. "Your sites" offers a waiting invitation.
+  - **Waiting.** `app.html` shows a progress bar while the router waits (a PP3.8 open item).
+    - It is drawn only after the first render in the browser, so prerendered pages hydrate unchanged.
+    - It fades in after 400 ms, in CSS, and sits in the page's flow.
+  - **The dashboard's own not-found page**, inside the shell (a PP3.8 open item).
+- **Found and fixed on the way.**
+  - **A sign-in's `next` carried the fragment.** An invitation opened while signed out put its token in
+    `/sign-in?next=…%23token%3D…`, where a reload would send it to the gateway. `signInFor` now drops fragments; the
+    route spec failed before the fix.
+- **From review.**
+  - **`api-contract-checker`.**
+    - **Blocker:** ApiService stores a 403 against its idempotency key, so "Try again" after confirming the address
+      would have replayed the refusal for a day. After `email-not-verified`, `invitation-other-address`, or
+      `idempotency-key-reused`, the link now takes a new key.
+    - Only `invitation-invalid` and `validation-failed` forget the link. A gateway 400 keeps it.
+    - The list retries the page that was asked for, and a refused cursor goes back to page 1.
+    - The sites list is refreshed only after the move to the joined site.
+  - **`design-review`.**
+    - Focus is restored after Try again on a site.
+    - A repeated refusal is spoken, and so is "Signing you out…".
+    - The dropdown's caption describes its button.
+    - The waiting bar is no longer fixed.
+    - The empty state is honest that starting a site is coming.
+    - Each button shows its own busy state.
+    - Refused sites get their own tab titles.
+    - The design system doc's scroll-padding line is corrected.
+  - **Found in browsers.**
+    - At 320 px a long site name widened the page. The switcher now shrinks with an ellipsis.
+    - In WebKit a pressed button takes no focus, so Escape never reached the dropdown. It now listens on the document
+      while open.
+    - Each fix has a test.
+- **Differs from the prompt.** "Keeps it through sign-in or sign-up": sign-up stays closed until PPL.13, so the
+  sign-up path is covered by local storage and the "Your sites" offer, not by a flow test.
+- **Open, for later prompts.**
+  - **The library ships as one module.** Every primitive the dashboard uses (`pp-dropdown`, `pp-list`) lands in the
+    landing page's first load. The admin initial total went from 91.67 kB to 97.34 kB compressed. PPL's budget work, or
+    PP3.10, should split the entry point or lazy-load the shell's primitives.
+  - **Local test accounts (PP3.9a).** There is no seeded account yet, so trying the dashboard locally means registering
+    through the API and confirming in Mailpit. PP3.9a seeds two confirmed accounts and two sites, in Development only.
+  - **No create-site screen.** No prompt owns one, though PP2.10's API exists. The empty state says it is coming.
+  - **`/dashboard/account/security` is still unbuilt.** Security emails link there and meet the dashboard's not-found
+    page.
+  - **A waiting invitation outlives a session that ends on its own.** The next person to sign in on that browser is
+    offered it. It names no site, and the API refuses it to another address. Clearing it at the guard would erase it
+    exactly when a signed-out invitee arrives.
+  - **`idempotency-key-in-use` and 429 are not retried after `Retry-After`.** The server's words say to wait, and Try
+    again is offered.
+  - **Plain explanations of non-live statuses** (Suspended, Read only, Offline) belong with PP14 (billing.md). Today
+    `SiteHome` shows a pill.
+  - **Two one-off e2e timing misses under full-suite load.** These were the PP3.8 two-step focus test and one WebKit axe
+    test. Both passed on repeat, and the final run was clean.
+- **Verification.**
+  - Tests: `npm test`, with 176 library, 259 admin, and 1 site test. `npm run e2e`: 180 of 180 in Chromium, Firefox,
+    and WebKit.
+  - Lint and format: `npm run lint` and `npm run format:check`, both clean.
+  - Build: `npm run build`, with `check:admin-build`: 7 documents, no inline script.
+  - Not run: `aspire run`, and a flow against the real gateway (PP3.10's contract fixture).
+
+### PP3.9a Local development seed accounts and sites
+
+Owner request after PP3.9: sign-up stays closed until PPL.13, so trying the dashboard locally meant registering through
+the browser console, confirming in Mailpit, and creating sites by hand. This seeds that starting point, in local
+Development only.
+
+```text
+SCOPE: Add a development seed that the migration job runs after migrations and the PlatformAdmin list
+(PP1.11, PP1.12):
+- two accounts with confirmed email addresses, an owner and a second one for trying invitations, which belongs to
+  no site;
+- two sites the owner owns, created through ISitesFacade exactly as PP2.10 creates them (site, Owner membership,
+  canonical subdomain).
+Both passwords come from one secret AppHost parameter.
+CONSTRAINT: CLAUDE.md; backend.md, tenancy.md, auth.md, aspire.md; Template A; add-aspire-resource for the parameter.
+Follow the PlatformAdminReconciler precedent: operator code in Modules/Platform/ behind a contract, run once by the
+migration job, throwing to fail the job.
+RESTRICTION: Development only, three ways:
+- the AppHost declares the parameter only when the environment is Development, like the developer tools, so it is
+  never in the manifest or the IaC;
+- the seed does nothing unless the host environment is Development;
+- a host outside Development that finds seed configuration refuses to start.
+Tests pin all three.
+Never a password, a token, or an address in code, appsettings, logs, or telemetry. The password comes from the
+AppHost's user-secrets (DevSeed:Password). With no password set, the seed logs one line saying how to set it and
+does nothing.
+Idempotent: a second run changes nothing. An existing account keeps its password and state, and a slug already held
+is left alone.
+Confirming an address goes through the Accounts module's own contract (a new facade operation, development-only by
+the same guard), never by writing Identity tables. No email is sent and no outbox message is staged.
+Each site is created in its own DI scope, because one scope may enter only one site (tenancy.md rule 2). No
+IgnoreQueryFilters, no raw SQL, no new site-id path.
+Audit entries as the facades record them, with an actor that says it was the development seed. No new route, no UI,
+no change to sign-up, and no change to what production runs.
+DECIDE defaults (say so):
+- addresses owner@pantrypress.test and editor@pantrypress.test, or another the address validators and the
+  disposable-email check accept;
+- slugs apple-pie and plum-tart, so the sites answer at {slug}.localhost;
+- both accounts share the one password.
+UTILIZATION: add-aspire-resource; architecture-reviewer and site-isolation-auditor after.
+BEHAVIOR: Inspect PlatformAdminReconciler, MigrationWorker, the AppHost's platform-admins parameter, and
+ISitesFacade.CreateAsync. Show the contract, the files, the three Development guards, and the test plan. Wait for
+approval.
+Then implement, with tests for:
+- the first run creating everything;
+- the second run changing nothing;
+- no password meaning nothing happens;
+- outside Development refusing to start;
+- no secret in the logs;
+- the tenant root unchanged for the other seeded site (TwoSiteChecks.AssertTenantRootUnchangedAsync).
+Update CLAUDE.md's Usage and aspire.md with how to set DevSeed:Password and which accounts and sites to expect, run the
+reviewers, and report.
 ```
 
 ### PP3.10 Front-end foundation audit
