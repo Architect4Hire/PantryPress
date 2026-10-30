@@ -448,6 +448,1980 @@ namespace PantryPress.MigrationService.Migrations
                     b.ToTable("RevokedSessions", (string)null);
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Allergen", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Allergens", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Allergens_Code_Shape", "LEN([Code]) BETWEEN 2 AND 40 AND [Code] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Code] NOT LIKE '-%' AND [Code] NOT LIKE '%-' AND [Code] NOT LIKE '%--%'");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "milk",
+                            Name = "Milk",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "eggs",
+                            Name = "Eggs",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "fish",
+                            Name = "Fish",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "crustacean-shellfish",
+                            Name = "Crustacean shellfish",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "mollusks",
+                            Name = "Mollusks",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "tree-nuts",
+                            Name = "Tree nuts",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "peanuts",
+                            Name = "Peanuts",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "wheat",
+                            Name = "Wheat",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "gluten",
+                            Name = "Gluten",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "soy",
+                            Name = "Soy",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "sesame",
+                            Name = "Sesame",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "celery",
+                            Name = "Celery",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "mustard",
+                            Name = "Mustard",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "sulfites",
+                            Name = "Sulfites",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "lupin",
+                            Name = "Lupin",
+                            Since = 1
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Course", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Courses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Courses_Code_Shape", "LEN([Code]) BETWEEN 2 AND 40 AND [Code] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Code] NOT LIKE '-%' AND [Code] NOT LIKE '%-' AND [Code] NOT LIKE '%--%'");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "breakfast",
+                            Name = "Breakfast",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "brunch",
+                            Name = "Brunch",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "appetizer",
+                            Name = "Appetizer",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "snack",
+                            Name = "Snack",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "soup",
+                            Name = "Soup",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "salad",
+                            Name = "Salad",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "side-dish",
+                            Name = "Side dish",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "main-course",
+                            Name = "Main course",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "dessert",
+                            Name = "Dessert",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "bread",
+                            Name = "Bread",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "drink",
+                            Name = "Drink",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "sauce",
+                            Name = "Sauce",
+                            Since = 1
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Cuisine", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Cuisines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Cuisines_Code_Shape", "LEN([Code]) BETWEEN 2 AND 40 AND [Code] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Code] NOT LIKE '-%' AND [Code] NOT LIKE '%-' AND [Code] NOT LIKE '%--%'");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "american",
+                            Name = "American",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "southern",
+                            Name = "Southern",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "cajun-creole",
+                            Name = "Cajun and Creole",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "tex-mex",
+                            Name = "Tex-Mex",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "mexican",
+                            Name = "Mexican",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "caribbean",
+                            Name = "Caribbean",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "latin-american",
+                            Name = "Latin American",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "british",
+                            Name = "British",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "irish",
+                            Name = "Irish",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "french",
+                            Name = "French",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "italian",
+                            Name = "Italian",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "spanish",
+                            Name = "Spanish",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "portuguese",
+                            Name = "Portuguese",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "german",
+                            Name = "German",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "greek",
+                            Name = "Greek",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "mediterranean",
+                            Name = "Mediterranean",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "middle-eastern",
+                            Name = "Middle Eastern",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "north-african",
+                            Name = "North African",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "indian",
+                            Name = "Indian",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "chinese",
+                            Name = "Chinese",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "japanese",
+                            Name = "Japanese",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "korean",
+                            Name = "Korean",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "thai",
+                            Name = "Thai",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "vietnamese",
+                            Name = "Vietnamese",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "filipino",
+                            Name = "Filipino",
+                            Since = 1
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Diet", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("SchemaOrgDiet")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Diets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Diets_Code_Shape", "LEN([Code]) BETWEEN 2 AND 40 AND [Code] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Code] NOT LIKE '-%' AND [Code] NOT LIKE '%-' AND [Code] NOT LIKE '%--%'");
+
+                            t.HasCheckConstraint("CK_Diets_SchemaOrgDiet", "[SchemaOrgDiet] IS NULL OR [SchemaOrgDiet] IN ('DiabeticDiet', 'GlutenFreeDiet', 'HalalDiet', 'HinduDiet', 'KosherDiet', 'LowCalorieDiet', 'LowFatDiet', 'LowLactoseDiet', 'LowSaltDiet', 'VeganDiet', 'VegetarianDiet')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "vegetarian",
+                            Name = "Vegetarian",
+                            SchemaOrgDiet = "VegetarianDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "vegan",
+                            Name = "Vegan",
+                            SchemaOrgDiet = "VeganDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "pescatarian",
+                            Name = "Pescatarian",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "gluten-free",
+                            Name = "Gluten-free",
+                            SchemaOrgDiet = "GlutenFreeDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "dairy-free",
+                            Name = "Dairy-free",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "low-lactose",
+                            Name = "Low-lactose",
+                            SchemaOrgDiet = "LowLactoseDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "low-fat",
+                            Name = "Low-fat",
+                            SchemaOrgDiet = "LowFatDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "low-calorie",
+                            Name = "Low-calorie",
+                            SchemaOrgDiet = "LowCalorieDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "low-salt",
+                            Name = "Low-salt",
+                            SchemaOrgDiet = "LowSaltDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "diabetic",
+                            Name = "Diabetic",
+                            SchemaOrgDiet = "DiabeticDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "halal",
+                            Name = "Halal",
+                            SchemaOrgDiet = "HalalDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "kosher",
+                            Name = "Kosher",
+                            SchemaOrgDiet = "KosherDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "hindu",
+                            Name = "Hindu",
+                            SchemaOrgDiet = "HinduDiet",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "keto",
+                            Name = "Keto",
+                            Since = 1
+                        },
+                        new
+                        {
+                            Code = "paleo",
+                            Name = "Paleo",
+                            Since = 1
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Unit", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("Abbreviation")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("Dimension")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Plural")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Singular")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("System")
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("Units", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Units_Code_Shape", "LEN([Code]) BETWEEN 2 AND 40 AND [Code] NOT LIKE '%[^a-z0-9-]%' COLLATE Latin1_General_100_BIN2 AND [Code] NOT LIKE '-%' AND [Code] NOT LIKE '%-' AND [Code] NOT LIKE '%--%'");
+
+                            t.HasCheckConstraint("CK_Units_Dimension", "[Dimension] IN (0, 1, 2, 3)");
+
+                            t.HasCheckConstraint("CK_Units_System", "[System] IN (0, 1, 2)");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "teaspoon",
+                            Abbreviation = "tsp",
+                            Dimension = 0,
+                            Plural = "teaspoons",
+                            Since = 1,
+                            Singular = "teaspoon",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "tablespoon",
+                            Abbreviation = "tbsp",
+                            Dimension = 0,
+                            Plural = "tablespoons",
+                            Since = 1,
+                            Singular = "tablespoon",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "fluid-ounce",
+                            Abbreviation = "fl oz",
+                            Dimension = 0,
+                            Plural = "fluid ounces",
+                            Since = 1,
+                            Singular = "fluid ounce",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "cup",
+                            Dimension = 0,
+                            Plural = "cups",
+                            Since = 1,
+                            Singular = "cup",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "pint",
+                            Abbreviation = "pt",
+                            Dimension = 0,
+                            Plural = "pints",
+                            Since = 1,
+                            Singular = "pint",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "quart",
+                            Abbreviation = "qt",
+                            Dimension = 0,
+                            Plural = "quarts",
+                            Since = 1,
+                            Singular = "quart",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "gallon",
+                            Abbreviation = "gal",
+                            Dimension = 0,
+                            Plural = "gallons",
+                            Since = 1,
+                            Singular = "gallon",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "milliliter",
+                            Abbreviation = "ml",
+                            Dimension = 0,
+                            Plural = "milliliters",
+                            Since = 1,
+                            Singular = "milliliter",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "deciliter",
+                            Abbreviation = "dl",
+                            Dimension = 0,
+                            Plural = "deciliters",
+                            Since = 1,
+                            Singular = "deciliter",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "liter",
+                            Abbreviation = "L",
+                            Dimension = 0,
+                            Plural = "liters",
+                            Since = 1,
+                            Singular = "liter",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "ounce",
+                            Abbreviation = "oz",
+                            Dimension = 1,
+                            Plural = "ounces",
+                            Since = 1,
+                            Singular = "ounce",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "pound",
+                            Abbreviation = "lb",
+                            Dimension = 1,
+                            Plural = "pounds",
+                            Since = 1,
+                            Singular = "pound",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "gram",
+                            Abbreviation = "g",
+                            Dimension = 1,
+                            Plural = "grams",
+                            Since = 1,
+                            Singular = "gram",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "kilogram",
+                            Abbreviation = "kg",
+                            Dimension = 1,
+                            Plural = "kilograms",
+                            Since = 1,
+                            Singular = "kilogram",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "fahrenheit",
+                            Abbreviation = "°F",
+                            Dimension = 2,
+                            Plural = "degrees Fahrenheit",
+                            Since = 1,
+                            Singular = "degree Fahrenheit",
+                            System = 0
+                        },
+                        new
+                        {
+                            Code = "celsius",
+                            Abbreviation = "°C",
+                            Dimension = 2,
+                            Plural = "degrees Celsius",
+                            Since = 1,
+                            Singular = "degree Celsius",
+                            System = 1
+                        },
+                        new
+                        {
+                            Code = "pinch",
+                            Dimension = 3,
+                            Plural = "pinches",
+                            Since = 1,
+                            Singular = "pinch",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "dash",
+                            Dimension = 3,
+                            Plural = "dashes",
+                            Since = 1,
+                            Singular = "dash",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "drop",
+                            Dimension = 3,
+                            Plural = "drops",
+                            Since = 1,
+                            Singular = "drop",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "clove",
+                            Dimension = 3,
+                            Plural = "cloves",
+                            Since = 1,
+                            Singular = "clove",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "can",
+                            Dimension = 3,
+                            Plural = "cans",
+                            Since = 1,
+                            Singular = "can",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "jar",
+                            Dimension = 3,
+                            Plural = "jars",
+                            Since = 1,
+                            Singular = "jar",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "package",
+                            Abbreviation = "pkg",
+                            Dimension = 3,
+                            Plural = "packages",
+                            Since = 1,
+                            Singular = "package",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "stick",
+                            Dimension = 3,
+                            Plural = "sticks",
+                            Since = 1,
+                            Singular = "stick",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "slice",
+                            Dimension = 3,
+                            Plural = "slices",
+                            Since = 1,
+                            Singular = "slice",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "piece",
+                            Abbreviation = "pc",
+                            Dimension = 3,
+                            Plural = "pieces",
+                            Since = 1,
+                            Singular = "piece",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "bunch",
+                            Dimension = 3,
+                            Plural = "bunches",
+                            Since = 1,
+                            Singular = "bunch",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "sprig",
+                            Dimension = 3,
+                            Plural = "sprigs",
+                            Since = 1,
+                            Singular = "sprig",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "head",
+                            Dimension = 3,
+                            Plural = "heads",
+                            Since = 1,
+                            Singular = "head",
+                            System = 2
+                        },
+                        new
+                        {
+                            Code = "handful",
+                            Dimension = 3,
+                            Plural = "handfuls",
+                            Since = 1,
+                            Singular = "handful",
+                            System = 2
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.UnitAlias", b =>
+                {
+                    b.Property<string>("Alias")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<bool>("CaseSensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Since")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.HasKey("Alias");
+
+                    b.HasIndex("UnitCode");
+
+                    b.ToTable("UnitAliases", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_UnitAliases_Case", "[CaseSensitive] = 1 OR [Alias] = LOWER([Alias]) COLLATE Latin1_General_100_BIN2");
+
+                            t.HasCheckConstraint("CK_UnitAliases_Trimmed", "LEN([Alias]) > 0 AND DATALENGTH([Alias]) = DATALENGTH(LTRIM(RTRIM([Alias])))");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Alias = "teaspoon",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "teaspoons",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "teaspoonful",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "teaspoonfuls",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "tsp",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "tsp.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "tsps",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "tsps.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "t",
+                            CaseSensitive = true,
+                            Since = 1,
+                            UnitCode = "teaspoon"
+                        },
+                        new
+                        {
+                            Alias = "tablespoon",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tablespoons",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tablespoonful",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tablespoonfuls",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbsp",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbsp.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbsps",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbsps.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbl",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "tbl.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "T",
+                            CaseSensitive = true,
+                            Since = 1,
+                            UnitCode = "tablespoon"
+                        },
+                        new
+                        {
+                            Alias = "fluid ounce",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fluid ounces",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fl oz",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fl. oz.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fl oz.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fl.oz.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "fl. oz",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fluid-ounce"
+                        },
+                        new
+                        {
+                            Alias = "cup",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "cup"
+                        },
+                        new
+                        {
+                            Alias = "cups",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "cup"
+                        },
+                        new
+                        {
+                            Alias = "c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "cup"
+                        },
+                        new
+                        {
+                            Alias = "c.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "cup"
+                        },
+                        new
+                        {
+                            Alias = "pint",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "pints",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "pt",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "pt.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "pts",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "pts.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pint"
+                        },
+                        new
+                        {
+                            Alias = "quart",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "quarts",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "qt",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "qt.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "qts",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "qts.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "quart"
+                        },
+                        new
+                        {
+                            Alias = "gallon",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "gallons",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "gal",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "gal.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "gals",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "gals.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gallon"
+                        },
+                        new
+                        {
+                            Alias = "milliliter",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "milliliters",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "millilitre",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "millilitres",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "ml",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "ml.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "mls",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "milliliter"
+                        },
+                        new
+                        {
+                            Alias = "deciliter",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "deciliters",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "decilitre",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "decilitres",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "dl",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "dl.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "deciliter"
+                        },
+                        new
+                        {
+                            Alias = "liter",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "liters",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "litre",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "litres",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "l",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "l.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "liter"
+                        },
+                        new
+                        {
+                            Alias = "ounce",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "ounces",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "oz",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "oz.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "ozs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "ozs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "ounce"
+                        },
+                        new
+                        {
+                            Alias = "pound",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "pounds",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "lb",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "lb.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "lbs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "lbs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pound"
+                        },
+                        new
+                        {
+                            Alias = "gram",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "grams",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "gramme",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "grammes",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "g",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "g.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "gram"
+                        },
+                        new
+                        {
+                            Alias = "kilogram",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kilograms",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kilogramme",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kilogrammes",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kilo",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kilos",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kg",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kg.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kgs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "kgs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "kilogram"
+                        },
+                        new
+                        {
+                            Alias = "°f",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "ºf",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "° f",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "degree fahrenheit",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "degrees fahrenheit",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "degree f",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "degrees f",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "deg f",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "fahrenheit",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "fahrenheit"
+                        },
+                        new
+                        {
+                            Alias = "°c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "ºc",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "° c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "degree celsius",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "degrees celsius",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "degree c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "degrees c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "deg c",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "celsius",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "centigrade",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "celsius"
+                        },
+                        new
+                        {
+                            Alias = "pinch",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pinch"
+                        },
+                        new
+                        {
+                            Alias = "pinches",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "pinch"
+                        },
+                        new
+                        {
+                            Alias = "dash",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "dash"
+                        },
+                        new
+                        {
+                            Alias = "dashes",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "dash"
+                        },
+                        new
+                        {
+                            Alias = "drop",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "drop"
+                        },
+                        new
+                        {
+                            Alias = "drops",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "drop"
+                        },
+                        new
+                        {
+                            Alias = "clove",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "clove"
+                        },
+                        new
+                        {
+                            Alias = "cloves",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "clove"
+                        },
+                        new
+                        {
+                            Alias = "can",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "can"
+                        },
+                        new
+                        {
+                            Alias = "cans",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "can"
+                        },
+                        new
+                        {
+                            Alias = "jar",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "jar"
+                        },
+                        new
+                        {
+                            Alias = "jars",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "jar"
+                        },
+                        new
+                        {
+                            Alias = "package",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "packages",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "pkg",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "pkg.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "pkgs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "pkgs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "package"
+                        },
+                        new
+                        {
+                            Alias = "stick",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "stick"
+                        },
+                        new
+                        {
+                            Alias = "sticks",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "stick"
+                        },
+                        new
+                        {
+                            Alias = "slice",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "slice"
+                        },
+                        new
+                        {
+                            Alias = "slices",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "slice"
+                        },
+                        new
+                        {
+                            Alias = "piece",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "pieces",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "pc",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "pc.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "pcs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "pcs.",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "piece"
+                        },
+                        new
+                        {
+                            Alias = "bunch",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "bunch"
+                        },
+                        new
+                        {
+                            Alias = "bunches",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "bunch"
+                        },
+                        new
+                        {
+                            Alias = "sprig",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "sprig"
+                        },
+                        new
+                        {
+                            Alias = "sprigs",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "sprig"
+                        },
+                        new
+                        {
+                            Alias = "head",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "head"
+                        },
+                        new
+                        {
+                            Alias = "heads",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "head"
+                        },
+                        new
+                        {
+                            Alias = "handful",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "handful"
+                        },
+                        new
+                        {
+                            Alias = "handfuls",
+                            CaseSensitive = false,
+                            Since = 1,
+                            UnitCode = "handful"
+                        });
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Sites.ReservedSlug", b =>
                 {
                     b.Property<string>("Slug")
@@ -1410,6 +3384,15 @@ namespace PantryPress.MigrationService.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.UnitAlias", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitCode")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

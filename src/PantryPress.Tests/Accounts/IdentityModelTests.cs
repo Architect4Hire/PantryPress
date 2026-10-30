@@ -8,6 +8,7 @@ using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.Domain.Modules.Recipes;
 using PantryPress.MigrationService;
 
 namespace PantryPress.Tests.Accounts;
@@ -32,8 +33,8 @@ public sealed class IdentityModelTests
     // Tables later prompts added beside Identity, each on purpose: PP1.9's idempotency keys (Managers/Idempotency),
     // PP1.10's transactional outbox (Managers/Outbox), PP1.11's audit log (Managers/Audit), PP1.12's signed-out
     // sessions (Modules/Accounts), PP2.2's site, PP2.3's memberships, and PP2.9's hosts, the tenant root (Modules/Sites),
-    // PP2.8's reserved slugs, platform reference data (Modules/Sites), and PP2.11's invitations, the first site-owned
-    // table (Modules/Sites).
+    // PP2.8's reserved slugs, platform reference data (Modules/Sites), PP2.11's invitations, the first site-owned
+    // table (Modules/Sites), and PP4.1's recipe vocabulary, platform reference data (Modules/Recipes).
     private static readonly Type[] OtherEntityTypes =
     [
         typeof(IdempotencyRecord),
@@ -45,6 +46,12 @@ public sealed class IdentityModelTests
         typeof(SiteHost),
         typeof(ReservedSlug),
         typeof(SiteInvitation),
+        typeof(Unit),
+        typeof(UnitAlias),
+        typeof(Course),
+        typeof(Cuisine),
+        typeof(Diet),
+        typeof(Allergen),
     ];
 
     [Fact]

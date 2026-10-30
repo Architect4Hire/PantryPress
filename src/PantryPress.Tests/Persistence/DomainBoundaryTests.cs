@@ -143,12 +143,50 @@ public sealed class DomainBoundaryTests
     public void The_reserved_slug_scan_sees_the_table_and_not_the_policy(string code, bool reaches) =>
         Assert.Equal(reaches, Regex.IsMatch(code, ReservedSlugReference));
 
-    private static void AssertOnlySitesModuleReaches(string pattern, string what)
+    // PP4.1: the recipe vocabulary is seeded by migrations and never written by the app. Recipes will store its codes under
+    // foreign keys (PP4.3), so only the Recipes module and the migrations name its types handed to EF Core, its
+    // configurations, or its tables; other modules ask a Recipes contract. The lists in Business and the bare type names
+    // are let through, since "Unit" and "Course" are ordinary words.
+    private const string VocabularyTypes = @"(?:Unit|UnitAlias|Course|Cuisine|Diet|Allergen)";
+    private const string VocabularyTables = @"(?:Units|UnitAliases|Courses|Cuisines|Diets|Allergens)";
+
+    private const string RecipeVocabularyReference =
+        @"\b(?:(?:Db)?Set|Find(?:Async)?|Entry)<\s*(?:[\w.]+\.)?" + VocabularyTypes + @"\s*>"
+        + @"|\btypeof\(\s*(?:[\w.]+\.)?" + VocabularyTypes + @"\s*\)"
+        + @"|\b" + VocabularyTypes + @"Configuration\b|\bUnitAliases\b"
+        + @"|\[" + VocabularyTables + @"\]|""" + VocabularyTables + @"""|\bdbo\." + VocabularyTables + @"\b"
+        + @"|(?i:\b(?:FROM|JOIN|UPDATE|INTO|TABLE|DELETE|MERGE)\s+(?:\[?dbo\]?\.)?\[?" + VocabularyTables + @"\b)";
+
+    [Fact]
+    public void Only_the_recipes_module_reaches_the_vocabulary_tables() =>
+        AssertOnlyModuleReaches("Recipes", RecipeVocabularyReference, "a recipe vocabulary table");
+
+    [Theory]
+    [InlineData("db.Set<Unit>().Where(u => u.Code == code)", true)]
+    [InlineData("DbSet<PantryPress.Domain.Modules.Recipes.Course> Courses", true)]
+    [InlineData("model.FindEntityType(typeof(UnitAlias))", true)]
+    [InlineData("new DietConfiguration()", true)]
+    [InlineData("SELECT [Code] FROM [Allergens]", true)]
+    [InlineData("select code from cuisines", true)]
+    [InlineData("INSERT INTO UnitAliases VALUES (N'tbsp')", true)]
+    [InlineData("DELETE Diets WHERE Code = 'keto'", true)]
+    [InlineData("MERGE Courses AS t USING source AS s ON t.Code = s.Code", true)]
+    [InlineData("await db.FindAsync<Unit>(code)", true)]
+    [InlineData("db.Entry<Cuisine>(row)", true)]
+    [InlineData("Units.All.Select(u => u.Code)", false)]
+    [InlineData("UnitDimension.Volume", false)]
+    [InlineData("// One unit per course of the meal.", false)]
+    public void The_vocabulary_scan_sees_the_tables_and_not_the_lists(string code, bool reaches) =>
+        Assert.Equal(reaches, Regex.IsMatch(code, RecipeVocabularyReference));
+
+    private static void AssertOnlySitesModuleReaches(string pattern, string what) => AssertOnlyModuleReaches("Sites", pattern, what);
+
+    private static void AssertOnlyModuleReaches(string module, string pattern, string what)
     {
         var source = DomainSource.Project.Parent!;
         var allowed = new[]
         {
-            Path.Combine(source.FullName, "PantryPress.Domain", "Modules", "Sites"),
+            Path.Combine(source.FullName, "PantryPress.Domain", "Modules", module),
             Path.Combine(source.FullName, "PantryPress.MigrationService", "Migrations"),
         };
 
@@ -166,7 +204,7 @@ public sealed class DomainBoundaryTests
                 scanned++;
                 Assert.False(
                     Regex.IsMatch(File.ReadAllText(file.FullName), pattern),
-                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches {what} outside Modules/Sites.");
+                    $"{Path.GetRelativePath(source.FullName, file.FullName)} reaches {what} outside Modules/{module}.");
             }
         }
 

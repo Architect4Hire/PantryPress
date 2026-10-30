@@ -95,6 +95,10 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   with `EnrichSqlServerDbContext`; Aspire's `AddSqlServerDbContext` pools, so no host uses it, and a test says so.
 - Every migration is reviewed (Template K). No data-destroying migration without an explicit plan.
 - Indexes on site-owned tables lead with `SiteId`.
+- Platform reference data (PP-D06) implements `IReferenceData` (`Managers/Persistence`): a versioned list in its
+  module's `Business/` is the one source, the table is seeded from it by a reviewed migration, and the app never writes
+  it - the context refuses a save that adds, changes, or removes a row, and a bulk update or delete (PP4.1). Today that is
+  the reserved slugs (Sites) and the recipe vocabulary (Recipes); a test lists every marked type.
 - No raw SQL with string interpolation. `FromSql` with parameters only, and only in repositories.
 
 ## Tests

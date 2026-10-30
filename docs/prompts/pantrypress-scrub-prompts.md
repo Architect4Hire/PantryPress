@@ -3876,7 +3876,7 @@ for the owner's approval - so the heading stays unmarked. Every finding carries 
 
 ## PP4 — Recipes and calculations
 
-### PP4.1 Reference vocabulary
+### PP4.1 Reference vocabulary - done
 
 ```text
 SCOPE: Add platform reference data for units (with aliases and systems), courses, cuisines, diets, and
@@ -3885,6 +3885,68 @@ CONSTRAINT: PP-D06; recipes.md.
 RESTRICTION: Reference data has no SiteId and is read-only to bloggers.
 BEHAVIOR: Plan, wait for approval, implement with seed tests.
 ```
+
+*PP4.1 delivery note (done 2026-10-30):*
+
+- **What shipped.**
+  - `Modules/Recipes/`, opened early for the vocabulary (PP4.3 adds the recipe to it). Platform reference data (PP-D06,
+    ADR 0006): no `SiteId`, no filter, not `ISiteOwned`. Versioned lists in `Business/` are the one source, as
+    `ReservedSlugs` is:
+    - `Units` - 30 units, each with a `UnitSystem` (US customary, metric, neutral) and a `UnitDimension` (volume,
+      weight, temperature, count), singular, plural, and abbreviation - and its 153 spellings (`Units.Aliases`). A
+      case-insensitive alias is stored lower-case; `T` (tablespoon) and `t` (teaspoon) are the one case-sensitive
+      pair. No bare `C` or `F` temperature.
+    - `Courses` (12), `Cuisines` (25), `Diets` (15, each with its schema.org `RestrictedDiet` member where one exists),
+      and `Allergens` (15: the US FDA's nine and the EU's fourteen together).
+  - Six tables from migration `RecipeVocabulary` (Template K reviewed by `architecture-reviewer`: additive, new tables
+    only, no backfill, `Restrict` only). Each code is `varchar(40)` under a binary collation with the kebab-case shape
+    checked. Also checked: the enums, an alias's case and trimming, its unit (foreign key), and the schema.org member
+    (binary, so `vegandiet` is refused). Names are unique.
+  - `IReferenceData` in `Managers/Persistence`, with `ReferenceDataGuard`. The context refuses a save that adds,
+    changes, or removes a reference row, and a bulk update or delete of one, so the vocabulary is read-only to the app
+    and to every blogger. `ReservedSlug` is opted in too (owner-approved).
+- **Owner-approved choices.**
+  - The module is created here.
+  - No database triggers for read-only: seeds arrive as migration inserts. Raw SQL inside the owning module can still
+    write the tables. That gap is accepted: nothing outside the module may name them (`DomainBoundaryTests`).
+  - Conversion factors and densities are PP4.8's.
+  - No imperial or length units, and names are English only.
+- **What differs from the plan.**
+  - EF Core compares string keys without regard to case, so the alias key has an ordinal comparer: otherwise `T` and
+    `t` are one seed row.
+  - `AddRecipes()` exists empty because every module owes its registration at its root; no host calls it yet.
+  - `ReservedSlugSchemaTests` now reserves through a plain insert, the way a migration does, since the context refuses
+    the write.
+  - From review: a spelling added to an existing unit later goes in `Units.AddedAliases` with its own version.
+- **Tests.**
+  - Lists: code shape, uniqueness, versions, the alias collision rule, spellings, the enums' stored numbers, the
+    schema.org members written out, the allergen union, and every code version 1 seeded kept (append-only).
+  - Model: zone, keys, collations, constraints, and each seed equal to its list. Every seeded table is reference data.
+  - Migrated database: rows equal the lists, and each check refuses its bad row.
+  - Guard: refuses add, change, remove, and bulk writes, sync and async, for every type, and lets an unchanged tracked
+    row and other types' bulk writes by.
+  - Boundary scan, including bare `DELETE` and `MERGE` and `Find<`/`Entry<`.
+  - Two-site test: not owed, since nothing here is site-owned, public, or reader data.
+- **Hand-offs.**
+  - PP4.3 holds codes by foreign key and gives a recipe no navigation to a vocabulary type, which the guard would
+    refuse once tracked as changed. Its rollback plan notes that this migration's `Down()` fails once recipe tables
+    point here.
+  - PP4.5 owns what the parser forgives beyond the exact spellings.
+  - PP4.8 stores any factor or density as an exact rational.
+  - Import (WordPress) needs a mapping and a fallback for a course or cuisine the lists lack.
+  - The tenant-root scan has the same bare `DELETE`/`MERGE` gap the vocabulary scan closed; it is left for the next
+    tenancy change.
+- **Not verified or left.**
+  - The trimmed check sees spaces only, the one blank SQL Server equality ignores. The .NET list test refuses any
+    whitespace.
+  - `dotnet format` reports three whitespace findings in `IdentityModelTests.cs` lines this prompt did not touch;
+    HEAD has the same three.
+  - `aspire run` was not restarted: the user's own run is up, and its migration job will apply `RecipeVocabulary`
+    when it next runs.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet test PantryPress.slnx`: 2,167 passed, 0 failed (unit, integration, two-site).
+  - Reviewers: `architecture-reviewer` (no blockers, no majors) and `test-gap-analyzer` (four majors, all fixed above).
 
 ### PP4.2 Quantity value objects
 
@@ -3898,8 +3960,9 @@ BEHAVIOR: Plan, wait for approval, implement with property-based tests.
 ### PP4.3 Recipes module and recipe entity
 
 ```text
-SCOPE: Create Modules/Recipes/ and add Recipe with ingredient groups and lines, step groups and steps,
-equipment, notes, times, yield, taxonomy, keywords, video, and optional nutrition per RCP-001.
+SCOPE: In Modules/Recipes/ (PP4.1 started it with the vocabulary), add Recipe with ingredient groups and lines,
+step groups and steps, equipment, notes, times, yield, taxonomy, keywords, video, and optional nutrition per RCP-001.
+Units, course, cuisine, diets, and allergens are PP4.1's vocabulary codes, held by foreign key.
 CONSTRAINT: RCP-001, RCP-006; Template C; add-site-entity and add-recipe-feature.
 RESTRICTION: Each ingredient line keeps the original text alongside parsed fields.
 BEHAVIOR: Plan, wait for approval, migrate, test.

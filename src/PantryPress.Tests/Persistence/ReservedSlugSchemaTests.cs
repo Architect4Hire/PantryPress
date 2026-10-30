@@ -123,8 +123,7 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
         db.Add(site);
         await db.SaveChangesAsync(Timeout);
         await db.Database.ExecuteSqlRawAsync(DisableNotHeld, Timeout);
-        db.Add(new ReservedSlug { Slug = site.Slug, Reason = ReservedSlugReason.Product, Since = ReservedSlugs.Version });
-        await db.SaveChangesAsync(Timeout);
+        await ReserveAsync(db, site.Slug);
         await db.Database.ExecuteSqlRawAsync(EnableNotHeld, Timeout);
 
         site.Name = "Still here";
@@ -144,11 +143,7 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
         await AddAsync(site);
 
         await using var scope = _services.CreateAsyncScope();
-        var db = Db(scope);
-        db.Add(new ReservedSlug { Slug = site.Slug, Reason = ReservedSlugReason.Product, Since = ReservedSlugs.Version });
-
-        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Timeout));
-        var sql = Assert.IsType<SqlException>(error.InnerException);
+        var sql = await Assert.ThrowsAsync<SqlException>(() => ReserveAsync(Db(scope), site.Slug));
         Assert.Equal(SlugHeld, sql.Number);
         Assert.Contains($"'{site.Slug}'", sql.Message, StringComparison.Ordinal);
     }
@@ -168,16 +163,14 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
         await claim.SaveChangesAsync(Timeout);
 
         await using var reserveScope = _services.CreateAsyncScope();
-        var reserve = Db(reserveScope);
-        reserve.Add(new ReservedSlug { Slug = slug, Reason = ReservedSlugReason.Product, Since = ReservedSlugs.Version });
-        var reserving = reserve.SaveChangesAsync(Timeout);
+        var reserving = ReserveAsync(Db(reserveScope), slug);
 
         await Task.Delay(TimeSpan.FromSeconds(1), Timeout);
         Assert.False(reserving.IsCompleted, "The reservation read past a site whose claim had not committed.");
 
         await claimTransaction.CommitAsync(Timeout);
-        var error = await Assert.ThrowsAsync<DbUpdateException>(() => reserving);
-        Assert.Equal(SlugHeld, Assert.IsType<SqlException>(error.InnerException).Number);
+        var error = await Assert.ThrowsAsync<SqlException>(() => reserving);
+        Assert.Equal(SlugHeld, error.Number);
     }
 
     // The control for the test above: a slug nobody holds can be reserved, and then no site can take it.
@@ -189,8 +182,7 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
         await using var scope = _services.CreateAsyncScope();
         var db = Db(scope);
         await using var transaction = await db.Database.BeginTransactionAsync(Timeout);
-        db.Add(new ReservedSlug { Slug = slug, Reason = ReservedSlugReason.Product, Since = ReservedSlugs.Version });
-        await db.SaveChangesAsync(Timeout);
+        await ReserveAsync(db, slug);
 
         db.Add(NewSite(slug));
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Timeout));
@@ -203,12 +195,10 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
     public async Task A_reason_outside_the_list_is_refused(int reason)
     {
         await using var scope = _services.CreateAsyncScope();
-        var db = Db(scope);
-        db.Add(new ReservedSlug { Slug = UniqueSlug("why"), Reason = (ReservedSlugReason)reason, Since = ReservedSlugs.Version });
 
-        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(Timeout));
-        Assert.Equal(CheckConstraintViolation, Assert.IsType<SqlException>(error.InnerException).Number);
-        Assert.Contains(ReservedSlugConfiguration.ReasonConstraintName, error.InnerException!.Message, StringComparison.Ordinal);
+        var error = await Assert.ThrowsAsync<SqlException>(() => ReserveAsync(Db(scope), UniqueSlug("why"), reason));
+        Assert.Equal(CheckConstraintViolation, error.Number);
+        Assert.Contains(ReservedSlugConfiguration.ReasonConstraintName, error.Message, StringComparison.Ordinal);
     }
 
     private static Site NewSite(string slug) => new()
@@ -225,6 +215,12 @@ public sealed class ReservedSlugSchemaTests(MigratedDatabase database) : IAsyncL
 
     // Lower-case hex keeps every slug inside the shape and unique to this run, since the database is shared.
     private static string UniqueSlug(string prefix) => $"{prefix}-{Guid.NewGuid():N}";
+
+    // A reservation the way a migration makes one, a plain insert: the context refuses to write reference data (PP4.1).
+    private static Task<int> ReserveAsync(PantryPressDbContext db, string slug, int reason = (int)ReservedSlugReason.Product) =>
+        db.Database.ExecuteSqlAsync(
+            $"INSERT INTO [ReservedSlugs] ([Slug], [Reason], [Since]) VALUES ({slug}, {reason}, {ReservedSlugs.Version})",
+            Timeout);
 
     private static PantryPressDbContext Db(AsyncServiceScope scope) => scope.ServiceProvider.GetRequiredService<PantryPressDbContext>();
 

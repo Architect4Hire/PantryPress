@@ -1,14 +1,16 @@
+using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Modules.Sites.Contracts;
 
 namespace PantryPress.Domain.Modules.Sites;
 
 /// <summary>
 /// A slug no site may take (SITE-002; PP2.8). Platform reference data (ADR 0006): no <c>SiteId</c>, the same rows in every
-/// environment, seeded by migrations from <c>Business.ReservedSlugs</c> and never written by the app: only the Sites module
-/// and the migrations name it, which a boundary test holds. The slug policy reads that list in .NET; the table is what the
+/// environment, seeded by migrations from <c>Business.ReservedSlugs</c> and never written by the app: the context refuses
+/// it (<see cref="IReferenceData"/>, PP4.1), and only the Sites module and the migrations name it, which a boundary test
+/// holds. The slug policy reads that list in .NET; the table is what the
 /// database checks a site's slug against, beneath the policy.
 /// </summary>
-public sealed class ReservedSlug
+public sealed class ReservedSlug : IReferenceData
 {
     /// <summary>The stored form: ASCII lower-case.</summary>
     public string Slug { get; init; } = string.Empty;
