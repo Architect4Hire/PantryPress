@@ -985,6 +985,545 @@ namespace PantryPress.MigrationService.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Recipe", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("AdditionalMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AdditionalTimeLabel")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("Calories")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("CarbohydrateGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("CholesterolMilligrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<int?>("CookMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("FatGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("FiberGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<int?>("PrepMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ProteinGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("SaturatedFatGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<string>("ServingSize")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<decimal?>("SodiumMilligrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("SugarGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("TransFatGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<decimal?>("UnsaturatedFatGrams")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("YieldUnit")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<long?>("_yieldHighDenominator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("YieldHighDenominator");
+
+                    b.Property<long?>("_yieldHighNumerator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("YieldHighNumerator");
+
+                    b.Property<int?>("_yieldKind")
+                        .HasColumnType("int")
+                        .HasColumnName("YieldKind");
+
+                    b.Property<long?>("_yieldLowDenominator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("YieldLowDenominator");
+
+                    b.Property<long?>("_yieldLowNumerator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("YieldLowNumerator");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.ToTable("Recipes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Recipes_AdditionalTimeLabel", "[AdditionalTimeLabel] IS NULL OR ([AdditionalMinutes] IS NOT NULL AND LEN([AdditionalTimeLabel]) > 0)");
+
+                            t.HasCheckConstraint("CK_Recipes_Nutrition", "([Calories] IS NULL OR [Calories] >= 0) AND ([FatGrams] IS NULL OR [FatGrams] >= 0) AND ([SaturatedFatGrams] IS NULL OR [SaturatedFatGrams] >= 0) AND ([TransFatGrams] IS NULL OR [TransFatGrams] >= 0) AND ([UnsaturatedFatGrams] IS NULL OR [UnsaturatedFatGrams] >= 0) AND ([CholesterolMilligrams] IS NULL OR [CholesterolMilligrams] >= 0) AND ([SodiumMilligrams] IS NULL OR [SodiumMilligrams] >= 0) AND ([CarbohydrateGrams] IS NULL OR [CarbohydrateGrams] >= 0) AND ([FiberGrams] IS NULL OR [FiberGrams] >= 0) AND ([SugarGrams] IS NULL OR [SugarGrams] >= 0) AND ([ProteinGrams] IS NULL OR [ProteinGrams] >= 0)");
+
+                            t.HasCheckConstraint("CK_Recipes_Text", "([Summary] IS NULL OR LEN([Summary]) > 0) AND ([ServingSize] IS NULL OR LEN([ServingSize]) > 0)");
+
+                            t.HasCheckConstraint("CK_Recipes_Times", "([PrepMinutes] IS NULL OR [PrepMinutes] BETWEEN 0 AND 43200) AND ([CookMinutes] IS NULL OR [CookMinutes] BETWEEN 0 AND 43200) AND ([AdditionalMinutes] IS NULL OR [AdditionalMinutes] BETWEEN 0 AND 43200)");
+
+                            t.HasCheckConstraint("CK_Recipes_Title", "LEN([Title]) > 0");
+
+                            t.HasCheckConstraint("CK_Recipes_UpdatedAt", "[UpdatedAt] >= [CreatedAt]");
+
+                            t.HasCheckConstraint("CK_Recipes_VideoUrl", "[VideoUrl] IS NULL OR (LEN([VideoUrl]) > 8 AND LEFT([VideoUrl], 8) = 'https://' COLLATE Latin1_General_100_BIN2)");
+
+                            t.HasCheckConstraint("CK_Recipes_YieldKind", "[YieldKind] IS NULL OR [YieldKind] IN (0, 1)");
+
+                            t.HasCheckConstraint("CK_Recipes_YieldRange", "[YieldHighNumerator] IS NULL OR CAST([YieldLowNumerator] AS decimal(38, 0)) * [YieldHighDenominator] < CAST([YieldHighNumerator] AS decimal(38, 0)) * [YieldLowDenominator]");
+
+                            t.HasCheckConstraint("CK_Recipes_YieldShape", "([YieldKind] IS NULL AND [YieldLowNumerator] IS NULL AND [YieldLowDenominator] IS NULL AND [YieldHighNumerator] IS NULL AND [YieldHighDenominator] IS NULL) OR ([YieldKind] IS NOT NULL AND [YieldKind] = 2 AND [YieldLowNumerator] IS NULL AND [YieldLowDenominator] IS NULL AND [YieldHighNumerator] IS NULL AND [YieldHighDenominator] IS NULL) OR ([YieldKind] IS NOT NULL AND [YieldKind] = 0 AND [YieldLowNumerator] IS NOT NULL AND [YieldLowDenominator] IS NOT NULL AND [YieldHighNumerator] IS NULL AND [YieldHighDenominator] IS NULL) OR ([YieldKind] IS NOT NULL AND [YieldKind] = 1 AND [YieldLowNumerator] IS NOT NULL AND [YieldLowDenominator] IS NOT NULL AND [YieldHighNumerator] IS NOT NULL AND [YieldHighDenominator] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Recipes_YieldTerms", "([YieldLowNumerator] IS NULL OR [YieldLowNumerator] BETWEEN 1 AND 1000000) AND ([YieldLowDenominator] IS NULL OR [YieldLowDenominator] BETWEEN 1 AND 1000000) AND ([YieldHighNumerator] IS NULL OR [YieldHighNumerator] BETWEEN 1 AND 1000000) AND ([YieldHighDenominator] IS NULL OR [YieldHighDenominator] BETWEEN 1 AND 1000000)");
+
+                            t.HasCheckConstraint("CK_Recipes_YieldUnit", "[YieldUnit] IS NULL OR ([YieldKind] IS NOT NULL AND LEN([YieldUnit]) > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeAllergen", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AllergenCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.HasKey("SiteId", "RecipeId", "AllergenCode");
+
+                    b.HasIndex("SiteId", "AllergenCode");
+
+                    b.ToTable("RecipeAllergens", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeAllergens_Position", "[Position] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeCourse", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CourseCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.HasKey("SiteId", "RecipeId", "CourseCode");
+
+                    b.HasIndex("SiteId", "CourseCode");
+
+                    b.ToTable("RecipeCourses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeCourses_Position", "[Position] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeCuisine", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CuisineCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.HasKey("SiteId", "RecipeId", "CuisineCode");
+
+                    b.HasIndex("SiteId", "CuisineCode");
+
+                    b.ToTable("RecipeCuisines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeCuisines_Position", "[Position] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeDiet", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DietCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.HasKey("SiteId", "RecipeId", "DietCode");
+
+                    b.HasIndex("SiteId", "DietCode");
+
+                    b.ToTable("RecipeDiets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeDiets_Position", "[Position] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeEquipment", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("SiteId", "RecipeId", "Position");
+
+                    b.ToTable("RecipeEquipment", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeEquipment_Position", "[Position] >= 0");
+
+                            t.HasCheckConstraint("CK_RecipeEquipment_Text", "LEN([Text]) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeIngredient", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Item")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OriginalText")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ParseStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuantityLength")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuantityStart")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UnitCode")
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<int?>("UnitLength")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UnitStart")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("_quantityHighDenominator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuantityHighDenominator");
+
+                    b.Property<long?>("_quantityHighNumerator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuantityHighNumerator");
+
+                    b.Property<int?>("_quantityKind")
+                        .HasColumnType("int")
+                        .HasColumnName("QuantityKind");
+
+                    b.Property<long?>("_quantityLowDenominator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuantityLowDenominator");
+
+                    b.Property<long?>("_quantityLowNumerator")
+                        .HasColumnType("bigint")
+                        .HasColumnName("QuantityLowNumerator");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "GroupId", "Position");
+
+                    b.ToTable("RecipeIngredients", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeIngredients_OriginalText", "LEN([OriginalText]) > 0");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_ParseStatus", "[ParseStatus] IN (0, 1)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_Parsed", "([ParseStatus] <> 0 OR [Item] IS NOT NULL) AND ([Item] IS NULL OR LEN([Item]) > 0) AND ([Note] IS NULL OR LEN([Note]) > 0)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_Position", "[Position] >= 0");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_QuantityKind", "[QuantityKind] IS NULL OR [QuantityKind] IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_QuantityRange", "[QuantityHighNumerator] IS NULL OR CAST([QuantityLowNumerator] AS decimal(38, 0)) * [QuantityHighDenominator] < CAST([QuantityHighNumerator] AS decimal(38, 0)) * [QuantityLowDenominator]");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_QuantityShape", "([QuantityKind] IS NULL AND [QuantityLowNumerator] IS NULL AND [QuantityLowDenominator] IS NULL AND [QuantityHighNumerator] IS NULL AND [QuantityHighDenominator] IS NULL) OR ([QuantityKind] IS NOT NULL AND [QuantityKind] = 2 AND [QuantityLowNumerator] IS NULL AND [QuantityLowDenominator] IS NULL AND [QuantityHighNumerator] IS NULL AND [QuantityHighDenominator] IS NULL) OR ([QuantityKind] IS NOT NULL AND [QuantityKind] = 0 AND [QuantityLowNumerator] IS NOT NULL AND [QuantityLowDenominator] IS NOT NULL AND [QuantityHighNumerator] IS NULL AND [QuantityHighDenominator] IS NULL) OR ([QuantityKind] IS NOT NULL AND [QuantityKind] = 1 AND [QuantityLowNumerator] IS NOT NULL AND [QuantityLowDenominator] IS NOT NULL AND [QuantityHighNumerator] IS NOT NULL AND [QuantityHighDenominator] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_QuantitySpan", "(([QuantityStart] IS NULL AND [QuantityLength] IS NULL) OR ([QuantityStart] IS NOT NULL AND [QuantityLength] IS NOT NULL AND [QuantityStart] >= 0 AND [QuantityLength] > 0 AND [QuantityStart] <= DATALENGTH([OriginalText]) / 2 AND [QuantityLength] <= DATALENGTH([OriginalText]) / 2 - [QuantityStart])) AND ([QuantityStart] IS NULL OR [QuantityKind] IS NOT NULL) AND ([QuantityStart] IS NOT NULL OR [QuantityKind] IS NULL OR [QuantityKind] = 2)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_QuantityTerms", "([QuantityLowNumerator] IS NULL OR [QuantityLowNumerator] BETWEEN 1 AND 1000000) AND ([QuantityLowDenominator] IS NULL OR [QuantityLowDenominator] BETWEEN 1 AND 1000000) AND ([QuantityHighNumerator] IS NULL OR [QuantityHighNumerator] BETWEEN 1 AND 1000000) AND ([QuantityHighDenominator] IS NULL OR [QuantityHighDenominator] BETWEEN 1 AND 1000000)");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_SpansApart", "[QuantityStart] IS NULL OR [UnitStart] IS NULL OR CAST([QuantityStart] AS bigint) + [QuantityLength] <= [UnitStart] OR CAST([UnitStart] AS bigint) + [UnitLength] <= [QuantityStart]");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_Unit", "[UnitCode] IS NULL OR ([QuantityKind] IS NOT NULL AND [QuantityKind] IN (0, 1))");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_UnitSpan", "(([UnitStart] IS NULL AND [UnitLength] IS NULL) OR ([UnitStart] IS NOT NULL AND [UnitLength] IS NOT NULL AND [UnitStart] >= 0 AND [UnitLength] > 0 AND [UnitStart] <= DATALENGTH([OriginalText]) / 2 AND [UnitLength] <= DATALENGTH([OriginalText]) / 2 - [UnitStart])) AND (([UnitCode] IS NULL AND [UnitStart] IS NULL) OR ([UnitCode] IS NOT NULL AND [UnitStart] IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_RecipeIngredients_Unparsed", "[ParseStatus] <> 1 OR ([QuantityKind] IS NULL AND [UnitCode] IS NULL AND [Item] IS NULL AND [Note] IS NULL AND [QuantityStart] IS NULL AND [UnitStart] IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeIngredientGroup", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Heading")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "RecipeId", "Position");
+
+                    b.ToTable("RecipeIngredientGroups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeIngredientGroups_Heading", "[Heading] IS NULL OR LEN([Heading]) > 0");
+
+                            t.HasCheckConstraint("CK_RecipeIngredientGroups_Position", "[Position] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeKeyword", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.HasKey("SiteId", "RecipeId", "Position");
+
+                    b.ToTable("RecipeKeywords", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeKeywords_Position", "[Position] >= 0");
+
+                            t.HasCheckConstraint("CK_RecipeKeywords_Text", "LEN([Text]) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeNote", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("SiteId", "RecipeId", "Position");
+
+                    b.ToTable("RecipeNotes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeNotes_Position", "[Position] >= 0");
+
+                            t.HasCheckConstraint("CK_RecipeNotes_Text", "LEN([Text]) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeStep", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "GroupId", "Position");
+
+                    b.ToTable("RecipeSteps", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeSteps_Position", "[Position] >= 0");
+
+                            t.HasCheckConstraint("CK_RecipeSteps_Text", "LEN([Text]) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeStepGroup", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Heading")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "RecipeId", "Position");
+
+                    b.ToTable("RecipeStepGroups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RecipeStepGroups_Heading", "[Heading] IS NULL OR LEN([Heading]) > 0");
+
+                            t.HasCheckConstraint("CK_RecipeStepGroups_Position", "[Position] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.Unit", b =>
                 {
                     b.Property<string>("Code")
@@ -3383,6 +3922,134 @@ namespace PantryPress.MigrationService.Migrations
                     b.HasOne("PantryPress.Domain.Modules.Accounts.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeAllergen", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Allergen", null)
+                        .WithMany()
+                        .HasForeignKey("AllergenCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeCourse", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeCuisine", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Cuisine", null)
+                        .WithMany()
+                        .HasForeignKey("CuisineCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeDiet", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Diet", null)
+                        .WithMany()
+                        .HasForeignKey("DietCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeEquipment", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeIngredient", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitCode")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.RecipeIngredientGroup", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeIngredientGroup", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeKeyword", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeNote", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeStep", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.RecipeStepGroup", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeStepGroup", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

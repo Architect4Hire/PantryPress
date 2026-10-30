@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,14 @@ public sealed class SiteOwnershipModelTests
     // The written exceptions that carry a site without being site-owned (tenancy.md, "Operator tables" and "Tenant root").
     private static readonly string[] SiteBearingExceptions = ["Site", "SiteMember", "SiteHost", "OutboxMessage", "AuditEntry"];
 
+    // The product's site-owned types, in ordinal order: the invitation (PP2.11) and the recipe tables (PP4.3). A new one is
+    // added here on purpose, with its two-site test.
+    private static readonly string[] ProductSiteOwned =
+    [
+        "Recipe", "RecipeAllergen", "RecipeCourse", "RecipeCuisine", "RecipeDiet", "RecipeEquipment", "RecipeIngredient",
+        "RecipeIngredientGroup", "RecipeKeyword", "RecipeNote", "RecipeStep", "RecipeStepGroup", "SiteInvitation",
+    ];
+
     [Fact]
     public void Every_site_owned_type_is_filtered_by_site_and_guards_its_site_on_write()
     {
@@ -29,11 +38,14 @@ public sealed class SiteOwnershipModelTests
         var model = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Model;
 
         var siteOwned = SiteOwnedTypes(model);
-        Assert.Equal(["ProbeRecipe", "ProbeStep", "SiteInvitation"], siteOwned.Select(t => t.ClrType.Name).Order());
+        Assert.Equal(
+            ProductSiteOwned.Append("ProbeRecipe").Append("ProbeStep").Order(StringComparer.Ordinal),
+            siteOwned.Select(t => t.ClrType.Name).Order(StringComparer.Ordinal));
         Assert.All(siteOwned, AssertSiteGuarded);
     }
 
-    // The product model's site-owned types - the first, SiteInvitation, came with PP2.11 - and the written exceptions.
+    // The product model's site-owned types - SiteInvitation with PP2.11, the recipe tables with PP4.3 - and the written
+    // exceptions.
     [Fact]
     public void The_product_model_filters_every_site_owned_type_and_nothing_else_that_carries_a_site()
     {
@@ -41,6 +53,7 @@ public sealed class SiteOwnershipModelTests
         using var scope = services.CreateScope();
         var model = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Model;
 
+        Assert.Equal(ProductSiteOwned, SiteOwnedTypes(model).Select(t => t.ClrType.Name).Order(StringComparer.Ordinal));
         Assert.All(SiteOwnedTypes(model), AssertSiteGuarded);
 
         // The key is the clustered index, which GetIndexes leaves out, so it leads with the site too (ARCH-015; PP2.14).
@@ -55,6 +68,41 @@ public sealed class SiteOwnershipModelTests
         Assert.All(
             model.GetEntityTypes().Where(t => !typeof(ISiteOwned).IsAssignableFrom(t.ClrType)),
             t => Assert.Empty(t.GetDeclaredQueryFilters()));
+    }
+
+    // PP4.3: a site-owned table's reference to platform reference data gets no index by its code alone, which would not lead
+    // with the site; a unique one keeps its index, which enforces a rule; and a reference to anything else keeps its index,
+    // so the site-led index check above fails on it rather than the index vanishing unremarked.
+    [Fact]
+    public void A_site_owned_reference_to_reference_data_gets_no_index_by_code_alone()
+    {
+        using var services = Services(o => o.ReplaceService<IModelCustomizer, ReferenceIndexCustomizer>());
+        using var scope = services.CreateScope();
+        var tagged = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Model.FindEntityType(typeof(ProbeTagged))!;
+        var indexes = tagged.GetIndexes().Select(i => (Columns: string.Join(",", i.Properties.Select(p => p.Name)), i.IsUnique)).ToList();
+
+        Assert.Equal(4, tagged.GetForeignKeys().Count());
+        Assert.DoesNotContain(indexes, i => i.Columns == nameof(ProbeTagged.WordCode));
+        Assert.Contains((nameof(ProbeTagged.OnlyWordCode), true), indexes);
+        Assert.Contains((nameof(ProbeTagged.PersonId), false), indexes);
+        Assert.Contains(($"{nameof(ProbeTagged.SiteId)},{nameof(ProbeTagged.SiteWordCode)}", false), indexes);
+    }
+
+    // The convention is the context's for every type, and leaves a table that is not site-owned as EF Core would: the unit
+    // aliases keep their index on the unit, and Identity's tables keep theirs.
+    [Fact]
+    public void A_reference_from_a_table_that_is_not_site_owned_keeps_its_index()
+    {
+        using var services = Services();
+        using var scope = services.CreateScope();
+        var model = scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Model;
+
+        Assert.Contains(
+            model.FindEntityType(typeof(PantryPress.Domain.Modules.Recipes.UnitAlias))!.GetIndexes(),
+            i => i.Properties.Select(p => p.Name).SequenceEqual(["UnitCode"]));
+        Assert.Contains(
+            model.GetEntityTypes().Single(t => t.GetTableName() == "AspNetUserRoles").GetIndexes(),
+            i => i.Properties.Select(p => p.Name).SequenceEqual(["RoleId"]));
     }
 
     [Fact]
@@ -230,7 +278,10 @@ public sealed class SiteOwnershipModelTests
         services.AddAccountsIdentitySchema();
         services.AddPantryPressDbContext((_, options) =>
         {
-            options.UseSqlServer(Unused);
+            // Each planted model is EF Core's own internal provider, which it counts across the whole test process; the count
+            // says nothing about the site rules, so it is ignored here, as IdentityModelTests does.
+            options.UseSqlServer(Unused)
+                .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             customize?.Invoke(options);
         });
         return services.BuildServiceProvider(validateScopes: true);
@@ -360,5 +411,59 @@ internal sealed class DerivedSiteOwnedCustomizer(ModelCustomizerDependencies dep
         base.Customize(modelBuilder, context);
         modelBuilder.Entity<ProbeBase>();
         modelBuilder.Entity<ProbeDerived>();
+    }
+}
+
+internal sealed class ProbeWord : IReferenceData
+{
+    public string Code { get; set; } = string.Empty;
+}
+
+internal sealed class ProbePerson
+{
+    public Guid Id { get; set; }
+}
+
+internal sealed class ProbeTagged : ISiteOwned
+{
+    public Guid Id { get; set; }
+
+    public SiteId SiteId { get; set; }
+
+    public string WordCode { get; set; } = string.Empty;
+
+    public string? OnlyWordCode { get; set; }
+
+    public Guid PersonId { get; set; }
+
+    public string SiteWordCode { get; set; } = string.Empty;
+}
+
+internal sealed class ProbeSiteWord : IReferenceData
+{
+    public SiteId SiteId { get; set; }
+
+    public string Code { get; set; } = string.Empty;
+}
+
+internal sealed class ReferenceIndexCustomizer(ModelCustomizerDependencies dependencies) : RelationalModelCustomizer(dependencies)
+{
+    public override void Customize(ModelBuilder modelBuilder, DbContext context)
+    {
+        base.Customize(modelBuilder, context);
+        modelBuilder.Entity<ProbeWord>().HasKey(w => w.Code);
+        modelBuilder.Entity<ProbeSiteWord>().HasKey(w => new { w.SiteId, w.Code });
+        modelBuilder.Entity<ProbeTagged>(tagged =>
+        {
+            tagged.HasKey(t => new { t.SiteId, t.Id });
+            tagged.HasOne<ProbeWord>().WithMany().HasForeignKey(t => t.WordCode);
+            tagged.HasOne<ProbeWord>().WithOne().HasForeignKey<ProbeTagged>(t => t.OnlyWordCode);
+            tagged.HasOne<ProbePerson>().WithMany().HasForeignKey(t => t.PersonId);
+
+            // A reference to reference data that already leads with the site keeps its index.
+            tagged.HasOne<ProbeSiteWord>().WithMany()
+                .HasForeignKey(t => new { t.SiteId, t.SiteWordCode })
+                .HasPrincipalKey(w => new { w.SiteId, w.Code });
+        });
     }
 }

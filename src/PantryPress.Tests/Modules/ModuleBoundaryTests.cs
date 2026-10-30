@@ -413,15 +413,43 @@ public sealed class ModuleBoundaryTests
             .Select(b => Regex.Match(b.Trim(), @"^\w+").Value)
             .Where(b => b.Length > 0)];
 
-    // The types declared in a module's root files, other than its registration.
+    // The types declared in a module's root files, other than its registration. A keyword after a colon or a comma is a
+    // generic constraint (`where T : class`), not a declaration, so the word after it is never taken for a type (PP4.3).
     private static HashSet<string> RootTypes(DirectoryInfo module) =>
         module.EnumerateFiles("*.cs", SearchOption.TopDirectoryOnly)
             .Where(f => f.Name != Registration(module.Name))
-            .SelectMany(f => Regex.Matches(
-                    Code(File.ReadAllText(f.FullName)),
-                    @"\b(?:class|record|struct|interface|enum)\s+(?:(?:class|struct)\s+)?(\w+)")
-                .Select(m => m.Groups[1].Value))
+            .SelectMany(f => DeclaredTypes(Code(File.ReadAllText(f.FullName))))
             .ToHashSet(StringComparer.Ordinal);
+
+    private static IEnumerable<string> DeclaredTypes(string code) =>
+        Regex.Matches(code, @"(?<![:,]\s*)\b(?:class|record|struct|interface|enum)\s+(?:(?:class|struct)\s+)?(\w+)")
+            .Select(m => m.Groups[1].Value);
+
+    // The root-type scan reads declarations, never a generic constraint: `where T : class` followed by another clause once
+    // made "where" a root type (PP4.3), and a scan that hid a real declaration would let its type pass unseen.
+    [Theory]
+    [InlineData("internal static class X { void M<T>() where T : class {} }", "X")]
+    [InlineData("static void Q<TA, TB>() where TA : class\n where TB : class, new() { }", "")]
+    [InlineData("void E<TEnum>() where TEnum : struct, Enum { }", "")]
+    [InlineData("public readonly record struct StoredQuantity(long? Low)", "StoredQuantity")]
+    [InlineData("public sealed class Recipe : ISiteOwned { }", "Recipe")]
+    [InlineData("public enum QuantityKind : int { Amount }", "QuantityKind")]
+    [InlineData("internal sealed record Pair(int A, int B); public interface IThing { }", "Pair,IThing")]
+    public void The_root_type_scan_reads_declarations_not_constraints(string code, string expected) =>
+        Assert.Equal(expected.Split(',', StringSplitOptions.RemoveEmptyEntries), DeclaredTypes(code));
+
+    [Fact]
+    public void The_recipes_root_types_are_read_whole()
+    {
+        var recipes = RootTypes(new DirectoryInfo(Path.Combine(DomainSource.Modules.FullName, "Recipes")));
+
+        Assert.Contains("Recipe", recipes);
+        Assert.Contains("RecipeIngredient", recipes);
+        Assert.Contains("RecipeColumnConfiguration", recipes);
+        Assert.DoesNotContain("where", recipes);
+        Assert.DoesNotContain("class", recipes);
+        Assert.DoesNotContain("struct", recipes);
+    }
 
     private static void AssertDoesNotName(string code, string pattern, string? file, string rule)
     {

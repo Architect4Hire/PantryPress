@@ -21,10 +21,50 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - Every scaled and converted variant is precomputed when page data is built (RND-003). The browser only
   switches between them.
 
+## Quantity (PP4.2)
+
+- `Rational`, `Quantity`, and `QuantityText` in `Modules/Recipes/Business/` are the one way a quantity is held and written.
+  Nothing outside Recipes names them; another module gets formatted text through a Recipes contract. The stored enums,
+  `QuantityKind` and `QuantityStyle`, are in `Contracts/`, so a contract can say which a line is.
+- `Rational` is always in lowest terms with a positive denominator, worked in 128 bits and checked back into 64: a result
+  that cannot fit throws, never wraps or rounds. Nothing in Recipes' `Business/` names a floating-point type, `Math`, or a
+  floating-point literal; a test scans every file there.
+- `Quantity` is an `Amount` above zero, a `Range` whose low end is above zero and below its high end, or `ToTaste`, which
+  has no amount (`HasAmount`) and is never scaled. `MultiplyBy` is exact. Rounding, and whether a whole line scales (one
+  egg at half), are the scaling service's (PP4.7).
+- `QuantityText` never rounds, reads no culture, and writes ASCII digits and `.`, exactly for every value a `Rational`
+  holds. Fraction style is a mixed number: halves, thirds, quarters, and eighths are one character joined to the whole
+  (`1½`), and any other remainder is ASCII after a space (`1 5/16`). Decimal style writes a value that ends within three
+  places (`0.125`), and any other value as a fraction; a range is decimals only if both ends are. A range uses an en dash
+  with no spaces (`2–3`). `to taste` labels the structured line (editor, paste-to-parse); readers see the blogger's own
+  words for it.
+
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).
 - Published recipe revisions are immutable; editing creates a draft (RCP-007).
+- The recipe tables (PP4.3) are the live editing tables: site-owned and private, never read by page data (ARCH-004).
+  `Recipe` holds title, summary, yield, prep/cook/additional minutes, video URL, and nutrition per serving. Its parts are
+  their own rows, all keyed `(SiteId, …)`:
+  - ingredient groups and their lines;
+  - step groups and their steps;
+  - equipment, notes, and keywords, each a list keyed by position;
+  - courses, cuisines, diets, and allergens, each a set of vocabulary codes under a foreign key, with no navigation.
+- Each part refers to its parent by `(SiteId, id)`, and a recipe's delete cascades to its parts. There is no foreign key to
+  `Sites`.
+- An ingredient line keeps `OriginalText` exactly as written, never trimmed. Beside it are the parse status, the quantity,
+  the unit code, the item, and the note, plus where the quantity and the unit are in the text, counted in UTF-16 code units.
+  - A line that is `Unparsed` has none of these.
+  - An amount or a range always has its span, and a unit always has its span.
+- A stored quantity's columns are written and read only through `StoredQuantity`: the kind, then numerator and denominator
+  for each end.
+  - Each term is from 1 to `RecipeLimits.MaxQuantityTerm` (1,000,000).
+  - A yield is an amount or a range, never "to taste"; its unit is the blogger's own word.
+- What is not stored:
+  - Total time is the sum of the other times (PP4.9).
+  - Diets and allergens exist only as the blogger's choices.
+  - Nutrition is `decimal(9,2)` as entered, never estimated.
+- `Recipe.Version` is the one concurrency token, so a change to any part moves the recipe's `UpdatedAt` (PP4.11).
 - Badges come from a closed list, max 4; the chef note is plain text, max 280 characters (RCP-010).
 
 ## Reference vocabulary (PP4.1)

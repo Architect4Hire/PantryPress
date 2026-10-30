@@ -52,6 +52,18 @@ public sealed class IdentityModelTests
         typeof(Cuisine),
         typeof(Diet),
         typeof(Allergen),
+        typeof(Recipe),
+        typeof(RecipeIngredientGroup),
+        typeof(RecipeIngredient),
+        typeof(RecipeStepGroup),
+        typeof(RecipeStep),
+        typeof(RecipeEquipment),
+        typeof(RecipeNote),
+        typeof(RecipeKeyword),
+        typeof(RecipeCourse),
+        typeof(RecipeCuisine),
+        typeof(RecipeDiet),
+        typeof(RecipeAllergen),
     ];
 
     [Fact]

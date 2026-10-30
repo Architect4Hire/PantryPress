@@ -94,7 +94,7 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   Every host registers it with `AddPantryPressDbContext` and adds the Aspire client's retries, tracing, and health check
   with `EnrichSqlServerDbContext`; Aspire's `AddSqlServerDbContext` pools, so no host uses it, and a test says so.
 - Every migration is reviewed (Template K). No data-destroying migration without an explicit plan.
-- Indexes on site-owned tables lead with `SiteId`.
+- Indexes on site-owned tables lead with `SiteId`. EF Core's foreign-key index convention is replaced by `SiteForeignKeyIndexConvention` (PP4.3), so a site-owned table's non-unique reference to platform reference data (a recipe line's unit code) gets no index by the code alone; a read by code declares one led by the site. Any other reference keeps EF Core's index, and the model tests fail on one that does not lead with the site.
 - Platform reference data (PP-D06) implements `IReferenceData` (`Managers/Persistence`): a versioned list in its
   module's `Business/` is the one source, the table is seeded from it by a reviewed migration, and the app never writes
   it - the context refuses a save that adds, changes, or removes a row, and a bulk update or delete (PP4.1). Today that is

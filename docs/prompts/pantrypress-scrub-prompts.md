@@ -3948,7 +3948,7 @@ BEHAVIOR: Plan, wait for approval, implement with seed tests.
   - `dotnet test PantryPress.slnx`: 2,167 passed, 0 failed (unit, integration, two-site).
   - Reviewers: `architecture-reviewer` (no blockers, no majors) and `test-gap-analyzer` (four majors, all fixed above).
 
-### PP4.2 Quantity value objects
+### PP4.2 Quantity value objects - done
 
 ```text
 SCOPE: Add Quantity (exact rationals, fractions, ranges, "to taste") and display formatting.
@@ -3957,7 +3957,61 @@ RESTRICTION: No floating-point arithmetic for quantities.
 BEHAVIOR: Plan, wait for approval, implement with property-based tests.
 ```
 
-### PP4.3 Recipes module and recipe entity
+*PP4.2 delivery note (done 2026-10-30):*
+
+- **What shipped.** Pure code in `Modules/Recipes/Business/`, no migration, endpoint, or UI.
+  - `Rational`: an exact fraction, always in lowest terms with a positive denominator, so equality, hashing, and storage
+    agree; `default` is 0/1. Arithmetic is worked in 128 bits, reduced, and checked back into 64, so it throws
+    `OverflowException` only when the answer's lowest terms cannot fit - never wraps or rounds. No conversion to or from
+    any floating-point type.
+  - `Quantity`: an `Amount` above zero, a `Range` with 0 < low < high, or `ToTaste` (no amount, `HasAmount` false).
+    `MultiplyBy` is exact and leaves `ToTaste` as it is. `Low` and `High` are nullable, set by kind, which PP4.3 maps to
+    columns.
+  - `QuantityText`: exact display text, no rounding, no culture read, for every value a `Rational` holds (the most
+    negative included). Fraction style is a mixed number with one-character halves, thirds, quarters, and eighths (`1½`)
+    and ASCII for any other remainder (`1 5/16`); decimal style is used only where the decimal ends within three places
+    and falls back to a fraction otherwise, a range only when both ends can be; ranges use an en dash (`2–3`).
+  - `QuantityKind` and `QuantityStyle`, stored numbers pinned, in `Contracts/`.
+  - CsCheck 4.9.1, test-only, for the property tests.
+- **Owner-approved choices.** Business, not Contracts, for the value types; formatting never rounds (PP4.7 snaps);
+  glyphs only for the denominators 2, 3, 4, 8; `.` as the decimal point whatever the site's locale; no storage caps here.
+- **What differs from the plan.**
+  - From `architecture-reviewer`: the two enums moved to `Contracts/`, where every stored enum in the repo lives, so
+    PP4.6's response record can name them. `IsScalable` became `HasAmount`, because whether a line scales (one egg at
+    half) is PP4.7's question. `to taste` is documented as the structured line's label, never reader copy.
+  - From `test-gap-analyzer`: decimal formatting overflowed above about 9.2e15 and `long.MinValue` could not be negated.
+    Formatting now works on the magnitude in 128 bits and scales only the remainder. The floating-point scan now reads
+    every file in Recipes' `Business/` (so PP4.7 and PP4.8 are held to it) and also catches `NFloat` and `*BitsToDouble`.
+  - A table of RCP-004's named factors (½×, 1×, 2×, 3×) over a small corpus, exact. The golden scaling tables with
+    rounding belong to PP4.7.
+- **Tests (in `PantryPress.Tests/Recipes/`).**
+  - Examples: normal form, overflow edges, 128-bit intermediates that reduce, every display rule, the largest values in
+    both styles, refusals with their parameter names, and the stored numbers.
+  - Properties: 10,000 samples each, a fresh seed per run, and the replay seed printed on failure.
+    - Arithmetic laws, and equal values hashing alike (for quantities too).
+    - Scaling by k then 1/k returns the original, and scaling twice is scaling by the product.
+    - Display text reads back exactly in both styles, and keeps its shape.
+    - Text is the same in five cultures against an invariant baseline.
+    - A BigInteger cross-check over the whole 64-bit range: every result is exact, or throws exactly when it cannot fit.
+  - Two mutations confirmed caught: the decimal trailing-zero trim removed, and the 64-bit narrowing made unchecked.
+  - Two-site test: not owed (nothing site-owned, public, or reader data).
+- **Hand-offs.**
+  - PP4.3 builds a stored quantity through `Rational.Create`, `Quantity.Amount`, and `Quantity.Range`, never by binding EF
+    to the private constructors. It adds check constraints: denominator above zero, low above zero, high above low, and
+    the kind deciding which columns are null. Caps on stored values are PP4.3's too.
+  - PP4.5 and PP4.7 keep the blogger's own quantity style (`1 1/2`, `1½`, or `1.5`) when a scaled span replaces the
+    original; `QuantityStyle` covers two of them.
+  - PP4.7 owns rounding to friendly fractions and line scalability.
+  - The font registry (PP7, THM) must include ⅓ ⅔ ⅛ ⅜ ⅝ ⅞ (U+2153 to U+215E), which are outside Latin-1.
+- **Not verified or left.** Locale-aware decimal separators. `dotnet format` still reports the three
+  `IdentityModelTests.cs` whitespace findings PP4.1 recorded; none are in this prompt's files.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet test PantryPress.slnx`: 2,327 passed, 0 failed.
+  - Reviewers: `architecture-reviewer` (no blockers, one major, fixed) and `test-gap-analyzer` (two majors, both
+    fixed, and every minor addressed).
+
+### PP4.3 Recipes module and recipe entity - done
 
 ```text
 SCOPE: In Modules/Recipes/ (PP4.1 started it with the vocabulary), add Recipe with ingredient groups and lines,
@@ -3967,6 +4021,139 @@ CONSTRAINT: RCP-001, RCP-006; Template C; add-site-entity and add-recipe-feature
 RESTRICTION: Each ingredient line keeps the original text alongside parsed fields.
 BEHAVIOR: Plan, wait for approval, migrate, test.
 ```
+
+*PP4.3 delivery note (done 2026-10-30):*
+
+- **What shipped.** Twelve site-owned, private tables in `Modules/Recipes/` (PP-D06): the live editing tables, which page
+  data never reads (ARCH-004).
+  - `Recipe`:
+    - title and summary;
+    - yield, an exact amount or range, with the blogger's own unit word;
+    - prep, cook, and additional minutes, with a label for the additional time;
+    - an HTTPS video URL;
+    - nutrition per serving: schema.org's 11 nutrients as `decimal(9,2)`, plus a serving-size label;
+    - created and updated times, and one `rowversion`.
+  - Ingredient groups and lines, and step groups and steps, each with its own strongly typed id. Their non-unique
+    position indexes leave reordering to the facade.
+  - Equipment, notes, and keywords, keyed `(SiteId, RecipeId, Position)`.
+  - Courses, cuisines, diets, and allergens: explicit join rows `(SiteId, RecipeId, Code)` with a position. Each code is
+    held by a `Restrict` foreign key to PP4.1's vocabulary, with no navigation, under the same binary ASCII collation.
+  - Every key and index leads with `SiteId`. Each part refers to its parent by `(SiteId, id)` and cascades with it.
+  - The ingredient line (the prompt's restriction):
+    - `OriginalText` is `nvarchar(500)`, stored exactly and never trimmed;
+    - beside it: `ParseStatus` (Parsed | Unparsed), the quantity, the unit code, the item, and the note;
+    - the quantity and unit spans, in UTF-16 code units.
+  - The table checks that:
+    - an unparsed line has no parts, and a parsed one has an item;
+    - a unit goes only with an amount or a range, and always with its span;
+    - an amount or a range always has its span;
+    - spans lie inside the text and apart from each other.
+  - `StoredQuantity` (Business) is the one way a quantity's five columns become a `Quantity`, through `Rational.Create`,
+    `Quantity.Amount`, and `Quantity.Range`. The entity maps them as private fields, so EF Core never builds one past
+    those rules (PP4.2's hand-off). Each term is from 1 to 1,000,000.
+  - The quantity checks:
+    - the kind decides which columns are null, with each branch naming the kind not null, since an unknown check passes;
+    - every term is in range;
+    - a range's high end is above its low end, compared by cross-multiplying in `decimal(38,0)`.
+  - `RecipeLimits` and `IngredientParseStatus` are in `Contracts/`.
+  - Migration `Recipes` adds twelve tables and eight indexes, nothing else. Its rollback refuses while any recipe exists
+    (`THROW 51012`, under `TABLOCKX, HOLDLOCK`).
+- **Owner-approved choices.**
+  - No foreign key to `Sites`, since a module never names another's entities and a site is only marked deleted.
+    `tenancy.md` now records what follows:
+    - a site-owned table outside the Sites module relies on the resolver-entered stamp alone;
+    - the first prompt that writes site-owned rows while creating a site owes a test that a refused create leaves none;
+    - cross-site erasure must list these tables itself.
+  - No repository until PP4.4 or PP4.11.
+  - Step images (RCP-001) wait for the media module. This is a gap against RCP-001.
+  - Total time is not stored; PP4.9 computes it.
+  - Course, cuisine, diet, and allergen are sets.
+  - A yield may be a range.
+  - Nutrition is `decimal(9,2)` columns.
+  - Spans are stored now, so PP4.5 needs no migration.
+  - The 1,000,000 cap.
+- **What differs from the plan.**
+  - **Kernel change.** EF Core's foreign-key index convention re-adds any index removed in configuration, so it is
+    replaced by `SiteForeignKeyIndexConvention` (`Managers/Tenancy`).
+    - A site-owned table's non-unique reference to `IReferenceData` gets no index by the code alone.
+    - Every other index is exactly as EF Core makes it. The snapshot diff only adds; Identity and `UnitAliases` keep
+      theirs.
+    - `backend.md` records it.
+  - **From Template K review** (`architecture-reviewer`):
+    - the quantity shape check let a null kind beside an amount's columns through, and now guards each branch;
+    - span checks compare by subtraction, and the spans-apart check adds in `bigint`, so a huge start is a check
+      refusal, not an overflow;
+    - the convention was narrowed to reference-data principals, so a future reference to an account keeps its index and
+      the site-led index test catches it;
+    - the rollback guard locks.
+    - The migration was regenerated under its first id, `20261030112534`.
+  - **From `site-isolation-auditor`** (no blockers, no majors):
+    - the attach tests name the parent key that refuses;
+    - moving B's part under A's parent is now tested;
+    - the no-key-to-`Sites` consequences are written down.
+  - **From `test-gap-analyzer`** (no blockers): refusal rows for:
+    - the unparsed line's item and kind;
+    - zero and negative denominators, and a range with no low end;
+    - equal ends written two ways;
+    - every time column at both ends, and every nutrient;
+    - a span one past the text.
+  - Further tests from the same review:
+    - an accept-side test at every limit: the barest recipe, the term cap in SQL, times at 0 and the most, `https://a`,
+      touching spans in either order, "to taste", and a range with a unit;
+    - text one past its column refused, never cut, through EF Core and raw SQL;
+    - quantity and yield changes rewriting their columns;
+    - a stale save refused;
+    - the rollback guard run in a transaction;
+    - the module scanner pinned.
+  - **Existing tests changed by necessity:**
+    - `ModuleBoundaryTests`' root-type scan took `where T : class` for a declaration of a type named `where`; it now
+      ignores a keyword after `:` or `,`, pinned by cases.
+    - A private constant named `UnitCode` was read as a problem code, so it is now `UnitCodeColumn`.
+    - `SiteOwnershipModelTests` and `SiteOwnershipDatabaseTests` ignore EF Core's process-wide provider count for their
+      planted models, as `IdentityModelTests` does. Each now plants one shared probe model, not two.
+    - The expected-migration list and the declared model types gained `Recipes`.
+- **Tests.**
+  - `Recipes/RecipeModelTests`: tables, keys, every check by name, parents and deletes, vocabulary references (collation,
+    no navigation, no code-led index), field-mapped quantity columns, text sizes, nutrition, row version, ids never
+    generated, and the parse-status numbers.
+  - `Recipes/StoredQuantityTests`: exact round trips, the cap, malformed columns, and a yield never "to taste".
+  - `Persistence/RecipeSchemaTests` against the migrated schema:
+    - every part read back exactly;
+    - a wording corpus byte for byte: Unicode fractions and dashes, composed and decomposed accents, emoji including a
+      joined sequence, full-width digits, tabs, line breaks, edge spaces, and 500 units;
+    - one refusal per check, accept-side limits, vocabulary foreign keys (case included), a course named twice, the
+      cascade, over-long text, changes, staleness, and rollback.
+  - `TwoSite/RecipesTwoSiteTests`:
+    - `AssertSiteOwnedIsolatedAsync` for all twelve types;
+    - a part refused under, or moved under, another site's recipe or group;
+    - two sites with the very same ids, where a delete on one leaves the other's rows;
+    - bulk deletes reaching only the entered site.
+  - `SiteOwnershipModelTests`: the product's site-owned list, and the convention's four branches.
+- **Hand-offs.**
+  - PP4.4 owes the floor and the two-site tests for each revision table.
+  - PP4.11 owes:
+    - the recipe routes' two-site tests (list, read, update, archive, duplicate, the cross accounts, unknown ids answered
+      alike, a body naming another site's group or line ids answered 404 or validation, not a 500);
+    - moving `UpdatedAt` on every part's change, so `Version` guards the whole recipe;
+    - the validators: counts, video hosts, blank text that is only tabs or line breaks (the table refuses spaces only),
+      and a third decimal place in nutrition, which `decimal(9,2)` would otherwise round.
+  - PP4.12 owes a read-path check for the library's filters on the `(SiteId, Code)` indexes.
+  - PP4.5 keeps the blogger's quantity style; it may add a column.
+  - The media module adds step images (RCP-001).
+  - PP11 adds badges and the chef note (RCP-010).
+- **Not verified or left.**
+  - `aspire run` was not restarted, because the user's own run is up. The migration was applied by the test AppHost's
+    migration service, not to the local database.
+    - If the local run's migration job ran while the first version existed, the local database holds the earlier
+      quantity-shape and span check text under the same id. A fresh local database gets the reviewed one.
+  - `dotnet format` reports the three `IdentityModelTests.cs` whitespace findings PP4.1 recorded, and nothing else.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet test PantryPress.slnx`: 2,564 passed, 0 failed (unit, integration, two-site; 2,327 before).
+  - Reviewers:
+    - `architecture-reviewer` (Template K): no blockers; two majors and three minors, fixed and re-checked clean.
+    - `site-isolation-auditor`: no blockers or majors; three minors, fixed.
+    - `test-gap-analyzer`: no blockers; five majors and seven minors, all addressed.
 
 ### PP4.4 Recipe revisions
 

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using PantryPress.Domain.Managers.Audit;
@@ -47,6 +49,8 @@ public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> 
     {
         configurationBuilder.Properties<SiteId>().HaveConversion<SiteIdConverter>();
         configurationBuilder.Conventions.Add(_ => new SiteQueryFilterConvention(() => FilterSite));
+        configurationBuilder.Conventions.Replace<ForeignKeyIndexConvention>(
+            services => new SiteForeignKeyIndexConvention(services.GetRequiredService<ProviderConventionSetBuilderDependencies>()));
     }
 
     protected override void OnModelCreating(ModelBuilder builder)

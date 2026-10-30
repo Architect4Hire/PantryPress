@@ -1,5 +1,6 @@
 using Aspire.Hosting.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using PantryPress.Domain.Managers.Persistence;
@@ -31,6 +32,7 @@ public sealed class SiteOwnershipDatabaseTests(MigratedDatabase database) : IAsy
         services.AddAccountsIdentitySchema();
         services.AddPantryPressDbContext((_, options) => options
             .UseSqlServer(connectionString)
+            .ConfigureWarnings(IgnoreProviderCount)
             .ReplaceService<IModelCustomizer, SiteOwnedProbeCustomizer>());
         _services = services.BuildServiceProvider(validateScopes: true);
 
@@ -477,7 +479,14 @@ public sealed class SiteOwnershipDatabaseTests(MigratedDatabase database) : IAsy
     }
 
     private async Task<TwoSiteHarness> ProbeHarnessAsync() =>
-        await TwoSiteHarness.CreateAsync(database, configure: o => o.ReplaceService<IModelCustomizer, SiteOwnedProbeCustomizer>());
+        await TwoSiteHarness.CreateAsync(
+            database,
+            configure: o => o.ConfigureWarnings(IgnoreProviderCount).ReplaceService<IModelCustomizer, SiteOwnedProbeCustomizer>());
+
+    // The planted model is EF Core's own internal provider, which it counts across the whole test process; the count says
+    // nothing about the site rules, so it is ignored, as SiteOwnershipModelTests does with the same planted model.
+    private static void IgnoreProviderCount(WarningsConfigurationBuilder warnings) =>
+        warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning);
 
     private static Task<ProbeRecipe> MakeRecipe(PantryPressDbContext db) =>
         Task.FromResult(db.Add(new ProbeRecipe { Name = "Supper" }).Entity);

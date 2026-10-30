@@ -122,7 +122,12 @@ resolving an admin route (rule 4) starts from the caller's membership, the publi
 `SiteHost`, and "my sites" lists across sites by account - and a site, its first Owner, and its subdomain are written
 together before there is a context to stamp from. So none of them implements `ISiteOwned` or has a query filter or a stamp.
 `Site` has no `SiteId` of its own; `SiteMember` and `SiteHost` carry a required one, with a foreign key to `Sites`. Rule 1
-holds for everything else, including every other table that refers to a site. Because no filter stands behind them:
+holds for everything else, including every other table that refers to a site. A site-owned table outside the Sites module
+has no foreign key to `Sites` (PP4.3, the recipe tables first): a module never names another's entities, and a site is
+only ever marked deleted, so its `SiteId` is kept true by the resolver-entered stamp alone. Two consequences follow:
+- The first prompt that writes site-owned rows while creating a site owes a test that a refused create leaves none, since
+  rule 4 ends that request in an unsaved site.
+- Cross-site erasure (ADR 0003) must list those tables itself, because nothing cascades from `Sites`. Because no filter stands behind them:
 
 - Only the Sites module reaches the three tables; a boundary test refuses their sets, tables, or configurations anywhere
   else outside the migrations. Other modules ask a Sites contract, behind a declared module edge.
