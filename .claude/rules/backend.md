@@ -99,6 +99,11 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
   module's `Business/` is the one source, the table is seeded from it by a reviewed migration, and the app never writes
   it - the context refuses a save that adds, changes, or removes a row, and a bulk update or delete (PP4.1). Today that is
   the reserved slugs (Sites) and the recipe vocabulary (Recipes); a test lists every marked type.
+- A row written once and never changed or removed implements `IAppendOnly` (`Managers/Persistence`, PP4.4): the context
+  refuses a save that changes or removes one, and a bulk update or delete, and the table carries an `AFTER UPDATE, DELETE`
+  trigger that refuses raw SQL, declared with `HasTrigger`. Today that is the recipe revisions; a test lists every marked
+  type and checks each declares its trigger. The audit log keeps its own older guard and trigger (PP1.11). A site-owned
+  append-only type owes `AssertAppendOnlySiteOwnedIsolatedAsync` instead of the standard floor (`tenancy.md`).
 - No raw SQL with string interpolation. `FromSql` with parameters only, and only in repositories.
 
 ## Tests

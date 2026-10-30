@@ -22,9 +22,10 @@ namespace PantryPress.Domain.Managers.Persistence;
 /// Core would hand it a site context from the root provider - one site shared by every request - so it refuses to be
 /// built from pooled options, and it takes only the kernel's own site context, the one a resolver enters. Register it
 /// with <see cref="PersistenceServiceCollectionExtensions.AddPantryPressDbContext"/>.
-/// The save guards differ in kind. The audit log's and reference data's sit in the save overrides because they are about
-/// this context's own tables (reference data's bulk half is an interceptor beside it); the site's is an interceptor in <c>Managers/Tenancy</c>, beside the filter it completes, so the kernel's
-/// tenancy rules live in one place and never name this context. The model EF Core caches keeps the first context it was
+/// The save guards differ in kind. The audit log's, reference data's, and append-only rows' sit in the save overrides
+/// because they are about this context's own tables (the bulk halves are interceptors beside them); the site's is an
+/// interceptor in <c>Managers/Tenancy</c>, beside the filter it completes, so the kernel's tenancy rules live in one place
+/// and never name this context. The model EF Core caches keeps the first context it was
 /// built with as the filter's target, and every query swaps in the context running it.
 /// </remarks>
 public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> options, ISiteContext siteContext)
@@ -43,7 +44,11 @@ public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> 
     private SiteId FilterSite => _siteContext.Required;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-        optionsBuilder.AddInterceptors(SiteStampInterceptor.Instance, SiteIdUpdateGuard.Instance, ReferenceDataGuard.Instance);
+        optionsBuilder.AddInterceptors(
+            SiteStampInterceptor.Instance,
+            SiteIdUpdateGuard.Instance,
+            ReferenceDataGuard.Instance,
+            AppendOnlyGuard.Instance);
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -60,12 +65,13 @@ public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> 
         builder.ApplyConfigurationsFromAssembly(typeof(PantryPressDbContext).Assembly);
     }
 
-    // Every other save overload ends in one of these two. The audit log is append-only (PP1.11), and platform reference
-    // data is read-only (PP4.1).
+    // Every other save overload ends in one of these two. The audit log is append-only (PP1.11), platform reference data
+    // is read-only (PP4.1), and so is every other append-only row once written (PP4.4).
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         AuditLog.EnsureAppendOnly(ChangeTracker);
         ReferenceDataGuard.EnsureUnchanged(ChangeTracker);
+        AppendOnlyGuard.EnsureUnchanged(ChangeTracker);
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -73,6 +79,7 @@ public sealed class PantryPressDbContext(DbContextOptions<PantryPressDbContext> 
     {
         AuditLog.EnsureAppendOnly(ChangeTracker);
         ReferenceDataGuard.EnsureUnchanged(ChangeTracker);
+        AppendOnlyGuard.EnsureUnchanged(ChangeTracker);
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 

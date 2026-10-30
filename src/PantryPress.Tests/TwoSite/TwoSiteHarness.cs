@@ -7,6 +7,7 @@ using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
 using PantryPress.Domain.Modules.Accounts.Contracts;
+using PantryPress.Domain.Modules.Recipes;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.MigrationService;
 using PantryPress.Tests.Api;
@@ -86,6 +87,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
     /// Also start the public site over that database and the test AppHost's Redis, with its probe route (PP2.12).
     /// </param>
     /// <param name="siteServices">More public-site services, such as a counter of the queries it makes.</param>
+    /// <param name="domainServices">More services for the harness's own scopes, after its own, such as a fixed clock (PP4.4).</param>
     public static async Task<TwoSiteHarness> CreateAsync(
         MigratedDatabase database,
         bool withApi = false,
@@ -93,7 +95,8 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         IReadOnlyDictionary<string, string?>? apiSettings = null,
         Action<IServiceCollection>? apiServices = null,
         bool withSite = false,
-        Action<IServiceCollection>? siteServices = null)
+        Action<IServiceCollection>? siteServices = null,
+        Action<IServiceCollection>? domainServices = null)
     {
         var connectionString = await database.App.GetConnectionStringAsync(MigrationServiceExtensions.ConnectionName, CancellationToken.None)
             ?? throw new InvalidOperationException("The test AppHost has no pantrypress connection string.");
@@ -151,6 +154,8 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
         });
         services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheConnection));
         services.AddSites();
+        services.AddRecipes();
+        domainServices?.Invoke(services);
 
         SiteFactory? site = null;
         if (withSite)

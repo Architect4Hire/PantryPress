@@ -118,22 +118,12 @@ internal static class TwoSiteChecks
         await using (var scope = In(services, a))
         {
             var db = Db(scope);
-            var rows = await db.Set<T>().AsNoTracking().ToListAsync();
-            Assert.All(rows, row => Assert.Equal(a, row.SiteId));
-            Assert.Contains(rows, row => KeyOf(db, row).SequenceEqual(aKey));
-            Assert.DoesNotContain(rows, row => KeyOf(db, row).SequenceEqual(bKey));
-            Assert.Equal(rows.Count, await db.Set<T>().CountAsync());
-            Assert.Null(await db.Set<T>().FindAsync(bKey));
-            Assert.False(await db.Set<T>().AnyAsync(ByKey<T>(db, bKey)));
+            await AssertReadsOnlyOwnAsync<T>(db, a, aKey, bKey);
             Assert.Equal(0, await db.Set<T>().Where(ByKey<T>(db, bKey)).ExecuteUpdateAsync(touch));
             Assert.Equal(0, await db.Set<T>().Where(ByKey<T>(db, bKey)).ExecuteDeleteAsync());
         }
 
-        await using (var none = services.CreateAsyncScope())
-        {
-            var error = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => Db(none).Set<T>().ToListAsync());
-            Assert.Contains("needs a site", error.ToString(), StringComparison.Ordinal);
-        }
+        await AssertNoSiteReadThrowsAsync<T>(services);
 
         var notOurs = await AssertRefusedAsync<InvalidOperationException>(services, a, db => db.Add(Copy(b)));
         Assert.Contains("another site", notOurs.Message, StringComparison.Ordinal);
@@ -152,19 +142,75 @@ internal static class TwoSiteChecks
             db.Entry(own).Property(nameof(ISiteOwned.SiteId)).CurrentValue = b;
         });
 
-        await using (var scope = In(services, b))
+        await AssertUnchangedAsync<T>(services, a, aKey, b, bKey, bRow);
+    }
+
+    /// <summary>
+    /// For a site-owned entity that is also append-only (<see cref="IAppendOnly"/>; PP4.4): the reads of
+    /// <see cref="AssertSiteOwnedIsolatedAsync{T}"/> hold as they do for any site-owned type, and a new row naming B is
+    /// refused for naming another site; but no row is ever changed or removed - B's or A's own, tracked or in bulk, in place
+    /// or moved - so every such write is refused as an append-only one, before the site's own checks are reached. B's row
+    /// is found afterwards exactly as it was written, and A's is still there. An append-only row's properties are set
+    /// once, so the change is named: <paramref name="property"/> given <paramref name="value"/>, through EF Core's entry.
+    /// </summary>
+    public static async Task AssertAppendOnlySiteOwnedIsolatedAsync<T>(
+        IServiceProvider services,
+        SiteId a,
+        SiteId b,
+        Func<PantryPressDbContext, Task<T>> make,
+        Action<UpdateSettersBuilder<T>> touch,
+        string property,
+        object? value)
+        where T : class, ISiteOwned, IAppendOnly
+    {
+        var (aKey, aRow) = await SeedAsync(services, a, make);
+        var (bKey, bRow) = await SeedAsync(services, b, make);
+
+        T Copy(PropertyValues from, SiteId site)
         {
-            var db = Db(scope);
-            var row = await db.Set<T>().FindAsync(bKey);
-            Assert.NotNull(row);
-            var now = db.Entry(row).CurrentValues;
-            Assert.All(now.Properties, property => Assert.Equal(bRow[property], now[property]));
+            var values = from.Clone();
+            values[nameof(ISiteOwned.SiteId)] = site;
+            values[property] = value;
+            return (T)values.ToObject();
         }
 
         await using (var scope = In(services, a))
         {
-            Assert.NotNull(await Db(scope).Set<T>().FindAsync(aKey));
+            await AssertReadsOnlyOwnAsync<T>(Db(scope), a, aKey, bKey);
         }
+
+        await AssertNoSiteReadThrowsAsync<T>(services);
+
+        var notOurs = await AssertRefusedAsync<InvalidOperationException>(services, a, db => db.Add(Copy(bRow, b)));
+        Assert.Contains("another site", notOurs.Message, StringComparison.Ordinal);
+
+        foreach (var key in new[] { aKey, bKey })
+        {
+            await AssertAppendOnlyRefusedAsync(services, a, db => db.Set<T>().Where(ByKey<T>(db, key)).ExecuteUpdateAsync(touch));
+            await AssertAppendOnlyRefusedAsync(services, a, db => db.Set<T>().Where(ByKey<T>(db, key)).ExecuteDeleteAsync());
+        }
+
+        // B's row written back, B's row passed off as A's, and A's own.
+        foreach (var (row, site) in new[] { (bRow, b), (bRow, a), (aRow, a) })
+        {
+            await AssertAppendOnlyRefusedAsync(services, a, db => SaveAsync(db, () => db.Update(Copy(row, site))));
+            await AssertAppendOnlyRefusedAsync(services, a, db => SaveAsync(db, () => db.Remove(Copy(row, site))));
+        }
+
+        await AssertAppendOnlyRefusedAsync(services, a, db => SaveAsync(db, () =>
+        {
+            var own = db.Set<T>().Find(aKey) ?? throw new Xunit.Sdk.XunitException("A cannot find its own row.");
+            db.Entry(own).Property(property).CurrentValue = value;
+        }));
+
+        // Moved to B: the site is part of the key, so EF Core refuses it as it is staged, before any save.
+        await AssertRefusedAsync<InvalidOperationException>(services, a, db =>
+        {
+            var own = db.Set<T>().Find(aKey) ?? throw new Xunit.Sdk.XunitException("A cannot find its own row.");
+            db.Entry(own).Property(nameof(ISiteOwned.SiteId)).CurrentValue = b;
+        });
+
+        await AssertUnchangedAsync<T>(services, a, aKey, b, bKey, bRow);
     }
 
     /// <summary>
@@ -254,6 +300,66 @@ internal static class TwoSiteChecks
         await db.SaveChangesAsync();
         Assert.Equal(site, row.SiteId);
         return (KeyOf(db, row), db.Entry(row).CurrentValues.Clone());
+    }
+
+    // Working as A, the set lists, counts, finds, and asks after A's rows only, A's own included.
+    private static async Task AssertReadsOnlyOwnAsync<T>(PantryPressDbContext db, SiteId a, object?[] aKey, object?[] bKey)
+        where T : class, ISiteOwned
+    {
+        var rows = await db.Set<T>().AsNoTracking().ToListAsync();
+        Assert.All(rows, row => Assert.Equal(a, row.SiteId));
+        Assert.Contains(rows, row => KeyOf(db, row).SequenceEqual(aKey));
+        Assert.DoesNotContain(rows, row => KeyOf(db, row).SequenceEqual(bKey));
+        Assert.Equal(rows.Count, await db.Set<T>().CountAsync());
+        Assert.Null(await db.Set<T>().FindAsync(bKey));
+        Assert.False(await db.Set<T>().AnyAsync(ByKey<T>(db, bKey)));
+    }
+
+    private static async Task AssertNoSiteReadThrowsAsync<T>(IServiceProvider services)
+        where T : class, ISiteOwned
+    {
+        await using var none = services.CreateAsyncScope();
+        var error = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => Db(none).Set<T>().ToListAsync());
+        Assert.Contains("needs a site", error.ToString(), StringComparison.Ordinal);
+    }
+
+    // B's row exactly as it was written, every stored value, and A's own still there.
+    private static async Task AssertUnchangedAsync<T>(
+        IServiceProvider services,
+        SiteId a,
+        object?[] aKey,
+        SiteId b,
+        object?[] bKey,
+        PropertyValues bRow)
+        where T : class, ISiteOwned
+    {
+        await using (var scope = In(services, b))
+        {
+            var db = Db(scope);
+            var row = await db.Set<T>().FindAsync(bKey);
+            Assert.NotNull(row);
+            var now = db.Entry(row).CurrentValues;
+            Assert.All(now.Properties, property => Assert.Equal(bRow[property], now[property]));
+        }
+
+        await using (var scope = In(services, a))
+        {
+            Assert.NotNull(await Db(scope).Set<T>().FindAsync(aKey));
+        }
+    }
+
+    private static async Task SaveAsync(PantryPressDbContext db, Action stage)
+    {
+        stage();
+        await db.SaveChangesAsync();
+    }
+
+    // The write, working on the site, is refused as an append-only one - by the save, or as its bulk query is compiled.
+    private static async Task AssertAppendOnlyRefusedAsync(IServiceProvider services, SiteId site, Func<PantryPressDbContext, Task> write)
+    {
+        await using var scope = In(services, site);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => write(Db(scope)));
+        Assert.Contains("append-only", error.Message, StringComparison.Ordinal);
     }
 
     // The write must fail with the refusal expected of it - staged or saved - and the caller then proves nothing changed.

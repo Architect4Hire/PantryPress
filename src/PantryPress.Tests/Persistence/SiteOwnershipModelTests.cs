@@ -22,12 +22,13 @@ public sealed class SiteOwnershipModelTests
     // The written exceptions that carry a site without being site-owned (tenancy.md, "Operator tables" and "Tenant root").
     private static readonly string[] SiteBearingExceptions = ["Site", "SiteMember", "SiteHost", "OutboxMessage", "AuditEntry"];
 
-    // The product's site-owned types, in ordinal order: the invitation (PP2.11) and the recipe tables (PP4.3). A new one is
-    // added here on purpose, with its two-site test.
+    // The product's site-owned types, in ordinal order: the invitation (PP2.11), the recipe tables (PP4.3), and the recipe
+    // revisions (PP4.4). A new one is added here on purpose, with its two-site test.
     private static readonly string[] ProductSiteOwned =
     [
         "Recipe", "RecipeAllergen", "RecipeCourse", "RecipeCuisine", "RecipeDiet", "RecipeEquipment", "RecipeIngredient",
-        "RecipeIngredientGroup", "RecipeKeyword", "RecipeNote", "RecipeStep", "RecipeStepGroup", "SiteInvitation",
+        "RecipeIngredientGroup", "RecipeKeyword", "RecipeNote", "RecipeRevision", "RecipeStep", "RecipeStepGroup",
+        "SiteInvitation",
     ];
 
     [Fact]

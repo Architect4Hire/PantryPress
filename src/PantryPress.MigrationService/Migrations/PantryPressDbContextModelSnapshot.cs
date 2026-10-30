@@ -1461,6 +1461,65 @@ namespace PantryPress.MigrationService.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeRevision", b =>
+                {
+                    b.Property<Guid>("SiteId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Snapshot")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SnapshotVersion")
+                        .HasColumnType("int");
+
+                    b.HasKey("SiteId", "Id");
+
+                    b.HasIndex("SiteId", "RecipeId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RecipeRevisions_Number");
+
+                    b.HasIndex("SiteId", "RecipeId", "Kind", "Number")
+                        .HasDatabaseName("IX_RecipeRevisions_Kind");
+
+                    b.ToTable("RecipeRevisions", null, t =>
+                        {
+                            t.HasTrigger("TR_RecipeRevisions_Immutable");
+
+                            t.HasCheckConstraint("CK_RecipeRevisions_Kind", "[Kind] IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_RecipeRevisions_Number", "[Number] >= 1");
+
+                            t.HasCheckConstraint("CK_RecipeRevisions_Snapshot", "ISJSON([Snapshot]) = 1");
+
+                            t.HasCheckConstraint("CK_RecipeRevisions_SnapshotVersion", "[SnapshotVersion] >= 1");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeStep", b =>
                 {
                     b.Property<Guid>("SiteId")
@@ -4033,6 +4092,15 @@ namespace PantryPress.MigrationService.Migrations
                         .WithMany()
                         .HasForeignKey("SiteId", "RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PantryPress.Domain.Modules.Recipes.RecipeRevision", b =>
+                {
+                    b.HasOne("PantryPress.Domain.Modules.Recipes.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId", "RecipeId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

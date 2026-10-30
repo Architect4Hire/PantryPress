@@ -42,7 +42,7 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).
-- Published recipe revisions are immutable; editing creates a draft (RCP-007).
+- Published recipe revisions are immutable; editing creates a draft (RCP-007; see "Revisions" below).
 - The recipe tables (PP4.3) are the live editing tables: site-owned and private, never read by page data (ARCH-004).
   `Recipe` holds title, summary, yield, prep/cook/additional minutes, video URL, and nutrition per serving. Its parts are
   their own rows, all keyed `(SiteId, …)`:
@@ -66,6 +66,43 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   - Nutrition is `decimal(9,2)` as entered, never estimated.
 - `Recipe.Version` is the one concurrency token, so a change to any part moves the recipe's `UpdatedAt` (PP4.11).
 - Badges come from a closed list, max 4; the chef note is plain text, max 280 characters (RCP-010).
+
+## Revisions (PP4.4)
+
+- The recipe tables are the working copy: the draft a blogger edits. A revision (`RecipeRevision`) freezes it at one
+  moment. It is site-owned and private, and it is one of two kinds:
+  - **Draft**: a save point;
+  - **Published**: what page data, JSON-LD, and a post's recipe card read (PP-D04).
+- Both kinds are written once and never changed or removed (`IAppendOnly`, `backend.md`). Editing a published recipe
+  changes only the working copy, so what readers saw stays as it was. A revision's foreign key to its recipe is `Restrict`:
+  a recipe that has one is archived, never deleted.
+- A revision holds the whole recipe as one canonical JSON snapshot (`RecipeSnapshotJson`, format `SnapshotVersion`), with
+  the SHA-256 of its bytes. Canonical means:
+  - every property is written, nulls included, in a fixed order;
+  - parts come by position, then by id (or by code, for a vocabulary choice);
+  - every character outside ASCII is escaped;
+  - numbers are whole only, and nutrition is held in hundredths.
+- The snapshot keeps the blogger's text exactly. Text that is not well-formed UTF-16 is refused, never replaced. A revision
+  is never rewritten, so every snapshot format ever written stays readable.
+  - If the golden bytes ever move (a runtime escaping differently), the format version moves with them. They are never
+    simply re-approved.
+  - SqlClient reads a lone surrogate stored in a column back as U+FFFD (found at PP4.4). So keeping the words exactly is
+    the input's job: the recipe routes, import, and the publishing API refuse ill-formed text before it is stored.
+- `IRecipeRevisionsFacade.CreateRevisionAsync` freezes the working copy as a given kind, given the recipe's version as the
+  caller read it. The facade decides everything inside `RecipesUnitOfWork.RunLockedAsync`, one transaction that runs
+  again on each retry. Its first read takes an update lock on the recipe's row (`UPDLOCK, ROWLOCK`, never `HOLDLOCK`: on a
+  miss, a range lock could reach another site's row). Then:
+  - an unknown or other site's recipe is `recipe-not-found`;
+  - a revision with the call's own id is the answer, for a retry whose commit landed;
+  - a stale version is `recipe-changed`;
+  - the same bytes as the latest revision of that kind return that revision with `Created: false`, and nothing is added;
+  - otherwise the revision is staged and saved under the next number, counting both kinds.
+- The lock, with read-committed snapshot, is what keeps a freeze from ever capturing half of an edit. It holds only if every
+  write to a part also updates the recipe's row in the same transaction. PP4.11 makes its edits take `FindLockedAsync`
+  first, and so does any other writer of a part (re-parse, import, the publishing API, step images).
+- Autosave writes only the working copy. A draft revision is a save point someone asked for, never an autosave, because
+  revisions are never pruned.
+- Erasing a site or an account (ADR 0003, PP19.11a) lists `RecipeRevisions` itself and changes its trigger on purpose.
 
 ## Reference vocabulary (PP4.1)
 

@@ -4155,13 +4155,142 @@ BEHAVIOR: Plan, wait for approval, migrate, test.
     - `site-isolation-auditor`: no blockers or majors; three minors, fixed.
     - `test-gap-analyzer`: no blockers; five majors and seven minors, all addressed.
 
-### PP4.4 Recipe revisions
+### PP4.4 Recipe revisions - done
 
 ```text
 SCOPE: Add draft and published recipe revisions; published revisions are immutable.
 CONSTRAINT: RCP-007; Template D.
 BEHAVIOR: Plan, wait for approval, migrate, test immutability.
 ```
+
+*PP4.4 delivery note (done 2026-10-30):*
+
+- **What shipped.**
+  - The PP4.3 recipe tables are the working copy, the draft a blogger edits. `RecipeRevision` (site-owned, private, table
+    `RecipeRevisions`) freezes it at one moment, as Draft (a save point) or Published (what readers will see). Both kinds
+    are written once and never changed or removed (RCP-007).
+    - Columns: key `(SiteId, Id)`, `RecipeId` under a `Restrict` foreign key `(SiteId, RecipeId)`, `Number` (unique per
+      recipe, both kinds counted together), `Kind`, `SnapshotVersion`, `Snapshot` (`nvarchar(max)`, checked `ISJSON`), and
+      `ContentHash` (`binary(32)`).
+    - Indexes `(SiteId, RecipeId, Number)` unique, and `(SiteId, RecipeId, Kind, Number)`.
+  - **Kernel:** `IAppendOnly` and `AppendOnlyGuard` (`Managers/Persistence`). The context refuses a tracked change or removal
+    of a marked row, and a bulk update or delete of a marked type as its query compiles. The table's trigger,
+    `TR_RecipeRevisions_Immutable`, refuses every update and delete (51013), raw SQL included.
+  - **The snapshot** (`Business/`):
+    - `RecipeSnapshot` and its records; `RecipeWorkingCopy.ToSnapshot()`, which orders parts by position, then id or code;
+      and `RecipeSnapshotJson`, the one canonical writer and strict reader, with format 1 and SHA-256.
+    - Nutrition is held in hundredths, converted from its `decimal(9,2)` columns in the repository, because Recipes'
+      Business names no fractional type.
+    - A lone surrogate is refused, never written as U+FFFD.
+  - **The mutation** (Template D): `IRecipeRevisionsFacade.CreateRevisionAsync(RecipeId, Kind, ExpectedVersion)`.
+    - The facade decides inside `RecipesUnitOfWork.RunLockedAsync`, which owns the retry strategy, one transaction, the
+      commit, and tracker hygiene (each attempt starts clear; a refusal or repeat stages nothing).
+    - `RecipeRepository.FindLockedAsync` reads the recipe under `UPDLOCK, ROWLOCK`, naming the site in the raw query.
+    - The answers: `recipe-not-found` (404; an unknown and another site's recipe alike); a landed retry; `recipe-changed`
+      (409) for a stale version; a repeat of the latest revision of the kind (`Created: false`, nothing added); or a new
+      revision under the next number.
+    - A FluentValidation validator sits at the edge. `RecipeErrors` holds the two codes.
+  - Migration `RecipeRevisions`: one table, two indexes, the trigger, and a rollback that refuses while any revision exists
+    (51014, under `TABLOCKX, HOLDLOCK`). Template K was reviewed by `architecture-reviewer`: additive, no backfill, no
+    destructive operation, and the earlier `Recipes` rollback still holds.
+- **Owner-approved choices.**
+  - The working copy is the draft; revisions are immutable snapshots of either kind.
+  - One JSON document per revision, not a relational copy.
+  - The kernel marker, not a Recipes-local guard.
+  - `Restrict` to the recipe, so a recipe with a revision is archived, never deleted.
+- **What differs from the plan.**
+  - **From `architecture-reviewer`** (no blockers; two majors, fixed):
+    - The decisions moved from the unit of work into the facade. The unit of work now only runs an attempt under one
+      transaction, so PP5.14 can stage audit and outbox entries beside the row, and record nothing on a repeat.
+    - `HOLDLOCK` was dropped; see the auditor's major below. The trigger comment now says a `THROW` rolls back the whole
+      transaction.
+    - The snapshot records are `internal`.
+  - **From `site-isolation-auditor`** (no blockers; one major, fixed): on a miss, `HOLDLOCK`'s key-range lock reached the next
+    key in `(SiteId, Id)`, which can be another site's recipe. A probe could then stall that site's edits and time them. The
+    lock is now `UPDLOCK, ROWLOCK`. A test reads `sys.dm_tran_locks` and proves one U key lock on a hit (with a same-id twin
+    on the other site) and none on a miss. The append-only floor gained "B's row passed off as A's".
+  - **From `test-gap-analyzer`** (no blockers; six majors and seven minors). Tests added for:
+    - a commit that landed but lost its answer;
+    - every nutrient under its own name, in the JSON and through the database;
+    - a sibling recipe on the same site;
+    - a pinned list of every working-copy column, frozen or left out on purpose;
+    - a golden of how every character class is escaped;
+    - the clock dating a revision (the harness gained a `domainServices` hook);
+    - every text field through the database;
+    - the lone surrogate refused at every text field;
+    - a content-neutral edit as a repeat;
+    - cancellation;
+    - an attempt failing after staging, and an attempt staging nothing;
+    - the revision reads' isolation, and the retry check against another site's same id.
+  - **Found while testing:** SqlClient reads a lone surrogate stored in a column back as U+FFFD. So the snapshot's refusal
+    guards only text that never passed through the database, and keeping the words exactly is the input's job (hand-off).
+  - `RecipeRows.New` builds a recipe's rows without a context, and `Add` uses it.
+  - `TwoSiteChecks` gained `AssertAppendOnlySiteOwnedIsolatedAsync`, and the reads and checks it shares with the standard
+    floor were extracted, unweakened.
+- **Tests.**
+  - `Recipes/RecipeSnapshotTests`:
+    - goldens for the whole recipe, the barest recipe, and the escaping of every character class;
+    - a CsCheck property that any well-formed text round-trips and rewrites to the same bytes;
+    - order independence, five cultures, and every quantity kind;
+    - nutrition by name, lone surrogates at every text field, and the strict reader's refusals;
+    - the rules.
+  - `Recipes/RecipeRevisionModelTests` and `RecipeModelTests`' shared cases: site-led key and indexes, the trigger, the hash
+    column, nothing generated, the kind numbers, and the column-coverage list.
+  - `Persistence/AppendOnlyGuardTests`: every marked type declares its trigger, and the guard refuses modify, mark-modified,
+    remove, and bulk writes, sync and async. Adds and other types' writes go through.
+  - `Persistence/RecipeRevisionSchemaTests`: the trigger against every column, a delete, and a bulk delete; each check and
+    NOT NULL; the unique number; another site's recipe; `Restrict` through raw SQL and EF Core; the rollback guard.
+  - `Recipes/RecipeRevisionsFacadeTests`:
+    - success; the repeat; kinds numbered together; editing after publishing, which leaves the published revision byte for
+      byte;
+    - putting a recipe back as a new revision; stale versions, including a stale repeat; not found; validation; no site;
+    - wording; retry; a landed retry; rollback; a failed attempt; cancellation;
+    - six freezes at once; a freeze waiting for an edit; never half an edit;
+    - nutrition, sibling recipes, the clock, and every text field.
+  - `TwoSite/RecipeRevisionsTwoSiteTests`:
+    - the append-only floor;
+    - the locked read's isolation, its twin, and its locks;
+    - the revision reads; the parts joins; another site's recipe answered like an unknown one;
+    - twin ids numbered per site; a repeat never of another site's revision.
+  - Mutations confirmed caught: `HOLDLOCK` restored, two nutrients swapped, the sibling join loosened, the landed check
+    removed, and the lock taken away entirely.
+- **Hand-offs.**
+  - PP4.11:
+    - every edit of a part takes `FindLockedAsync` (or moves the recipe row) in the same transaction, which the freeze's
+      consistency rests on;
+    - validators refuse ill-formed UTF-16 with a field error;
+    - the route-level `AssertIndistinguishableAsync`, the cross accounts, and the site-id binding check for any revision
+      route.
+  - Every later writer of a part (PP4.5 re-parse, PP18, PP20, step images) keeps the same rule, and PP18 and PP20 refuse
+    ill-formed text too.
+  - PP5.14:
+    - publishes recipes through this facade (a repeat makes a retried publish safe) and pins the revision ids;
+    - asks `IAccountPublishingEligibility` (ACCT-001);
+    - stages its audit and outbox entries inside the same attempt.
+  - PP5.4 and autosave write only the working copy; a draft revision is an explicit save point, since revisions are never
+    pruned.
+  - Erasure (ADR 0003, PP19.11a) lists `RecipeRevisions` and changes its trigger on purpose.
+  - If the snapshot goldens ever move, `SnapshotVersion` moves too.
+- **Not verified or left.**
+  - Dropping the explicit `[SiteId] = {site}` from the lock query is not caught. The site filter EF Core composes around the
+    raw query is pushed into the same key seek, so only the entered site's row is locked either way. The explicit predicate
+    stays as a second guard.
+  - The rollback guard's accept side (dropping an empty table) is not tested, since the shared database always holds
+    revisions.
+  - The append-only floor has no negative self-test of its own.
+  - A retry after an edit landed between attempts is not tested apart from the stale-version cases.
+  - Nits left: `IX_RecipeRevisions_Kind` has no `INCLUDE (ContentHash)`, to avoid regenerating a migration your local run
+    may already hold. `AppendOnlyGuard`'s bulk-write visitor duplicates `ReferenceDataGuard`'s.
+  - `aspire run` was not restarted, because the user's own run is up. Its migration job applies `RecipeRevisions` when it
+    next runs.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 2,718 passed, 0 failed (unit, integration, two-site; 2,564 before).
+  - Reviewers:
+    - `architecture-reviewer` (Template K): no blockers; two majors, fixed, and minors addressed or recorded above.
+    - `site-isolation-auditor`: no blockers; one major and five minors, fixed or recorded.
+    - `test-gap-analyzer`: no blockers; six majors, fixed, and seven minors, fixed or recorded.
 
 ### PP4.5 Ingredient-line tokenizer and parser
 

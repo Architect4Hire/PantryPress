@@ -100,10 +100,25 @@ internal static class RecipeRows
         RecipeStepGroupId? stepGroupId = null,
         RecipeStepId? stepId = null)
     {
+        var rows = New(recipeId, ingredientGroupId, ingredientId, stepGroupId, stepId);
+        db.AddRange(
+            rows.Recipe, rows.IngredientGroup, rows.Ingredient, rows.StepGroup, rows.Step, rows.Equipment, rows.Note,
+            rows.Keyword, rows.Course, rows.Cuisine, rows.Diet, rows.Allergen);
+        return rows;
+    }
+
+    /// <summary>A whole recipe's rows, in no context, for tests that need no database (PP4.4).</summary>
+    public static RecipeRowSet New(
+        RecipeId? recipeId = null,
+        RecipeIngredientGroupId? ingredientGroupId = null,
+        RecipeIngredientId? ingredientId = null,
+        RecipeStepGroupId? stepGroupId = null,
+        RecipeStepId? stepId = null)
+    {
         var recipe = NewRecipe(recipeId);
         var ingredientGroup = NewIngredientGroup(recipe.Id, ingredientGroupId);
         var stepGroup = NewStepGroup(recipe.Id, stepGroupId);
-        var rows = new RecipeRowSet(
+        return new RecipeRowSet(
             recipe,
             ingredientGroup,
             NewIngredient(ingredientGroup.Id, ingredientId),
@@ -116,10 +131,25 @@ internal static class RecipeRows
             new RecipeCuisine { RecipeId = recipe.Id, CuisineCode = "american", Position = 0 },
             new RecipeDiet { RecipeId = recipe.Id, DietCode = "vegetarian", Position = 0 },
             new RecipeAllergen { RecipeId = recipe.Id, AllergenCode = "milk", Position = 0 });
-
-        db.AddRange(
-            rows.Recipe, rows.IngredientGroup, rows.Ingredient, rows.StepGroup, rows.Step, rows.Equipment, rows.Note,
-            rows.Keyword, rows.Course, rows.Cuisine, rows.Diet, rows.Allergen);
-        return rows;
     }
+
+    /// <summary><see cref="NewRecipe"/>'s nutrition in hundredths, as the repository reads it from its columns (PP4.4).</summary>
+    public static RecipeSnapshotNutrition Nutrition { get; } =
+        new("1 slice", 41_050, 1_925, null, null, null, null, 23_000, null, null, null, 0);
+
+    /// <summary>The rows as one working copy, the way a revision reads them (PP4.4).</summary>
+    public static RecipeWorkingCopy WorkingCopy(RecipeRowSet rows) => new(
+        rows.Recipe,
+        Nutrition,
+        [rows.IngredientGroup],
+        [rows.Ingredient],
+        [rows.StepGroup],
+        [rows.Step],
+        [rows.Equipment],
+        [rows.Note],
+        [rows.Keyword],
+        [rows.Course],
+        [rows.Cuisine],
+        [rows.Diet],
+        [rows.Allergen]);
 }

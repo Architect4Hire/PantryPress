@@ -63,6 +63,13 @@ public sealed class RecipeModelTests
         { typeof(RecipeCuisine), RecipeCuisineConfiguration.TableName, [RecipeCuisineConfiguration.PositionConstraintName] },
         { typeof(RecipeDiet), RecipeDietConfiguration.TableName, [RecipeDietConfiguration.PositionConstraintName] },
         { typeof(RecipeAllergen), RecipeAllergenConfiguration.TableName, [RecipeAllergenConfiguration.PositionConstraintName] },
+        {
+            typeof(RecipeRevision), RecipeRevisionConfiguration.TableName,
+            [
+                RecipeRevisionConfiguration.NumberConstraintName, RecipeRevisionConfiguration.KindConstraintName,
+                RecipeRevisionConfiguration.SnapshotVersionConstraintName, RecipeRevisionConfiguration.SnapshotConstraintName,
+            ]
+        },
     };
 
     // Each part's key, and the parent it hangs off by (SiteId, id), so the database refuses a part under another site's row.
@@ -79,6 +86,9 @@ public sealed class RecipeModelTests
         { typeof(RecipeCuisine), ["SiteId", "RecipeId"], typeof(Recipe), DeleteBehavior.Cascade },
         { typeof(RecipeDiet), ["SiteId", "RecipeId"], typeof(Recipe), DeleteBehavior.Cascade },
         { typeof(RecipeAllergen), ["SiteId", "RecipeId"], typeof(Recipe), DeleteBehavior.Cascade },
+
+        // A revision never goes with its recipe (PP4.4): a recipe that has one is archived, never deleted.
+        { typeof(RecipeRevision), ["SiteId", "RecipeId"], typeof(Recipe), DeleteBehavior.Restrict },
     };
 
     // A code that refers to the platform's vocabulary (PP4.1), and the site-led index that serves a read by it, if any.

@@ -7,7 +7,7 @@ using PantryPress.Domain.Modules.Recipes.Contracts;
 namespace PantryPress.Domain.Modules.Recipes;
 
 /// <summary>
-/// What the recipe tables share (PP4.3): the id converters, the text and position rules, a stored quantity's columns and
+/// What the recipe tables share (PP4.3, PP4.4): the id converters, the text and position rules, a stored quantity's columns and
 /// checks, and a reference to the platform's vocabulary (PP4.1).
 /// </summary>
 internal static class RecipeColumnConfiguration
@@ -24,6 +24,9 @@ internal static class RecipeColumnConfiguration
         new(id => id.Value, value => new RecipeStepGroupId(value));
 
     public static readonly ValueConverter<RecipeStepId, Guid> StepIdConverter = new(id => id.Value, value => new RecipeStepId(value));
+
+    public static readonly ValueConverter<RecipeRevisionId, Guid> RevisionIdConverter =
+        new(id => id.Value, value => new RecipeRevisionId(value));
 
     /// <summary>The kinds a stored quantity column may hold; a yield leaves out "to taste".</summary>
     public static readonly QuantityKind[] AnyQuantity = Enum.GetValues<QuantityKind>();

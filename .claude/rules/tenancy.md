@@ -199,6 +199,10 @@ site-owned ones), and `ClientFor(account)` is ApiService signed in. `TwoSiteChec
   - These writes are refused: a new row naming B, B's row written back or removed, B's row passed off as A's (the token's
     case), and a row moved to B.
   - B's row is found exactly as written.
+- `AssertAppendOnlySiteOwnedIsolatedAsync<T>` instead, for a site-owned type that is also `IAppendOnly` (PP4.4), whose
+  rows no write may change. The reads and the refused new row naming B are the floor's. Every update or removal - B's row
+  or A's own, tracked or in bulk - is refused as append-only, and a row moved to B is refused as EF Core stages it. B's
+  row is found exactly as written.
 - `AssertReadPathIsolatedAsync<T>` for each read path the change adds beyond the set: a repository's raw query, a
   projection, or a join. Its own test shows it catching a `SqlQuery` that skips the filter.
 - `AssertTenantRootUnchangedAsync` around every write to the tenant root. It proves the other site's `Sites` row and
