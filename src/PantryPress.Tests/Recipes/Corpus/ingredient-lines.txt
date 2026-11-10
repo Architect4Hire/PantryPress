@@ -1,0 +1,1058 @@
+# The ingredient-line corpus (RCP-002; PP4.5): what IngredientLineParser reads from lines bloggers really write.
+#
+# Each case is two lines. The first is "> " and the line exactly as written (">" alone is the empty line); a
+# backslash and u with four hex digits, or two backslashes, are its only escapes, for characters an editor would hide
+# or trim. The second is "= " and the parse:
+#   unparsed <problem>
+#   parsed | <quantity> | <unit> | item "<text>" | note "<text>"
+# where <quantity> is - (none), n/d, low..high, or to-taste, each with @start+length, its span in UTF-16 code units;
+# <unit> is - or its vocabulary code with its span; and an absent note is "note -". Quoted text escapes \, ", and anything
+# invisible as above.
+#
+# Every expectation here was read and approved by hand. Nothing rewrites this file: when the parser's answer for a line
+# changes on purpose, that line is edited, and the change says why (CLAUDE.md: golden files are never re-approved in bulk).
+
+# Whole numbers with US units, in the spellings bloggers use.
+> 2 cups all-purpose flour
+= parsed | 2 @0+1 | cup @2+4 | item "all-purpose flour" | note -
+> 1 cup granulated sugar
+= parsed | 1 @0+1 | cup @2+3 | item "granulated sugar" | note -
+> 3 large eggs
+= parsed | 3 @0+1 | - | item "large eggs" | note -
+> 1 teaspoon pure vanilla extract
+= parsed | 1 @0+1 | teaspoon @2+8 | item "pure vanilla extract" | note -
+> 1 tsp baking soda
+= parsed | 1 @0+1 | teaspoon @2+3 | item "baking soda" | note -
+> 1 Tbsp olive oil
+= parsed | 1 @0+1 | tablespoon @2+4 | item "olive oil" | note -
+> 2 T butter
+= parsed | 2 @0+1 | tablespoon @2+1 | item "butter" | note -
+> 1 t salt
+= parsed | 1 @0+1 | teaspoon @2+1 | item "salt" | note -
+> 2 tablespoons unsalted butter, melted
+= parsed | 2 @0+1 | tablespoon @2+11 | item "unsalted butter" | note "melted"
+> 4 tbsp. butter
+= parsed | 4 @0+1 | tablespoon @2+5 | item "butter" | note -
+> 1 tbs honey
+= parsed | 1 @0+1 | tablespoon @2+3 | item "honey" | note -
+> 2 tbl maple syrup
+= parsed | 2 @0+1 | tablespoon @2+3 | item "maple syrup" | note -
+> 1 T. honey
+= parsed | 1 @0+1 | tablespoon @2+1 | item "honey" | note -
+> 1 t. kosher salt
+= parsed | 1 @0+1 | teaspoon @2+1 | item "kosher salt" | note -
+> 8 oz cream cheese, softened
+= parsed | 8 @0+1 | ounce @2+2 | item "cream cheese" | note "softened"
+> 16 ounces dried pasta
+= parsed | 16 @0+2 | ounce @3+6 | item "dried pasta" | note -
+> 1 lb ground beef
+= parsed | 1 @0+1 | pound @2+2 | item "ground beef" | note -
+> 2 lbs boneless chicken thighs
+= parsed | 2 @0+1 | pound @2+3 | item "boneless chicken thighs" | note -
+> 1 pound russet potatoes, peeled and cubed
+= parsed | 1 @0+1 | pound @2+5 | item "russet potatoes" | note "peeled and cubed"
+> 3 lb. pork shoulder
+= parsed | 3 @0+1 | pound @2+3 | item "pork shoulder" | note -
+> 1 pint heavy cream
+= parsed | 1 @0+1 | pint @2+4 | item "heavy cream" | note -
+> 3 pts strawberries
+= parsed | 3 @0+1 | pint @2+3 | item "strawberries" | note -
+> 1 quart chicken stock
+= parsed | 1 @0+1 | quart @2+5 | item "chicken stock" | note -
+> 2 qts. vegetable broth
+= parsed | 2 @0+1 | quart @2+4 | item "vegetable broth" | note -
+> 1 gallon water
+= parsed | 1 @0+1 | gallon @2+6 | item "water" | note -
+> 1 gal. whole milk
+= parsed | 1 @0+1 | gallon @2+4 | item "whole milk" | note -
+> 12 fl oz beer
+= parsed | 12 @0+2 | fluid-ounce @3+5 | item "beer" | note -
+> 4 fluid ounces orange juice
+= parsed | 4 @0+1 | fluid-ounce @2+12 | item "orange juice" | note -
+> 6 fl. oz. tomato juice
+= parsed | 6 @0+1 | fluid-ounce @2+7 | item "tomato juice" | note -
+> 2 fl.oz. rum
+= parsed | 2 @0+1 | fluid-ounce @2+6 | item "rum" | note -
+> 1 c sugar
+= parsed | 1 @0+1 | cup @2+1 | item "sugar" | note -
+> 1 C flour
+= parsed | 1 @0+1 | cup @2+1 | item "flour" | note -
+> 2 c. milk
+= parsed | 2 @0+1 | cup @2+2 | item "milk" | note -
+> 1 C. brown sugar
+= parsed | 1 @0+1 | cup @2+2 | item "brown sugar" | note -
+> 3 cups chicken broth
+= parsed | 3 @0+1 | cup @2+4 | item "chicken broth" | note -
+> 1 cup of water
+= parsed | 1 @0+1 | cup @2+3 | item "water" | note -
+> 2 cups of fresh spinach
+= parsed | 2 @0+1 | cup @2+4 | item "fresh spinach" | note -
+> 2 l of water
+= parsed | 2 @0+1 | liter @2+1 | item "water" | note -
+> 1 stick butter
+= parsed | 1 @0+1 | stick @2+5 | item "butter" | note -
+> 2 sticks unsalted butter, cold
+= parsed | 2 @0+1 | stick @2+6 | item "unsalted butter" | note "cold"
+> 3 cloves garlic, minced
+= parsed | 3 @0+1 | clove @2+6 | item "garlic" | note "minced"
+> 1 clove garlic
+= parsed | 1 @0+1 | clove @2+5 | item "garlic" | note -
+> 2 cans black beans, drained and rinsed
+= parsed | 2 @0+1 | can @2+4 | item "black beans" | note "drained and rinsed"
+> 1 jar marinara sauce
+= parsed | 1 @0+1 | jar @2+3 | item "marinara sauce" | note -
+> 1 package cream cheese
+= parsed | 1 @0+1 | package @2+7 | item "cream cheese" | note -
+> 2 pkg. active dry yeast
+= parsed | 2 @0+1 | package @2+4 | item "active dry yeast" | note -
+> 4 slices bacon
+= parsed | 4 @0+1 | slice @2+6 | item "bacon" | note -
+> 1 slice lemon
+= parsed | 1 @0+1 | slice @2+5 | item "lemon" | note -
+> 2 pieces candied ginger
+= parsed | 2 @0+1 | piece @2+6 | item "candied ginger" | note -
+> 3 pcs chicken breast
+= parsed | 3 @0+1 | piece @2+3 | item "chicken breast" | note -
+> 1 bunch cilantro
+= parsed | 1 @0+1 | bunch @2+5 | item "cilantro" | note -
+> 3 sprigs thyme
+= parsed | 3 @0+1 | sprig @2+6 | item "thyme" | note -
+> 1 head cauliflower
+= parsed | 1 @0+1 | head @2+4 | item "cauliflower" | note -
+> 2 heads romaine lettuce
+= parsed | 2 @0+1 | head @2+5 | item "romaine lettuce" | note -
+> 1 handful basil leaves
+= parsed | 1 @0+1 | handful @2+7 | item "basil leaves" | note -
+> 2 handfuls baby spinach
+= parsed | 2 @0+1 | handful @2+8 | item "baby spinach" | note -
+> 1 pinch salt
+= parsed | 1 @0+1 | pinch @2+5 | item "salt" | note -
+> 2 pinches red pepper flakes
+= parsed | 2 @0+1 | pinch @2+7 | item "red pepper flakes" | note -
+> 1 dash hot sauce
+= parsed | 1 @0+1 | dash @2+4 | item "hot sauce" | note -
+> 3 drops food coloring
+= parsed | 3 @0+1 | drop @2+5 | item "food coloring" | note -
+> 2 drops vanilla
+= parsed | 2 @0+1 | drop @2+5 | item "vanilla" | note -
+> 6 eggs
+= parsed | 6 @0+1 | - | item "eggs" | note -
+> 1 onion, diced
+= parsed | 1 @0+1 | - | item "onion" | note "diced"
+> 2 carrots
+= parsed | 2 @0+1 | - | item "carrots" | note -
+> 10 cherry tomatoes, halved
+= parsed | 10 @0+2 | - | item "cherry tomatoes" | note "halved"
+> 12 corn tortillas
+= parsed | 12 @0+2 | - | item "corn tortillas" | note -
+> 1 lemon
+= parsed | 1 @0+1 | - | item "lemon" | note -
+> 1 lime, cut into wedges
+= parsed | 1 @0+1 | - | item "lime" | note "cut into wedges"
+> 2 jalapeños
+= parsed | 2 @0+1 | - | item "jalapeños" | note -
+> 2 large egg yolks
+= parsed | 2 @0+1 | - | item "large egg yolks" | note -
+> 1 egg white
+= parsed | 1 @0+1 | - | item "egg white" | note -
+> 1 small shallot, minced
+= parsed | 1 @0+1 | - | item "small shallot" | note "minced"
+> 2 medium zucchini, sliced into rounds
+= parsed | 2 @0+1 | - | item "medium zucchini" | note "sliced into rounds"
+> 1 large red bell pepper, diced
+= parsed | 1 @0+1 | - | item "large red bell pepper" | note "diced"
+> 8 slices sandwich bread
+= parsed | 8 @0+1 | slice @2+6 | item "sandwich bread" | note -
+> 1 sheet puff pastry, thawed
+= parsed | 1 @0+1 | - | item "sheet puff pastry" | note "thawed"
+> 2 sheets nori
+= parsed | 2 @0+1 | - | item "sheets nori" | note -
+> 1 vanilla bean, split and scraped
+= parsed | 1 @0+1 | - | item "vanilla bean" | note "split and scraped"
+> 2 garlic cloves, crushed
+= parsed | 2 @0+1 | - | item "garlic cloves" | note "crushed"
+> 1 red onion, thinly sliced
+= parsed | 1 @0+1 | - | item "red onion" | note "thinly sliced"
+
+# Metric.
+> 250 g plain flour
+= parsed | 250 @0+3 | gram @4+1 | item "plain flour" | note -
+> 250g plain flour
+= parsed | 250 @0+3 | gram @3+1 | item "plain flour" | note -
+> 100 grams caster sugar
+= parsed | 100 @0+3 | gram @4+5 | item "caster sugar" | note -
+> 1 kg potatoes
+= parsed | 1 @0+1 | kilogram @2+2 | item "potatoes" | note -
+> 1.5 kg pork shoulder
+= parsed | 3/2 @0+3 | kilogram @4+2 | item "pork shoulder" | note -
+> 500 ml milk
+= parsed | 500 @0+3 | milliliter @4+2 | item "milk" | note -
+> 500ml whole milk
+= parsed | 500 @0+3 | milliliter @3+2 | item "whole milk" | note -
+> 100ml double cream
+= parsed | 100 @0+3 | milliliter @3+2 | item "double cream" | note -
+> 30ml lemon juice
+= parsed | 30 @0+2 | milliliter @2+2 | item "lemon juice" | note -
+> 2 dl cream
+= parsed | 2 @0+1 | deciliter @2+2 | item "cream" | note -
+> 1 dl sugar
+= parsed | 1 @0+1 | deciliter @2+2 | item "sugar" | note -
+> 1 l water
+= parsed | 1 @0+1 | liter @2+1 | item "water" | note -
+> 1 L vegetable stock
+= parsed | 1 @0+1 | liter @2+1 | item "vegetable stock" | note -
+> 2 L soda
+= parsed | 2 @0+1 | liter @2+1 | item "soda" | note -
+> 1 litre water
+= parsed | 1 @0+1 | liter @2+5 | item "water" | note -
+> 250 millilitres double cream
+= parsed | 250 @0+3 | milliliter @4+11 | item "double cream" | note -
+> 2 kilos tomatoes
+= parsed | 2 @0+1 | kilogram @2+5 | item "tomatoes" | note -
+> 1 kilo flour
+= parsed | 1 @0+1 | kilogram @2+4 | item "flour" | note -
+> 2 kgs potatoes
+= parsed | 2 @0+1 | kilogram @2+3 | item "potatoes" | note -
+> 1 kilogram bread flour
+= parsed | 1 @0+1 | kilogram @2+8 | item "bread flour" | note -
+> 75 g butter, softened
+= parsed | 75 @0+2 | gram @3+1 | item "butter" | note "softened"
+> 200g dark chocolate (70% cocoa), chopped
+= parsed | 200 @0+3 | gram @3+1 | item "dark chocolate" | note "70% cocoa; chopped"
+> 5 g fine salt
+= parsed | 5 @0+1 | gram @2+1 | item "fine salt" | note -
+> 12 g instant yeast
+= parsed | 12 @0+2 | gram @3+1 | item "instant yeast" | note -
+> 400 g tin chopped tomatoes
+= parsed | 400 @0+3 | gram @4+1 | item "tin chopped tomatoes" | note -
+> 200 g feta, crumbled
+= parsed | 200 @0+3 | gram @4+1 | item "feta" | note "crumbled"
+> 3 dl mjölk
+= parsed | 3 @0+1 | deciliter @2+2 | item "mjölk" | note -
+> 2 dl grädde
+= parsed | 2 @0+1 | deciliter @2+2 | item "grädde" | note -
+> 500 g vetemjöl
+= parsed | 500 @0+3 | gram @4+1 | item "vetemjöl" | note -
+> 200 g Mehl
+= parsed | 200 @0+3 | gram @4+1 | item "Mehl" | note -
+> 1 Prise Salz
+= parsed | 1 @0+1 | - | item "Prise Salz" | note -
+> 2 EL Olivenöl
+= parsed | 2 @0+1 | - | item "EL Olivenöl" | note -
+> 1 tsk salt
+= parsed | 1 @0+1 | - | item "tsk salt" | note -
+
+# Fractions.
+> 1/2 cup sugar
+= parsed | 1/2 @0+3 | cup @4+3 | item "sugar" | note -
+> 1/4 tsp salt
+= parsed | 1/4 @0+3 | teaspoon @4+3 | item "salt" | note -
+> 3/4 cup milk
+= parsed | 3/4 @0+3 | cup @4+3 | item "milk" | note -
+> 1/3 cup vegetable oil
+= parsed | 1/3 @0+3 | cup @4+3 | item "vegetable oil" | note -
+> 2/3 cup brown sugar
+= parsed | 2/3 @0+3 | cup @4+3 | item "brown sugar" | note -
+> 1/8 teaspoon cayenne pepper
+= parsed | 1/8 @0+3 | teaspoon @4+8 | item "cayenne pepper" | note -
+> 3/2 cups flour
+= parsed | 3/2 @0+3 | cup @4+4 | item "flour" | note -
+> 1 1/2 cups flour
+= parsed | 3/2 @0+5 | cup @6+4 | item "flour" | note -
+> 2 1/4 teaspoons yeast
+= parsed | 9/4 @0+5 | teaspoon @6+9 | item "yeast" | note -
+> 1-1/2 cups milk
+= parsed | 3/2 @0+5 | cup @6+4 | item "milk" | note -
+> 2-1/2 cups flour
+= parsed | 5/2 @0+5 | cup @6+4 | item "flour" | note -
+> 1‐1/2 cups milk
+= parsed | 3/2 @0+5 | cup @6+4 | item "milk" | note -
+> 1⁄2 cup butter
+= parsed | 1/2 @0+3 | cup @4+3 | item "butter" | note -
+> 1 1⁄2 cups water
+= parsed | 3/2 @0+5 | cup @6+4 | item "water" | note -
+> 1/2 C butter
+= parsed | 1/2 @0+3 | cup @4+1 | item "butter" | note -
+> 1 1/2 c. sugar
+= parsed | 3/2 @0+5 | cup @6+2 | item "sugar" | note -
+> 1 1/2 tsp. ground cinnamon
+= parsed | 3/2 @0+5 | teaspoon @6+4 | item "ground cinnamon" | note -
+> 1/2 tsp cream of tartar
+= parsed | 1/2 @0+3 | teaspoon @4+3 | item "cream of tartar" | note -
+> 1/3 cup mayonnaise
+= parsed | 1/3 @0+3 | cup @4+3 | item "mayonnaise" | note -
+> 1/4 cup fresh basil, chopped (optional)
+= parsed | 1/4 @0+3 | cup @4+3 | item "fresh basil" | note "chopped; optional"
+
+# Unicode fractions.
+> ½ cup butter
+= parsed | 1/2 @0+1 | cup @2+3 | item "butter" | note -
+> ¼ tsp nutmeg
+= parsed | 1/4 @0+1 | teaspoon @2+3 | item "nutmeg" | note -
+> ¾ cup sugar
+= parsed | 3/4 @0+1 | cup @2+3 | item "sugar" | note -
+> ⅓ cup milk
+= parsed | 1/3 @0+1 | cup @2+3 | item "milk" | note -
+> ⅔ cup heavy cream
+= parsed | 2/3 @0+1 | cup @2+3 | item "heavy cream" | note -
+> ⅛ tsp ground cloves
+= parsed | 1/8 @0+1 | teaspoon @2+3 | item "ground cloves" | note -
+> ⅜ cup water
+= parsed | 3/8 @0+1 | cup @2+3 | item "water" | note -
+> ⅝ cup flour
+= parsed | 5/8 @0+1 | cup @2+3 | item "flour" | note -
+> ⅞ cup sugar
+= parsed | 7/8 @0+1 | cup @2+3 | item "sugar" | note -
+> ⅕ cup rolled oats
+= parsed | 1/5 @0+1 | cup @2+3 | item "rolled oats" | note -
+> ⅙ cup honey
+= parsed | 1/6 @0+1 | cup @2+3 | item "honey" | note -
+> ⅐ cup water
+= parsed | 1/7 @0+1 | cup @2+3 | item "water" | note -
+> ⅑ cup water
+= parsed | 1/9 @0+1 | cup @2+3 | item "water" | note -
+> ⅒ cup water
+= parsed | 1/10 @0+1 | cup @2+3 | item "water" | note -
+> 1½ cups flour
+= parsed | 3/2 @0+2 | cup @3+4 | item "flour" | note -
+> 2¼ cups sugar
+= parsed | 9/4 @0+2 | cup @3+4 | item "sugar" | note -
+> 2⅔ cups oats
+= parsed | 8/3 @0+2 | cup @3+4 | item "oats" | note -
+> 1 ½ cups flour
+= parsed | 3/2 @0+3 | cup @4+4 | item "flour" | note -
+> 3 ¾ cups bread flour
+= parsed | 15/4 @0+3 | cup @4+4 | item "bread flour" | note -
+> 3 ⅓ cups oats
+= parsed | 10/3 @0+3 | cup @4+4 | item "oats" | note -
+> 1 ¼ c flour
+= parsed | 5/4 @0+3 | cup @4+1 | item "flour" | note -
+> ½ c sugar
+= parsed | 1/2 @0+1 | cup @2+1 | item "sugar" | note -
+> ½ teaspoon fine sea salt
+= parsed | 1/2 @0+1 | teaspoon @2+8 | item "fine sea salt" | note -
+> ½ lemon, juiced
+= parsed | 1/2 @0+1 | - | item "lemon" | note "juiced"
+> ½ onion
+= parsed | 1/2 @0+1 | - | item "onion" | note -
+> 1 ½ lbs ground turkey
+= parsed | 3/2 @0+3 | pound @4+3 | item "ground turkey" | note -
+> ¼ cup (60ml) maple syrup
+= parsed | 1/4 @0+1 | cup @2+3 | item "maple syrup" | note "60ml"
+
+# Decimals.
+> 0.5 cup milk
+= parsed | 1/2 @0+3 | cup @4+3 | item "milk" | note -
+> .5 cup milk
+= parsed | 1/2 @0+2 | cup @3+3 | item "milk" | note -
+> .75 cup milk
+= parsed | 3/4 @0+3 | cup @4+3 | item "milk" | note -
+> 1.5 cups flour
+= parsed | 3/2 @0+3 | cup @4+4 | item "flour" | note -
+> 2.25 lbs beef
+= parsed | 9/4 @0+4 | pound @5+3 | item "beef" | note -
+> 2.50 lbs beef
+= parsed | 5/2 @0+4 | pound @5+3 | item "beef" | note -
+> 0.125 tsp salt
+= parsed | 1/8 @0+5 | teaspoon @6+3 | item "salt" | note -
+> 0.25 tsp salt
+= parsed | 1/4 @0+4 | teaspoon @5+3 | item "salt" | note -
+> 1.0 cup water
+= parsed | 1 @0+3 | cup @4+3 | item "water" | note -
+> 1.333 cups water
+= parsed | 1333/1000 @0+5 | cup @6+4 | item "water" | note -
+> 0.75 l stock
+= parsed | 3/4 @0+4 | liter @5+1 | item "stock" | note -
+> 2.5kg lamb shoulder
+= parsed | 5/2 @0+3 | kilogram @3+2 | item "lamb shoulder" | note -
+> 0.333333 cup water
+= parsed | 333333/1000000 @0+8 | cup @9+3 | item "water" | note -
+> 1.5 ml vanilla
+= parsed | 3/2 @0+3 | milliliter @4+2 | item "vanilla" | note -
+
+# Ranges.
+> 2-3 cloves garlic
+= parsed | 2..3 @0+3 | clove @4+6 | item "garlic" | note -
+> 2–3 cloves garlic
+= parsed | 2..3 @0+3 | clove @4+6 | item "garlic" | note -
+> 2 - 3 tablespoons water
+= parsed | 2..3 @0+5 | tablespoon @6+11 | item "water" | note -
+> 2 – 3 cups stock
+= parsed | 2..3 @0+5 | cup @6+4 | item "stock" | note -
+> 2 to 3 tablespoons water
+= parsed | 2..3 @0+6 | tablespoon @7+11 | item "water" | note -
+> 1/2-1 teaspoon chili flakes
+= parsed | 1/2..1 @0+5 | teaspoon @6+8 | item "chili flakes" | note -
+> ½–1 tsp chili flakes
+= parsed | 1/2..1 @0+3 | teaspoon @4+3 | item "chili flakes" | note -
+> 1 to 1½ cups milk
+= parsed | 1..3/2 @0+7 | cup @8+4 | item "milk" | note -
+> 1/2 to 1 cup water
+= parsed | 1/2..1 @0+8 | cup @9+3 | item "water" | note -
+> ½ to ¾ cup sugar
+= parsed | 1/2..3/4 @0+6 | cup @7+3 | item "sugar" | note -
+> 1 to 2 tsp honey
+= parsed | 1..2 @0+6 | teaspoon @7+3 | item "honey" | note -
+> 1 1/2-2 cups broth
+= parsed | 3/2..2 @0+7 | cup @8+4 | item "broth" | note -
+> 3-4 large potatoes
+= parsed | 3..4 @0+3 | - | item "large potatoes" | note -
+> 4—6 chicken thighs
+= parsed | 4..6 @0+3 | - | item "chicken thighs" | note -
+> 6-8 chicken thighs
+= parsed | 6..8 @0+3 | - | item "chicken thighs" | note -
+> 1-2 jalapeños, seeded
+= parsed | 1..2 @0+3 | - | item "jalapeños" | note "seeded"
+> 1-2 tbsp
+= unparsed no-item
+> 1–2 tbsp lemon juice
+= parsed | 1..2 @0+3 | tablespoon @4+4 | item "lemon juice" | note -
+> 1.5-2 kg beef
+= parsed | 3/2..2 @0+5 | kilogram @6+2 | item "beef" | note -
+> 2 to 3 lbs beef chuck
+= parsed | 2..3 @0+6 | pound @7+3 | item "beef chuck" | note -
+> 4-5 cups chicken stock, warmed
+= parsed | 4..5 @0+3 | cup @4+4 | item "chicken stock" | note "warmed"
+> 5-6 cups apples
+= parsed | 5..6 @0+3 | cup @4+4 | item "apples" | note -
+> 10–12 basil leaves
+= parsed | 10..12 @0+5 | - | item "basil leaves" | note -
+> one to two cups milk
+= parsed | 1..2 @0+10 | cup @11+4 | item "milk" | note -
+> two to three tablespoons milk
+= parsed | 2..3 @0+12 | tablespoon @13+11 | item "milk" | note -
+
+# Number words and articles.
+> one onion, chopped
+= parsed | 1 @0+3 | - | item "onion" | note "chopped"
+> One 14-ounce can coconut milk
+= parsed | 1 @0+3 | can @13+3 | item "coconut milk" | note "14-ounce"
+> two eggs
+= parsed | 2 @0+3 | - | item "eggs" | note -
+> Three cloves garlic
+= parsed | 3 @0+5 | clove @6+6 | item "garlic" | note -
+> ONE egg
+= parsed | 1 @0+3 | - | item "egg" | note -
+> twelve cherry tomatoes
+= parsed | 12 @0+6 | - | item "cherry tomatoes" | note -
+> a pinch of salt
+= parsed | 1 @0+1 | pinch @2+5 | item "salt" | note -
+> A pinch salt
+= parsed | 1 @0+1 | pinch @2+5 | item "salt" | note -
+> an 8-ounce package cream cheese, softened
+= parsed | 1 @0+2 | package @11+7 | item "cream cheese" | note "8-ounce; softened"
+> a handful of fresh parsley
+= parsed | 1 @0+1 | handful @2+7 | item "fresh parsley" | note -
+> a dash of Worcestershire sauce
+= parsed | 1 @0+1 | dash @2+4 | item "Worcestershire sauce" | note -
+> a cup of coffee
+= parsed | 1 @0+1 | cup @2+3 | item "coffee" | note -
+> an onion
+= parsed | - | - | item "an onion" | note -
+> a large egg
+= parsed | - | - | item "a large egg" | note -
+> a few sprigs of thyme
+= parsed | - | - | item "a few sprigs of thyme" | note -
+> a knob of butter
+= parsed | - | - | item "a knob of butter" | note -
+> a splash of milk
+= parsed | - | - | item "a splash of milk" | note -
+> a few drops of vanilla
+= parsed | - | - | item "a few drops of vanilla" | note -
+
+# Sizes and packages.
+> 1 (14 oz) can diced tomatoes, drained
+= parsed | 1 @0+1 | can @10+3 | item "diced tomatoes" | note "14 oz; drained"
+> 1 (14-ounce) can sweetened condensed milk
+= parsed | 1 @0+1 | can @13+3 | item "sweetened condensed milk" | note "14-ounce"
+> 2 (8 oz.) packages cream cheese, softened
+= parsed | 2 @0+1 | package @10+8 | item "cream cheese" | note "8 oz; softened"
+> 1 (15.5 oz) can chickpeas
+= parsed | 1 @0+1 | can @12+3 | item "chickpeas" | note "15.5 oz"
+> 1 14-ounce can coconut milk
+= parsed | 1 @0+1 | can @11+3 | item "coconut milk" | note "14-ounce"
+> 1 17.3-ounce box puff pastry
+= parsed | 1 @0+1 | - | item "box puff pastry" | note "17.3-ounce"
+> 2 9-inch pie crusts
+= parsed | 2 @0+1 | - | item "pie crusts" | note "9-inch"
+> 1 (9-inch) pie crust
+= parsed | 1 @0+1 | - | item "pie crust" | note "9-inch"
+> 1 (about 2 lb) butternut squash
+= parsed | 1 @0+1 | - | item "butternut squash" | note "about 2 lb"
+> 1 2-inch piece ginger, grated
+= parsed | 1 @0+1 | piece @9+5 | item "ginger" | note "2-inch; grated"
+> 1 (1-inch) piece fresh ginger
+= parsed | 1 @0+1 | piece @11+5 | item "fresh ginger" | note "1-inch"
+> 1 (400g) tin chopped tomatoes
+= parsed | 1 @0+1 | - | item "tin chopped tomatoes" | note "400g"
+> 2 (12-ounce) bottles beer
+= parsed | 2 @0+1 | - | item "bottles beer" | note "12-ounce"
+> 1 (.25 oz) packet active dry yeast
+= parsed | 1 @0+1 | - | item "packet active dry yeast" | note ".25 oz"
+> 1 (16-ounce) package lasagna noodles
+= parsed | 1 @0+1 | package @13+7 | item "lasagna noodles" | note "16-ounce"
+> 1 (3-pound) whole chicken
+= parsed | 1 @0+1 | - | item "whole chicken" | note "3-pound"
+> 1 (17.3-ounce) box puff pastry
+= parsed | 1 @0+1 | - | item "box puff pastry" | note "17.3-ounce"
+> 1 (8-oz) block cream cheese, room temperature
+= parsed | 1 @0+1 | - | item "block cream cheese" | note "8-oz; room temperature"
+> 1 can (15 oz) black beans
+= parsed | 1 @0+1 | can @2+3 | item "black beans" | note "15 oz"
+> 1 can (14.5 oz) fire-roasted tomatoes
+= parsed | 1 @0+1 | can @2+3 | item "fire-roasted tomatoes" | note "14.5 oz"
+> 1 pkg (8 oz) cream cheese
+= parsed | 1 @0+1 | package @2+3 | item "cream cheese" | note "8 oz"
+> 1 large can tomatoes (28 oz)
+= parsed | 1 @0+1 | - | item "large can tomatoes" | note "28 oz"
+> 5 lb bag potatoes
+= parsed | 5 @0+1 | pound @2+2 | item "bag potatoes" | note -
+> 1 ½-inch piece ginger
+= unparsed ambiguous-quantity
+
+# Notes in parentheses and after a comma.
+> 2 cups (250 g) all-purpose flour, sifted
+= parsed | 2 @0+1 | cup @2+4 | item "all-purpose flour" | note "250 g; sifted"
+> 1 cup (2 sticks) butter, softened
+= parsed | 1 @0+1 | cup @2+3 | item "butter" | note "2 sticks; softened"
+> 1 cup flour, plus more for dusting
+= parsed | 1 @0+1 | cup @2+3 | item "flour" | note "plus more for dusting"
+> 1 cup flour (sifted)
+= parsed | 1 @0+1 | cup @2+3 | item "flour" | note "sifted"
+> 1 cup flour (sifted), plus more for dusting
+= parsed | 1 @0+1 | cup @2+3 | item "flour" | note "sifted; plus more for dusting"
+> 3 tablespoons fresh lemon juice (from 1 lemon)
+= parsed | 3 @0+1 | tablespoon @2+11 | item "fresh lemon juice" | note "from 1 lemon"
+> 2 cups chicken broth (or vegetable broth)
+= parsed | 2 @0+1 | cup @2+4 | item "chicken broth" | note "or vegetable broth"
+> 1 lb shrimp, peeled and deveined
+= parsed | 1 @0+1 | pound @2+2 | item "shrimp" | note "peeled and deveined"
+> 1 large onion, finely chopped
+= parsed | 1 @0+1 | - | item "large onion" | note "finely chopped"
+> 4 cups (1 liter) water
+= parsed | 4 @0+1 | cup @2+4 | item "water" | note "1 liter"
+> 1 cup (240 ml) whole milk, at room temperature
+= parsed | 1 @0+1 | cup @2+3 | item "whole milk" | note "240 ml; at room temperature"
+> 2 tbsp (30 ml) olive oil
+= parsed | 2 @0+1 | tablespoon @2+4 | item "olive oil" | note "30 ml"
+> 1/2 cup (1 stick / 113g) unsalted butter
+= parsed | 1/2 @0+3 | cup @4+3 | item "unsalted butter" | note "1 stick / 113g"
+> 1 cup heavy cream (see note)
+= parsed | 1 @0+1 | cup @2+3 | item "heavy cream" | note "see note"
+> 2 eggs, beaten; at room temperature
+= parsed | 2 @0+1 | - | item "eggs" | note "beaten; at room temperature"
+> 1 cup walnuts (toasted (optional))
+= parsed | 1 @0+1 | cup @2+3 | item "walnuts" | note "toasted (optional)"
+> 3 apples (about 1 1/2 lb.), peeled, cored, and sliced
+= parsed | 3 @0+1 | - | item "apples" | note "about 1 1/2 lb; peeled, cored, and sliced"
+> 1/2 cup freshly grated Parmesan cheese, plus more for serving
+= parsed | 1/2 @0+3 | cup @4+3 | item "freshly grated Parmesan cheese" | note "plus more for serving"
+> 2 tablespoons chopped fresh flat-leaf parsley
+= parsed | 2 @0+1 | tablespoon @2+11 | item "chopped fresh flat-leaf parsley" | note -
+> 1 teaspoon kosher salt (I use Diamond Crystal)
+= parsed | 1 @0+1 | teaspoon @2+8 | item "kosher salt" | note "I use Diamond Crystal"
+> 3/4 cup (1 1/2 sticks) unsalted butter, cut into cubes and chilled
+= parsed | 3/4 @0+3 | cup @4+3 | item "unsalted butter" | note "1 1/2 sticks; cut into cubes and chilled"
+> 1 cup buttermilk, shaken
+= parsed | 1 @0+1 | cup @2+3 | item "buttermilk" | note "shaken"
+> 2 ripe bananas, mashed (about 1 cup)
+= parsed | 2 @0+1 | - | item "ripe bananas" | note "mashed; about 1 cup"
+> 1 1/4 cups (155g) all-purpose flour (spooned & leveled)
+= parsed | 5/4 @0+5 | cup @6+4 | item "all-purpose flour" | note "155g; spooned & leveled"
+> ½ cup (1 stick; 113g) unsalted butter
+= parsed | 1/2 @0+1 | cup @2+3 | item "unsalted butter" | note "1 stick; 113g"
+> 2 cups (480ml) whole milk
+= parsed | 2 @0+1 | cup @2+4 | item "whole milk" | note "480ml"
+> 1 teaspoon ground cumin
+= parsed | 1 @0+1 | teaspoon @2+8 | item "ground cumin" | note -
+> 1/2 teaspoon smoked paprika
+= parsed | 1/2 @0+3 | teaspoon @4+8 | item "smoked paprika" | note -
+> 1 tablespoon (15 ml) soy sauce
+= parsed | 1 @0+1 | tablespoon @2+10 | item "soy sauce" | note "15 ml"
+> 2 cups (500 ml) vegetable stock
+= parsed | 2 @0+1 | cup @2+4 | item "vegetable stock" | note "500 ml"
+> 1 kg (2.2 lb) potatoes
+= parsed | 1 @0+1 | kilogram @2+2 | item "potatoes" | note "2.2 lb"
+> 500g (1lb) minced beef
+= parsed | 500 @0+3 | gram @3+1 | item "minced beef" | note "1lb"
+> 300 ml (1¼ cups) double cream
+= parsed | 300 @0+3 | milliliter @4+2 | item "double cream" | note "1¼ cups"
+> 4 oz. (113 g) cream cheese
+= parsed | 4 @0+1 | ounce @2+3 | item "cream cheese" | note "113 g"
+> 1 tbsp. (15 ml) vanilla extract
+= parsed | 1 @0+1 | tablespoon @2+5 | item "vanilla extract" | note "15 ml"
+> 1 ½ teaspoons (7g) salt
+= parsed | 3/2 @0+3 | teaspoon @4+9 | item "salt" | note "7g"
+> 1 cup sour cream (or plain Greek yogurt)
+= parsed | 1 @0+1 | cup @2+3 | item "sour cream" | note "or plain Greek yogurt"
+> 1 cup shredded cheddar cheese (4 oz.)
+= parsed | 1 @0+1 | cup @2+3 | item "shredded cheddar cheese" | note "4 oz"
+> 2 tbsp chopped chives (fresh or dried)
+= parsed | 2 @0+1 | tablespoon @2+4 | item "chopped chives" | note "fresh or dried"
+> 6 cups apples (about 6 medium), peeled and sliced 1/4-inch thick
+= parsed | 6 @0+1 | cup @2+4 | item "apples" | note "about 6 medium; peeled and sliced 1/4-inch thick"
+> 1 egg, lightly beaten (for egg wash)
+= parsed | 1 @0+1 | - | item "egg" | note "lightly beaten; for egg wash"
+> 1 lemon, zested and juiced
+= parsed | 1 @0+1 | - | item "lemon" | note "zested and juiced"
+> 1 Tbsp. fresh rosemary, minced
+= parsed | 1 @0+1 | tablespoon @2+5 | item "fresh rosemary" | note "minced"
+> 1 tsp. salt
+= parsed | 1 @0+1 | teaspoon @2+4 | item "salt" | note -
+> 2 Tbsp Dijon mustard
+= parsed | 2 @0+1 | tablespoon @2+4 | item "Dijon mustard" | note -
+> 1 tsp. vanilla.
+= parsed | 1 @0+1 | teaspoon @2+4 | item "vanilla" | note -
+> 2 eggs.
+= parsed | 2 @0+1 | - | item "eggs" | note -
+> 3 apples;
+= parsed | 3 @0+1 | - | item "apples" | note -
+> For the crust:
+= parsed | - | - | item "For the crust" | note -
+> 1 cup crème fraîche
+= parsed | 1 @0+1 | cup @2+3 | item "crème fraîche" | note -
+> crème fraîche, for serving
+= parsed | - | - | item "crème fraîche" | note "for serving"
+> 1 cup cre\u0300me frai\u0302che
+= parsed | 1 @0+1 | cup @2+3 | item "cre\u0300me frai\u0302che" | note -
+
+# Words a blogger puts before the unit stay in the item; the unit is only read straight after the quantity.
+> 1 heaping tablespoon cocoa powder
+= parsed | 1 @0+1 | - | item "heaping tablespoon cocoa powder" | note -
+> 1 scant cup sugar
+= parsed | 1 @0+1 | - | item "scant cup sugar" | note -
+> 1 level tsp baking powder
+= parsed | 1 @0+1 | - | item "level tsp baking powder" | note -
+> 1 generous pinch saffron
+= parsed | 1 @0+1 | - | item "generous pinch saffron" | note -
+> 2 cups loosely packed basil
+= parsed | 2 @0+1 | cup @2+4 | item "loosely packed basil" | note -
+> 1 cup packed brown sugar
+= parsed | 1 @0+1 | cup @2+3 | item "packed brown sugar" | note -
+
+# Case.
+> 2 CUPS FLOUR
+= parsed | 2 @0+1 | cup @2+4 | item "FLOUR" | note -
+> 2 Cups Flour
+= parsed | 2 @0+1 | cup @2+4 | item "Flour" | note -
+> 2 Tablespoons sugar
+= parsed | 2 @0+1 | tablespoon @2+11 | item "sugar" | note -
+> 2 Teaspoons salt
+= parsed | 2 @0+1 | teaspoon @2+9 | item "salt" | note -
+> 2 TBSP butter
+= parsed | 2 @0+1 | tablespoon @2+4 | item "butter" | note -
+> 3 TBS soy sauce
+= parsed | 3 @0+1 | tablespoon @2+3 | item "soy sauce" | note -
+> 1 TBSP sesame oil
+= parsed | 1 @0+1 | tablespoon @2+4 | item "sesame oil" | note -
+> 2 Tbs rice vinegar
+= parsed | 2 @0+1 | tablespoon @2+3 | item "rice vinegar" | note -
+> 2 TSP salt
+= parsed | 2 @0+1 | teaspoon @2+3 | item "salt" | note -
+> 1 LB beef
+= parsed | 1 @0+1 | pound @2+2 | item "beef" | note -
+
+# Percentages are part of the item.
+> 3 cups 2% milk
+= parsed | 3 @0+1 | cup @2+4 | item "2% milk" | note -
+> 1 cup 2% milk
+= parsed | 1 @0+1 | cup @2+3 | item "2% milk" | note -
+> 1 cup 0% Greek yogurt
+= parsed | 1 @0+1 | cup @2+3 | item "0% Greek yogurt" | note -
+
+# To taste.
+> salt, to taste
+= parsed | to-taste @6+8 | - | item "salt" | note -
+> Salt and pepper, to taste
+= parsed | to-taste @17+8 | - | item "Salt and pepper" | note -
+> salt to taste
+= parsed | to-taste @5+8 | - | item "salt" | note -
+> Salt & pepper to taste
+= parsed | to-taste @14+8 | - | item "Salt & pepper" | note -
+> Black pepper, freshly ground, to taste
+= parsed | to-taste @30+8 | - | item "Black pepper" | note "freshly ground"
+> kosher salt (to taste)
+= parsed | to-taste @13+8 | - | item "kosher salt" | note -
+> Freshly ground black pepper, to taste (optional)
+= parsed | to-taste @29+8 | - | item "Freshly ground black pepper" | note "optional"
+> To taste: flaky sea salt
+= parsed | to-taste @0+8 | - | item "flaky sea salt" | note -
+> Salt, To Taste
+= parsed | to-taste @6+8 | - | item "Salt" | note -
+> SALT TO TASTE
+= parsed | to-taste @5+8 | - | item "SALT" | note -
+> hot sauce, to taste, for serving
+= parsed | to-taste @11+8 | - | item "hot sauce" | note "for serving"
+> 1 tsp sugar, or to taste
+= parsed | 1 @0+1 | teaspoon @2+3 | item "sugar" | note "or to taste"
+> 1/2 tsp salt (or to taste)
+= parsed | 1/2 @0+3 | teaspoon @4+3 | item "salt" | note "or to taste"
+> sugar, as needed
+= parsed | - | - | item "sugar" | note "as needed"
+> pepper (freshly ground, to taste)
+= parsed | - | - | item "pepper" | note "freshly ground, to taste"
+> to taste
+= unparsed no-item
+> Salt, to taste.
+= parsed | to-taste @6+8 | - | item "Salt" | note -
+
+# No quantity.
+> salt
+= parsed | - | - | item "salt" | note -
+> Salt and pepper
+= parsed | - | - | item "Salt and pepper" | note -
+> fresh parsley, for garnish
+= parsed | - | - | item "fresh parsley" | note "for garnish"
+> Cooking spray
+= parsed | - | - | item "Cooking spray" | note -
+> Juice of 2 lemons
+= parsed | - | - | item "Juice of 2 lemons" | note -
+> Zest of ½ lemon
+= parsed | - | - | item "Zest of ½ lemon" | note -
+> zest of 1 orange
+= parsed | - | - | item "zest of 1 orange" | note -
+> pinch of salt
+= parsed | - | - | item "pinch of salt" | note -
+> Ice
+= parsed | - | - | item "Ice" | note -
+> Ice cubes, for serving
+= parsed | - | - | item "Ice cubes" | note "for serving"
+> Olive oil, for drizzling
+= parsed | - | - | item "Olive oil" | note "for drizzling"
+> Optional: chopped nuts
+= parsed | - | - | item "Optional: chopped nuts" | note -
+> Whipped cream (optional)
+= parsed | - | - | item "Whipped cream" | note "optional"
+> small bunch coriander
+= parsed | - | - | item "small bunch coriander" | note -
+> (optional) toasted sesame seeds
+= parsed | - | - | item "toasted sesame seeds" | note "optional"
+> Flour: 2 cups
+= parsed | - | - | item "Flour: 2 cups" | note -
+> about 2 cups flour
+= parsed | - | - | item "about 2 cups flour" | note -
+> ~2 cups flour
+= parsed | - | - | item "~2 cups flour" | note -
+
+# Bullets, and lines pasted from recipe cards.
+> ▢ 2 cups all-purpose flour
+= parsed | 2 @2+1 | cup @4+4 | item "all-purpose flour" | note -
+> ▢ 1 tsp baking powder
+= parsed | 1 @2+1 | teaspoon @4+3 | item "baking powder" | note -
+> ▢ salt to taste
+= parsed | to-taste @7+8 | - | item "salt" | note -
+> ☐ 3 eggs
+= parsed | 3 @2+1 | - | item "eggs" | note -
+> □ 1/2 cup sugar
+= parsed | 1/2 @2+3 | cup @6+3 | item "sugar" | note -
+> • 1 cup milk
+= parsed | 1 @2+1 | cup @4+3 | item "milk" | note -
+> ◦ 2 tsp vanilla
+= parsed | 2 @2+1 | teaspoon @4+3 | item "vanilla" | note -
+> ‣ 1 lemon
+= parsed | 1 @2+1 | - | item "lemon" | note -
+> ▪ 4 cups water
+= parsed | 4 @2+1 | cup @4+4 | item "water" | note -
+> · 1 lemon
+= parsed | 1 @2+1 | - | item "lemon" | note -
+> - 2 tablespoons butter
+= parsed | 2 @2+1 | tablespoon @4+11 | item "butter" | note -
+> * 1 teaspoon salt
+= parsed | 1 @2+1 | teaspoon @4+8 | item "salt" | note -
+> – 3 cloves garlic
+= parsed | 3 @2+1 | clove @4+6 | item "garlic" | note -
+> -2 cups flour
+= parsed | - | - | item "-2 cups flour" | note -
+> *2 cups flour
+= parsed | - | - | item "*2 cups flour" | note -
+
+# Whitespace of every kind; spans count UTF-16 code units from the line's first character.
+> \u00A02 cups flour
+= parsed | 2 @1+1 | cup @3+4 | item "flour" | note -
+> 2\u00A0cups flour
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> 2\u202Fcups flour
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> 1½\u2009cups sugar
+= parsed | 3/2 @0+2 | cup @3+4 | item "sugar" | note -
+> 1 fl\u00A0oz rum
+= parsed | 1 @0+1 | fluid-ounce @2+5 | item "rum" | note -
+> 3   cups   flour
+= parsed | 3 @0+1 | cup @4+4 | item "flour" | note -
+> 2\u0009cups flour
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> \u0020\u00202 cups flour
+= parsed | 2 @2+1 | cup @4+4 | item "flour" | note -
+> 2 cups flour\u0020\u0020
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> two lines\u000Aof one ingredient
+= parsed | 2 @0+3 | - | item "lines\u000Aof one ingredient" | note -
+
+# Temperatures, which are rare in an ingredient line but are units.
+> butter, softened to 65°F
+= parsed | - | - | item "butter" | note "softened to 65°F"
+> 1 cup water, heated to 110 °F
+= parsed | 1 @0+1 | cup @2+3 | item "water" | note "heated to 110 °F"
+> water (110°F)
+= parsed | - | - | item "water" | note "110°F"
+> 2 cups warm water (105-115°F)
+= parsed | 2 @0+1 | cup @2+4 | item "warm water" | note "105-115°F"
+> 350°F oven
+= parsed | 350 @0+3 | fahrenheit @3+2 | item "oven" | note -
+> 180°C oven
+= parsed | 180 @0+3 | celsius @3+2 | item "oven" | note -
+> 200ºC
+= unparsed no-item
+
+# Symbols and emoji.
+> 🍎 3 apples
+= parsed | - | - | item "🍎 3 apples" | note -
+> 3 🍎
+= parsed | 3 @0+1 | - | item "🍎" | note -
+> 2 cups 🥛 milk
+= parsed | 2 @0+1 | cup @2+4 | item "🥛 milk" | note -
+> 1 T-bone steak
+= parsed | 1 @0+1 | - | item "T-bone steak" | note -
+> 1 can't-miss cookie
+= parsed | 1 @0+1 | - | item "can't-miss cookie" | note -
+
+# Lines that cannot be read: kept as written and flagged.
+>
+= unparsed empty
+> \u0020\u0020\u0020
+= unparsed empty
+> \u0009
+= unparsed empty
+> 2 cups
+= unparsed no-item
+> 1/2
+= unparsed no-item
+> ½
+= unparsed no-item
+> 1 cup of
+= unparsed no-item
+> 2 cups (250 g)
+= unparsed no-item
+> 1 cup, sifted
+= unparsed no-item
+> 0 eggs
+= unparsed unreadable-quantity
+> 0/2 cup sugar
+= unparsed unreadable-quantity
+> 1/0 cup sugar
+= unparsed unreadable-quantity
+> 1//2 cup sugar
+= unparsed unreadable-quantity
+> 1/2/3 cup sugar
+= unparsed unreadable-quantity
+> 2 3/2 cups flour
+= unparsed unreadable-quantity
+> 2 4/4 cups flour
+= unparsed unreadable-quantity
+> 1.2.3 cups
+= unparsed unreadable-quantity
+> 1. Flour
+= unparsed unreadable-quantity
+> 2. 2 cups flour
+= unparsed unreadable-quantity
+> 2.5. cups
+= unparsed ambiguous-quantity
+> 3-2 eggs
+= unparsed reversed-range
+> 2-2 eggs
+= unparsed reversed-range
+> 1 - 1/2 cups milk
+= unparsed reversed-range
+> 1–1/2 cups milk
+= unparsed reversed-range
+> ½-¼ cup
+= unparsed reversed-range
+> 1,5 kg potatoes
+= unparsed ambiguous-quantity
+> 1,000 g flour
+= unparsed ambiguous-quantity
+> 1 cup + 2 tbsp flour
+= unparsed ambiguous-quantity
+> 1 tablespoon + 1 teaspoon cornstarch
+= unparsed ambiguous-quantity
+> 1/4 cup + 2 tablespoons sugar
+= unparsed ambiguous-quantity
+> 1 cup plus 2 tablespoons milk
+= unparsed ambiguous-quantity
+> 1 cup to 1 1/2 cups milk
+= unparsed ambiguous-quantity
+> 2 x 400g cans tomatoes
+= unparsed ambiguous-quantity
+> 1 x 400g tin chickpeas
+= unparsed ambiguous-quantity
+> 2x400g tins tomatoes
+= unparsed ambiguous-quantity
+> 2 × 400 g cans
+= unparsed ambiguous-quantity
+> 2 or 3 eggs
+= unparsed ambiguous-quantity
+> 2 and 1/2 cups flour
+= unparsed ambiguous-quantity
+> 2 3 cups flour
+= unparsed ambiguous-quantity
+> 1 cup 2 tbsp sugar
+= unparsed ambiguous-quantity
+> 2nd egg
+= unparsed ambiguous-quantity
+> 2-inch piece ginger
+= unparsed ambiguous-quantity
+> 2 - eggs
+= unparsed ambiguous-quantity
+> ½½ cup sugar
+= unparsed ambiguous-quantity
+> 2(14 oz) cans
+= unparsed ambiguous-quantity
+> 2, eggs
+= unparsed ambiguous-quantity
+> ２ cups water
+= unparsed unreadable-quantity
+> ¹⁄₂ cup sugar
+= unparsed unreadable-quantity
+> 12345678 grams sugar
+= unparsed quantity-out-of-range
+> 1/12345678 cup sugar
+= unparsed quantity-out-of-range
+> 0.0000001 cup sugar
+= unparsed quantity-out-of-range
+> 999999.5 g sugar
+= unparsed quantity-out-of-range
+> 1000001 g sugar
+= unparsed quantity-out-of-range
+> 1000000 g sugar
+= parsed | 1000000 @0+7 | gram @8+1 | item "sugar" | note -
+> 1 cup flour (sifted
+= unparsed unbalanced-parentheses
+> 1 cup flour)
+= unparsed unbalanced-parentheses
+> )( flour
+= unparsed unbalanced-parentheses
+> 2 cups flour\u0007
+= unparsed ill-formed-text
+> \uD83C flour
+= unparsed ill-formed-text
+> 2 cups \uDC00 flour
+= unparsed ill-formed-text
+
+# Shapes added from review: a hyphen before a fraction character, a fraction split by spaces, capitals, every branch
+# that joins a second measure, sizes in a row, text after a parenthesis, invisible characters a paste brings.
+> 1-½ cups milk
+= parsed | 3/2 @0+3 | cup @4+4 | item "milk" | note -
+> 1\u2011½ cups milk
+= parsed | 3/2 @0+3 | cup @4+4 | item "milk" | note -
+> 1-1½ cups milk
+= parsed | 1..3/2 @0+4 | cup @5+4 | item "milk" | note -
+> 1-3/2 cups milk
+= parsed | 1..3/2 @0+5 | cup @6+4 | item "milk" | note -
+> 1 / 2 cup sugar
+= unparsed ambiguous-quantity
+> 1 /2 cup sugar
+= unparsed ambiguous-quantity
+> 1 PINCH SALT
+= parsed | 1 @0+1 | pinch @2+5 | item "SALT" | note -
+> 2 STICKS BUTTER
+= parsed | 2 @0+1 | stick @2+6 | item "BUTTER" | note -
+> SIX EGGS
+= parsed | 6 @0+3 | - | item "EGGS" | note -
+> seven eggs
+= parsed | 7 @0+5 | - | item "eggs" | note -
+> 1 cup ½ tbsp milk
+= unparsed ambiguous-quantity
+> 1 cup – 2 tbsp milk
+= unparsed ambiguous-quantity
+> 1 cup & 2 tbsp milk
+= unparsed ambiguous-quantity
+> 1 cup + ½ tsp salt
+= unparsed ambiguous-quantity
+> 1 cup + .5 tsp salt
+= unparsed ambiguous-quantity
+> 1 cup or more water
+= parsed | 1 @0+1 | cup @2+3 | item "or more water" | note -
+> 2 (8 oz) (226 g) packages cream cheese
+= parsed | 2 @0+1 | package @17+8 | item "cream cheese" | note "8 oz; 226 g"
+> 1 cup flour (sifted) for dusting
+= parsed | 1 @0+1 | cup @2+3 | item "flour" | note "sifted; for dusting"
+> salt (to taste) and pepper
+= parsed | to-taste @6+8 | - | item "salt" | note "and pepper"
+> salt to taste and pepper
+= parsed | to-taste @5+8 | - | item "salt" | note "and pepper"
+> a ½-inch piece ginger
+= parsed | 1 @0+1 | piece @9+5 | item "ginger" | note "½-inch"
+> one 1/2-inch piece ginger
+= parsed | 1 @0+3 | piece @13+5 | item "ginger" | note "1/2-inch"
+> a (14 oz) can tomatoes
+= parsed | 1 @0+1 | can @10+3 | item "tomatoes" | note "14 oz"
+> ▢2 cups flour
+= parsed | 2 @1+1 | cup @3+4 | item "flour" | note -
+> ▢
+= unparsed no-item
+> • • 2 cups flour
+= parsed | - | - | item "• 2 cups flour" | note -
+> \u2212 2 cups flour
+= parsed | - | - | item "− 2 cups flour" | note -
+> two-thirds cup sugar
+= unparsed ambiguous-quantity
+> one-half cup milk
+= unparsed ambiguous-quantity
+> two-three eggs
+= parsed | 2..3 @0+9 | - | item "eggs" | note -
+> 2 0/4 cups flour
+= unparsed unreadable-quantity
+> 2 1/2/3 cups
+= unparsed unreadable-quantity
+> 1 1/12345678 cup sugar
+= unparsed quantity-out-of-range
+> 2-0 eggs
+= unparsed unreadable-quantity
+> 1-12345678 g sugar
+= unparsed quantity-out-of-range
+> 1/4-1/2 tsp cayenne
+= parsed | 1/4..1/2 @0+7 | teaspoon @8+3 | item "cayenne" | note -
+> 2 to 2 1/2 cups flour
+= parsed | 2..5/2 @0+10 | cup @11+4 | item "flour" | note -
+> 2 to taste
+= parsed | 2 @0+1 | - | item "to taste" | note -
+> 1.5/2 cups
+= unparsed unreadable-quantity
+> 1.5,5 kg
+= unparsed unreadable-quantity
+> 01 cup flour
+= parsed | 1 @0+2 | cup @3+3 | item "flour" | note -
+> 2 of the eggs
+= parsed | 2 @0+1 | - | item "the eggs" | note -
+> 250gr flour
+= unparsed ambiguous-quantity
+> 1 tsp 5-spice powder
+= unparsed ambiguous-quantity
+> 2 tbsp.flour
+= parsed | 2 @0+1 | tablespoon @2+4 | item "flour" | note -
+> 1 cup’s worth of rice
+= parsed | 1 @0+1 | - | item "cup’s worth of rice" | note -
+> To taste, flaky salt
+= unparsed no-item
+> 1 cup flour - sifted
+= parsed | 1 @0+1 | cup @2+3 | item "flour - sifted" | note -
+> 1 (8.5 oz) can corn
+= parsed | 1 @0+1 | can @11+3 | item "corn" | note "8.5 oz"
+> \uFEFF2 cups flour
+= parsed | 2 @1+1 | cup @3+4 | item "flour" | note -
+> \u200B2 cups flour
+= parsed | 2 @1+1 | cup @3+4 | item "flour" | note -
+> \u200E2 cups flour
+= parsed | 2 @1+1 | cup @3+4 | item "flour" | note -
+> 2 cups flour\u200B
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> 2\u200Bcups flour
+= parsed | 2 @0+1 | cup @2+4 | item "flour" | note -
+> 1 tea\u00ADspoon salt
+= parsed | 1 @0+1 | - | item "tea\u00ADspoon salt" | note -
+> chef’s kiss \uD83D\uDC69\u200D\uD83C\uDF73
+= parsed | - | - | item "chef’s kiss 👩\u200D🍳" | note -
+> \uFEFF
+= unparsed empty
+> 1 \u0378 flour
+= unparsed ill-formed-text

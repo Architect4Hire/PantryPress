@@ -39,6 +39,47 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   with no spaces (`2–3`). `to taste` labels the structured line (editor, paste-to-parse); readers see the blogger's own
   words for it.
 
+## Parsing (PP4.5)
+
+- `IngredientLineParser.Parse` in `Business/` reads one line into exactly the parts a line stores: status, quantity and
+  its span, unit code and its span, item, and note. It is pure and deterministic: no model, no culture, no regular
+  expression (`IngredientLineTokenizer` is one linear pass). It never rewrites the line: the spans index it in UTF-16 code
+  units, and the item and each note piece are cut from it verbatim, with only spaces, invisible format characters, and
+  `, ; : .` left off their edges (a period that starts a decimal stays).
+- Invisible format characters a paste brings (a byte-order mark, a zero-width space, a direction mark, a soft hyphen) read
+  as whitespace. A code point Unicode has not assigned is refused. Characters are classified by the runtime's Unicode
+  tables, so a runtime upgrade could move one; the golden corpus is the tripwire.
+- Grammar: `[bullet] [quantity] [size] [unit] ["of"] item [, note | (note)]…`.
+  - Quantities: whole numbers, decimals, fractions (`/` or `⁄`), mixed numbers (`1 1/2`, `1-1/2`, `1-½`, `1½`), every
+    vulgar fraction, the words `one` to `twelve`, and ranges joined by a dash or by `to` between spaces. `a` and `an` count
+    as one, but only when a unit follows.
+  - The parse also says how the amount was written (`Style`): `Decimal` with a decimal point, `Fraction` otherwise. It is
+    not stored, since reading the line again gives it again. `QuantityStyle` has no member for `1 1/2` against `1½`, so
+    PP4.7 reads that difference at the quantity's span, which keeps the blogger's own style when a scaled amount
+    replaces it (the PP4.2 and PP4.3 hand-off).
+  - A size straight after the quantity, either in parentheses or hyphenated (`14-ounce`), goes to the note. On a line
+    with no quantity, `to taste` is its quantity.
+  - The item comes before the first comma. The note is every other piece in the order written, joined by `; `.
+- Units come from `Units.Aliases` through `UnitSpellings`, which adds only these rules:
+  - a case-sensitive spelling (`T`, `t`) matches exactly, and a case-insensitive one folds ASCII letters only, so no
+    look-alike (the Kelvin sign) becomes a unit;
+  - a space in a spelling matches any whitespace run;
+  - the longest spelling wins;
+  - a unit ends where a word does.
+- A line is `Unparsed`, with an `IngredientParseProblem` reason (never stored), rather than guessed at:
+  - two measures together, a fraction split by spaces (`1 / 2`), a comma inside a number, or a number joined to a word
+    that is not a unit;
+  - a zero, a malformed fraction, or a reversed range;
+  - a term over `MaxQuantityTerm`, or non-ASCII digits;
+  - unbalanced parentheses, a broken character, or a control character;
+  - no item, or a part over its stored length.
+- What PP4.5 leaves to later prompts:
+  - A number later in the item (`Juice of 2 lemons`, `1 cup (120 g)` in the note) is the item's or the note's. Whether
+    such a line scales is PP4.7's question.
+  - Plural agreement after scaling (`2 pinch`) is PP4.7's.
+- The golden corpus is `PantryPress.Tests/Recipes/Corpus/ingredient-lines.txt`, approved by reading, with nothing that
+  rewrites it. A change to the parser shows its moved lines, and each moved line is edited by hand.
+
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).

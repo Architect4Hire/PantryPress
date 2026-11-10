@@ -4292,7 +4292,7 @@ BEHAVIOR: Plan, wait for approval, migrate, test immutability.
     - `site-isolation-auditor`: no blockers; one major and five minors, fixed or recorded.
     - `test-gap-analyzer`: no blockers; six majors, fixed, and seven minors, fixed or recorded.
 
-### PP4.5 Ingredient-line tokenizer and parser
+### PP4.5 Ingredient-line tokenizer and parser - done
 
 ```text
 SCOPE: Implement a deterministic ingredient-line parser (quantity, unit, item, note) that flags unparseable
@@ -4301,6 +4301,99 @@ CONSTRAINT: RCP-002; recipes.md.
 RESTRICTION: Never rewrites the original text. No AI.
 BEHAVIOR: Plan, wait for approval, implement with a large fixture corpus.
 ```
+
+*PP4.5 delivery note (done 2026-11-10):*
+
+- **What shipped.**
+  - `IngredientLineParser.Parse` (Recipes `Business/`): pure, deterministic, no model, culture, clock, or regular
+    expression. It reads one line into exactly the parts PP4.3 stores, as `IngredientLineParse`: status, quantity and its
+    span, unit code and its span, item, and note, plus `Style` (below) and, for a flagged line, an `IngredientParseProblem`.
+  - `IngredientLineTokenizer`: one linear pass into tokens that cover the line end to end in UTF-16 code units.
+    - Invisible format characters (byte-order mark, zero-width space, direction marks, soft hyphen) read as whitespace.
+    - Lone surrogates, controls, and unassigned code points are invalid.
+  - `UnitSpellings`: units from `Units.Aliases`, the one list. It forgives only these:
+    - ASCII case folding for the case-insensitive spellings;
+    - whitespace runs;
+    - longest match;
+    - a word-boundary end.
+    The vocabulary is unchanged, so no migration.
+  - `IngredientParseProblem` in `Contracts/`, never stored. Its names become a wire contract when PP4.6 returns it.
+  - The line is never rewritten. Spans index it as written; the item and each note piece are verbatim cuts, joined by
+    `; `, with only spaces, format characters, and `, ; : .` left off their edges.
+- **Owner-approved choices.**
+  - Note pieces are joined by `; `.
+  - Compound or ambiguous measures are flagged, not guessed: `1 cup + 2 tbsp`, `1 cup to 1½ cups`, `2 x 400g`, `1,5`,
+    `1 / 2`, and a number joined to a non-unit word.
+  - Adjectives before a unit stay in the item (`1 heaping tablespoon`).
+  - No change to the unit list.
+- **What differs from the plan.**
+  - `Style` was added (from review): `Decimal` when the amount is written with a decimal point, `Fraction` otherwise. It
+    closes the PP4.2 and PP4.3 hand-off that PP4.5 keeps the blogger's quantity style, with no column, since reading the
+    stored line again gives it again. `QuantityStyle` has no member for `1 1/2` against `1½`; PP4.7 reads that difference
+    at the quantity's span.
+  - The item must start before the first comma (`1 cup, sifted` is `no-item`, not item `sifted`).
+  - A leading period is trimmed from a piece (`1 T. honey`), except one that starts a decimal (`(.25 oz)`).
+  - `to taste` as a parenthesis' whole text counts (`kosher salt (to taste)`).
+  - From review:
+    - `1-½` reads as a mixed number, as `1-1/2` does;
+    - a spaced slash (`1 / 2`) is ambiguous rather than read as 1;
+    - an over-long mixed-number fraction is `quantity-out-of-range`, as a plain one is.
+- **Tests.**
+  - Golden corpus `PantryPress.Tests/Recipes/Corpus/ingredient-lines.txt`: 502 lines, each read and approved by hand.
+    - It covers US, metric, and non-English lines, fractions, every vulgar fraction, decimals, ranges, number words and
+      articles, sizes, notes, to-taste lines, bullets and pasted recipe cards, every kind of whitespace and format
+      character, temperatures, emoji, and every way a line is flagged.
+    - Every unit is read at least once, and every quantity kind and problem appears.
+    - There is no rewrite mode: a mismatch lists every moved line.
+  - Unit tests:
+    - the tokenizer's kinds and coverage;
+    - every spelling reads as its unit in both cases;
+    - longest match and look-alikes;
+    - all twelve number words;
+    - the length limits;
+    - style;
+    - problem precedence;
+    - the corpus under `tr-TR`, `ar-SA`, and the invariant culture.
+  - A scan finds no regular expression in Recipes' `Business/`. The floating-point scan covers the new files.
+  - CsCheck properties at 20,000 lines each:
+    - the parser never throws and answers the same twice;
+    - every parse keeps `IngredientParseInvariants` (it fits the table's checks, every part is cut from the line, the
+      quantity's span reads back as the same quantity, and the style matches the span);
+    - leading spaces only move the spans.
+  - Integration (`IngredientParseStorageTests`): every corpus parse is saved to `RecipeIngredients` and read back exactly.
+    Empty and ill-formed lines are left out, since the table and SqlClient refuse or alter them and the routes refuse
+    them first.
+  - Two-site test: not owed. The parser is pure, and no new site data path exists. PP4.6 and PP4.11 owe one for the
+    routes that store a parse.
+- **Hand-offs.**
+  - PP4.6 returns `IngredientParseProblem` as kebab-case. It owes the step-list split and heading detection: a line like
+    `For the crust:` parses as item `For the crust`.
+  - PP4.7:
+    - decides whether a line with digits outside its quantity span scales (`Juice of 2 lemons`, `1 cup (120 g)` in the
+      note);
+    - handles plural agreement (`2 pinch`);
+    - writes a scaled amount in `Style`, and keeps glyph against ASCII from the span.
+  - PP4.11 and every other writer of a line store the parse as `IngredientParseStorageTests` does, and refuse ill-formed
+    text first.
+- **Not verified or left.**
+  - Odd lines are pinned, not fixed:
+    - `2 to taste` reads as 2 with the item `to taste`;
+    - `1 tsp 5-spice powder` is ambiguous;
+    - `• • 2 cups` skips one bullet only.
+  - Two dotted spellings are not in the vocabulary: `T.` and `t.` read as the unit with the period trimmed from the
+    item. Adding them would be a list bump and a migration.
+  - Classification follows the runtime's Unicode tables, so a .NET upgrade could move a line; the corpus is the tripwire.
+  - `aspire run` was not restarted, because the user's own run is up. Nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 2,835 passed, 0 failed (2,718 before).
+  - Reviewers:
+    - `architecture-reviewer`: no blockers; two majors (the quantity-style hand-off, invisible characters hiding a
+      quantity) and five minors, all fixed.
+    - `test-gap-analyzer`: no blockers; eight majors (`1-½` contradicting the doc, a spaced slash read as 1, number words,
+      culture, unreached branches, multiple sizes, text after a parenthesis, size glyphs) fixed with code or corpus lines.
+      Its minors were added, apart from the items pinned above.
 
 ### PP4.6 Paste-to-parse endpoint
 
