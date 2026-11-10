@@ -141,4 +141,46 @@ public sealed class QuantityTextTests
     [Fact]
     public void A_missing_quantity_is_refused() =>
         Assert.Throws<ArgumentNullException>(() => QuantityText.Format(null!, QuantityStyle.Fraction));
+
+    // PP4.7: a scaled amount keeps the blogger's ASCII fractions (1 1/2), so fraction style can write no fraction character.
+    public static TheoryData<long, long, QuantityStyle, string> AsciiFractions => new()
+    {
+        { 1, 2, QuantityStyle.Fraction, "1/2" },
+        { 3, 2, QuantityStyle.Fraction, "1 1/2" },
+        { 9, 4, QuantityStyle.Fraction, "2 1/4" },
+        { 2, 3, QuantityStyle.Fraction, "2/3" },
+        { 15, 8, QuantityStyle.Fraction, "1 7/8" },
+        { 21, 16, QuantityStyle.Fraction, "1 5/16" },
+        { 3, 1, QuantityStyle.Fraction, "3" },
+        { -3, 2, QuantityStyle.Fraction, "-1 1/2" },
+
+        // Decimal style is unchanged; its fallback for an inexact decimal is ASCII too.
+        { 3, 2, QuantityStyle.Decimal, "1.5" },
+        { 1, 16, QuantityStyle.Decimal, "1/16" },
+        { 4, 3, QuantityStyle.Decimal, "1 1/3" },
+    };
+
+    [Theory]
+    [MemberData(nameof(AsciiFractions))]
+    public void Ascii_fractions_write_no_fraction_character(long n, long d, QuantityStyle style, string text) =>
+        Assert.Equal(text, QuantityText.Format(Rational.Create(n, d), style, asciiFractions: true));
+
+    [Fact]
+    public void A_range_in_ascii_fractions_keeps_both_ends_ascii()
+    {
+        Assert.Equal("1/2–1 1/4", QuantityText.Format(Quantity.Range(Rational.Create(1, 2), Rational.Create(5, 4)), QuantityStyle.Fraction, asciiFractions: true));
+        Assert.Equal("½–1¼", QuantityText.Format(Quantity.Range(Rational.Create(1, 2), Rational.Create(5, 4)), QuantityStyle.Fraction, asciiFractions: false));
+        Assert.Equal("1/16–1/4", QuantityText.Format(Quantity.Range(Rational.Create(1, 16), Rational.Create(1, 4)), QuantityStyle.Decimal, asciiFractions: true));
+        Assert.Equal("1/16–¼", QuantityText.Format(Quantity.Range(Rational.Create(1, 16), Rational.Create(1, 4)), QuantityStyle.Decimal, asciiFractions: false));
+        Assert.Equal(QuantityText.ToTaste, QuantityText.Format(Quantity.ToTaste, QuantityStyle.Fraction, asciiFractions: true));
+    }
+
+    [Fact]
+    public void The_two_argument_forms_write_fraction_characters()
+    {
+        Assert.Equal(QuantityText.Format(Rational.Create(3, 2), QuantityStyle.Fraction, asciiFractions: false), QuantityText.Format(Rational.Create(3, 2), QuantityStyle.Fraction));
+        Assert.Equal(
+            QuantityText.Format(Quantity.Amount(Rational.Create(3, 2)), QuantityStyle.Fraction, asciiFractions: false),
+            QuantityText.Format(Quantity.Amount(Rational.Create(3, 2)), QuantityStyle.Fraction));
+    }
 }

@@ -30,8 +30,8 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   that cannot fit throws, never wraps or rounds. Nothing in Recipes' `Business/` names a floating-point type, `Math`, or a
   floating-point literal; a test scans every file there.
 - `Quantity` is an `Amount` above zero, a `Range` whose low end is above zero and below its high end, or `ToTaste`, which
-  has no amount (`HasAmount`) and is never scaled. `MultiplyBy` is exact. Rounding, and whether a whole line scales (one
-  egg at half), are the scaling service's (PP4.7).
+  has no amount (`HasAmount`) and is never scaled. `MultiplyBy` is exact. Rounding, and whether a whole line scales, are
+  the scaler's ("Scaling (PP4.7)" below).
 - `QuantityText` never rounds, reads no culture, and writes ASCII digits and `.`, exactly for every value a `Rational`
   holds. Fraction style is a mixed number: halves, thirds, quarters, and eighths are one character joined to the whole
   (`1½`), and any other remainder is ASCII after a space (`1 5/16`). Decimal style writes a value that ends within three
@@ -73,10 +73,8 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   - a term over `MaxQuantityTerm`, or non-ASCII digits;
   - unbalanced parentheses, a broken character, or a control character;
   - no item, or a part over its stored length.
-- What PP4.5 leaves to later prompts:
-  - A number later in the item (`Juice of 2 lemons`, `1 cup (120 g)` in the note) is the item's or the note's. Whether
-    such a line scales is PP4.7's question.
-  - Plural agreement after scaling (`2 pinch`) is PP4.7's.
+- A number later in the item (`Juice of 2 lemons`, `1 cup (120 g)` in the note) is the item's or the note's. The scaler
+  flags such a line rather than scale it, and puts a unit word in the right number ("Scaling (PP4.7)" below).
 - The golden corpus is `PantryPress.Tests/Recipes/Corpus/ingredient-lines.txt`, approved by reading, with nothing that
   rewrites it. A change to the parser shows its moved lines, and each moved line is edited by hand.
 
@@ -106,6 +104,45 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   take a client's parts on trust.
 - The golden pastes are `PantryPress.Tests/Recipes/Corpus/paste/`, `<name>.<ingredients|steps>.txt` beside its
   `.approved.txt`, approved by reading, with nothing that rewrites them.
+
+## Scaling (PP4.7)
+
+- `RecipeScaler` in `Business/` is pure and deterministic: exact until one rounding step, no floating point, culture, or
+  clock. `ScaleLine` takes a stored line (`ScalableIngredientLine`: the text and its parsed parts) and a `ScaleFactor`;
+  `ScaleYield` scales the yield. Steps are never scaled.
+- Factors are exact. The fixed choices are ½×, 1×, 2×, and 3× (`ScaleFactor.Multipliers`). Custom servings
+  (`ForServings`) are servings over the yield, offered only for a yield of one whole number. Both terms of a factor are at
+  most `MaxQuantityTerm`.
+- What a line shows, in this order:
+  - At 1×, every line is exactly as written.
+  - An unparsed line is as written, flagged `unparsed` (`UnscaledReason`).
+  - A temperature line is as written, unflagged.
+  - A number outside the quantity is as written, flagged `other-amounts` (`1 cup (120 g) flour`, `Juice of 2 lemons`).
+    These are not counted: a size between the quantity and the unit or item (`1 (14 oz) can`, `1 9-inch pie crust`), a
+    percentage (`2% milk`), and a temperature (`110 °F`, `105-115°F`).
+  - A line with no amount (`salt`, "to taste") is as written, unflagged.
+  - Otherwise the amount is multiplied and rounded. An amount that rounds back to the blogger's own is as written.
+  - The new line is read again with the parser and must give back the new amount at its span. When a size's fraction
+    would join it (`a ½-inch piece` doubled reads `2 ½-inch`, which is 2½), the line is as written, flagged
+    `other-amounts`. An amount past `MaxQuantityTerm` is display only and is not read back.
+- Rounding (`FriendlyRounding`) goes to the nearest friendly amount, a tie to the larger, never to zero. The band is
+  chosen by the exact value, and each band's lower edge is an amount of the band below too, so rounding is monotone and
+  idempotent.
+  - Kitchen (US measures, count units, no unit): under ⅛ sixteenths, under 10 eighths and thirds, under 20 halves, then
+    whole numbers. A decimal writer gets no thirds.
+  - Metric (g, kg, ml, dl, l): under 1 twentieths, under 10 tenths, under 100 whole numbers, then fives.
+  - Whole (pinch, dash, drop, handful): whole numbers, at least one.
+  - A range rounds each end; ends that round alike make one amount.
+- Wording (RCP-002): only the quantity span is written anew. It keeps the blogger's style: decimals stay decimals, ASCII
+  fractions stay ASCII (`QuantityText`'s `asciiFractions`), and anything else is written with fraction characters. Metric is
+  always decimal. A range keeps its `to`; a dash becomes an en dash.
+  - The unit span changes only to agree in number, and only for a word in `UnitInflections` (`a pinch` doubled reads
+    `2 pinches`). The list is spelled-out words only: an abbreviation (`lbs`), the item (`1 eggs`), and the yield's word are
+    never changed.
+- Page data precomputes every variant (RND-003, PP7.11); PP4.15 previews them. `UnscaledReason`'s kebab-case names become
+  a wire contract when page data carries them.
+- The golden table is `PantryPress.Tests/Recipes/Corpus/scaling.txt`: real lines at ½×, 2×, 3×, ¾×, and 5⁄4×, approved by
+  reading, with nothing that rewrites it.
 
 ## Model
 

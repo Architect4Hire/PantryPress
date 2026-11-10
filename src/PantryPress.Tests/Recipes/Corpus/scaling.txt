@@ -1,0 +1,1561 @@
+# The scaling table (RCP-004; PP4.7): what RecipeScaler shows a reader for lines bloggers really write, at 1/2x, 2x, 3x,
+# and two custom servings (3/4 and 5/4: 3 or 5 servings of a recipe for 4).
+#
+# Each case is a "> " line, the ingredient exactly as written (escapes as in ingredient-lines.txt), then one line per factor,
+# in this order: 1/2, 2, 3, 3/4, 5/4. Each says:
+#   <factor> = "<the line the reader sees>"       the line was scaled; ", rounded" when the amount shown is not exact
+#   <factor> = as written                           nothing to scale, or the amount rounds back to the blogger's own
+#   <factor> = as written, unscaled <reason>        not scaled, and flagged: unparsed or other-amounts
+# At 1x every line is as written; ScalingCorpusTests proves that for the whole parser corpus.
+#
+# Every expectation here was read and approved by hand. Nothing rewrites this file: when the scaler's answer for a line
+# changes on purpose, that line is edited, and the change says why (CLAUDE.md: golden files are never re-approved in bulk).
+# Pinned on purpose: an item's own words never change ("1 eggs", "2 onion"), an abbreviation is never inflected ("1 lbs"),
+# a size written after the unit ("1 can (15 oz) black beans") is read as another amount, and so is a size whose fraction
+# would join a new whole amount ("2 ½-inch" reads as 2½).
+> 2 cups all-purpose flour
+1/2 = "1 cup all-purpose flour"
+2 = "4 cups all-purpose flour"
+3 = "6 cups all-purpose flour"
+3/4 = "1½ cups all-purpose flour"
+5/4 = "2½ cups all-purpose flour"
+
+> 1 cup granulated sugar
+1/2 = "½ cup granulated sugar"
+2 = "2 cups granulated sugar"
+3 = "3 cups granulated sugar"
+3/4 = "¾ cup granulated sugar"
+5/4 = "1¼ cups granulated sugar"
+
+> 3 large eggs
+1/2 = "1½ large eggs"
+2 = "6 large eggs"
+3 = "9 large eggs"
+3/4 = "2¼ large eggs"
+5/4 = "3¾ large eggs"
+
+> 1 teaspoon pure vanilla extract
+1/2 = "½ teaspoon pure vanilla extract"
+2 = "2 teaspoons pure vanilla extract"
+3 = "3 teaspoons pure vanilla extract"
+3/4 = "¾ teaspoon pure vanilla extract"
+5/4 = "1¼ teaspoons pure vanilla extract"
+
+> 1 tsp baking soda
+1/2 = "½ tsp baking soda"
+2 = "2 tsp baking soda"
+3 = "3 tsp baking soda"
+3/4 = "¾ tsp baking soda"
+5/4 = "1¼ tsp baking soda"
+
+> 2 T butter
+1/2 = "1 T butter"
+2 = "4 T butter"
+3 = "6 T butter"
+3/4 = "1½ T butter"
+5/4 = "2½ T butter"
+
+> 2 tablespoons unsalted butter, melted
+1/2 = "1 tablespoon unsalted butter, melted"
+2 = "4 tablespoons unsalted butter, melted"
+3 = "6 tablespoons unsalted butter, melted"
+3/4 = "1½ tablespoons unsalted butter, melted"
+5/4 = "2½ tablespoons unsalted butter, melted"
+
+> 4 tbsp. butter
+1/2 = "2 tbsp. butter"
+2 = "8 tbsp. butter"
+3 = "12 tbsp. butter"
+3/4 = "3 tbsp. butter"
+5/4 = "5 tbsp. butter"
+
+> 8 oz cream cheese, softened
+1/2 = "4 oz cream cheese, softened"
+2 = "16 oz cream cheese, softened"
+3 = "24 oz cream cheese, softened"
+3/4 = "6 oz cream cheese, softened"
+5/4 = "10 oz cream cheese, softened"
+
+> 16 ounces dried pasta
+1/2 = "8 ounces dried pasta"
+2 = "32 ounces dried pasta"
+3 = "48 ounces dried pasta"
+3/4 = "12 ounces dried pasta"
+5/4 = "20 ounces dried pasta"
+
+> 2 lbs boneless chicken thighs
+1/2 = "1 lbs boneless chicken thighs"
+2 = "4 lbs boneless chicken thighs"
+3 = "6 lbs boneless chicken thighs"
+3/4 = "1½ lbs boneless chicken thighs"
+5/4 = "2½ lbs boneless chicken thighs"
+
+> 1 pound russet potatoes, peeled and cubed
+1/2 = "½ pound russet potatoes, peeled and cubed"
+2 = "2 pounds russet potatoes, peeled and cubed"
+3 = "3 pounds russet potatoes, peeled and cubed"
+3/4 = "¾ pound russet potatoes, peeled and cubed"
+5/4 = "1¼ pounds russet potatoes, peeled and cubed"
+
+> 1 gallon water
+1/2 = "½ gallon water"
+2 = "2 gallons water"
+3 = "3 gallons water"
+3/4 = "¾ gallon water"
+5/4 = "1¼ gallons water"
+
+> 4 fluid ounces orange juice
+1/2 = "2 fluid ounces orange juice"
+2 = "8 fluid ounces orange juice"
+3 = "12 fluid ounces orange juice"
+3/4 = "3 fluid ounces orange juice"
+5/4 = "5 fluid ounces orange juice"
+
+> 1 c sugar
+1/2 = "½ c sugar"
+2 = "2 c sugar"
+3 = "3 c sugar"
+3/4 = "¾ c sugar"
+5/4 = "1¼ c sugar"
+
+> 1 cup of water
+1/2 = "½ cup of water"
+2 = "2 cups of water"
+3 = "3 cups of water"
+3/4 = "¾ cup of water"
+5/4 = "1¼ cups of water"
+
+> 1 stick butter
+1/2 = "½ stick butter"
+2 = "2 sticks butter"
+3 = "3 sticks butter"
+3/4 = "¾ stick butter"
+5/4 = "1¼ sticks butter"
+
+> 3 cloves garlic, minced
+1/2 = "1½ cloves garlic, minced"
+2 = "6 cloves garlic, minced"
+3 = "9 cloves garlic, minced"
+3/4 = "2¼ cloves garlic, minced"
+5/4 = "3¾ cloves garlic, minced"
+
+> 1 clove garlic
+1/2 = "½ clove garlic"
+2 = "2 cloves garlic"
+3 = "3 cloves garlic"
+3/4 = "¾ clove garlic"
+5/4 = "1¼ cloves garlic"
+
+> 2 cans black beans, drained and rinsed
+1/2 = "1 can black beans, drained and rinsed"
+2 = "4 cans black beans, drained and rinsed"
+3 = "6 cans black beans, drained and rinsed"
+3/4 = "1½ cans black beans, drained and rinsed"
+5/4 = "2½ cans black beans, drained and rinsed"
+
+> 2 pkg. active dry yeast
+1/2 = "1 pkg. active dry yeast"
+2 = "4 pkg. active dry yeast"
+3 = "6 pkg. active dry yeast"
+3/4 = "1½ pkg. active dry yeast"
+5/4 = "2½ pkg. active dry yeast"
+
+> 4 slices bacon
+1/2 = "2 slices bacon"
+2 = "8 slices bacon"
+3 = "12 slices bacon"
+3/4 = "3 slices bacon"
+5/4 = "5 slices bacon"
+
+> 1 head cauliflower
+1/2 = "½ head cauliflower"
+2 = "2 heads cauliflower"
+3 = "3 heads cauliflower"
+3/4 = "¾ head cauliflower"
+5/4 = "1¼ heads cauliflower"
+
+> 1 handful basil leaves
+1/2 = as written
+2 = "2 handfuls basil leaves"
+3 = "3 handfuls basil leaves"
+3/4 = as written
+5/4 = as written
+
+> 2 handfuls baby spinach
+1/2 = "1 handful baby spinach"
+2 = "4 handfuls baby spinach"
+3 = "6 handfuls baby spinach"
+3/4 = as written
+5/4 = "3 handfuls baby spinach", rounded
+
+> 1 pinch salt
+1/2 = as written
+2 = "2 pinches salt"
+3 = "3 pinches salt"
+3/4 = as written
+5/4 = as written
+
+> 2 pinches red pepper flakes
+1/2 = "1 pinch red pepper flakes"
+2 = "4 pinches red pepper flakes"
+3 = "6 pinches red pepper flakes"
+3/4 = as written
+5/4 = "3 pinches red pepper flakes", rounded
+
+> 1 dash hot sauce
+1/2 = as written
+2 = "2 dashes hot sauce"
+3 = "3 dashes hot sauce"
+3/4 = as written
+5/4 = as written
+
+> 3 drops food coloring
+1/2 = "2 drops food coloring", rounded
+2 = "6 drops food coloring"
+3 = "9 drops food coloring"
+3/4 = "2 drops food coloring", rounded
+5/4 = "4 drops food coloring", rounded
+
+> 6 eggs
+1/2 = "3 eggs"
+2 = "12 eggs"
+3 = "18 eggs"
+3/4 = "4½ eggs"
+5/4 = "7½ eggs"
+
+> 1 onion, diced
+1/2 = "½ onion, diced"
+2 = "2 onion, diced"
+3 = "3 onion, diced"
+3/4 = "¾ onion, diced"
+5/4 = "1¼ onion, diced"
+
+> 1 lemon
+1/2 = "½ lemon"
+2 = "2 lemon"
+3 = "3 lemon"
+3/4 = "¾ lemon"
+5/4 = "1¼ lemon"
+
+> 2 large egg yolks
+1/2 = "1 large egg yolks"
+2 = "4 large egg yolks"
+3 = "6 large egg yolks"
+3/4 = "1½ large egg yolks"
+5/4 = "2½ large egg yolks"
+
+> 1 vanilla bean, split and scraped
+1/2 = "½ vanilla bean, split and scraped"
+2 = "2 vanilla bean, split and scraped"
+3 = "3 vanilla bean, split and scraped"
+3/4 = "¾ vanilla bean, split and scraped"
+5/4 = "1¼ vanilla bean, split and scraped"
+
+> 250 g plain flour
+1/2 = "125 g plain flour"
+2 = "500 g plain flour"
+3 = "750 g plain flour"
+3/4 = "190 g plain flour", rounded
+5/4 = "315 g plain flour", rounded
+
+> 250g plain flour
+1/2 = "125g plain flour"
+2 = "500g plain flour"
+3 = "750g plain flour"
+3/4 = "190g plain flour", rounded
+5/4 = "315g plain flour", rounded
+
+> 100 grams caster sugar
+1/2 = "50 grams caster sugar"
+2 = "200 grams caster sugar"
+3 = "300 grams caster sugar"
+3/4 = "75 grams caster sugar"
+5/4 = "125 grams caster sugar"
+
+> 1.5 kg pork shoulder
+1/2 = "0.75 kg pork shoulder"
+2 = "3 kg pork shoulder"
+3 = "4.5 kg pork shoulder"
+3/4 = "1.1 kg pork shoulder", rounded
+5/4 = "1.9 kg pork shoulder", rounded
+
+> 500 ml milk
+1/2 = "250 ml milk"
+2 = "1000 ml milk"
+3 = "1500 ml milk"
+3/4 = "375 ml milk"
+5/4 = "625 ml milk"
+
+> 2 dl cream
+1/2 = "1 dl cream"
+2 = "4 dl cream"
+3 = "6 dl cream"
+3/4 = "1.5 dl cream"
+5/4 = "2.5 dl cream"
+
+> 1 l water
+1/2 = "0.5 l water"
+2 = "2 l water"
+3 = "3 l water"
+3/4 = "0.75 l water"
+5/4 = "1.3 l water", rounded
+
+> 1 litre water
+1/2 = "0.5 litre water"
+2 = "2 litres water"
+3 = "3 litres water"
+3/4 = "0.75 litre water"
+5/4 = "1.3 litres water", rounded
+
+> 250 millilitres double cream
+1/2 = "125 millilitres double cream"
+2 = "500 millilitres double cream"
+3 = "750 millilitres double cream"
+3/4 = "190 millilitres double cream", rounded
+5/4 = "315 millilitres double cream", rounded
+
+> 2 kilos tomatoes
+1/2 = "1 kilo tomatoes"
+2 = "4 kilos tomatoes"
+3 = "6 kilos tomatoes"
+3/4 = "1.5 kilos tomatoes"
+5/4 = "2.5 kilos tomatoes"
+
+> 1 kilo flour
+1/2 = "0.5 kilo flour"
+2 = "2 kilos flour"
+3 = "3 kilos flour"
+3/4 = "0.75 kilo flour"
+5/4 = "1.3 kilos flour", rounded
+
+> 1 kilogram bread flour
+1/2 = "0.5 kilogram bread flour"
+2 = "2 kilograms bread flour"
+3 = "3 kilograms bread flour"
+3/4 = "0.75 kilogram bread flour"
+5/4 = "1.3 kilograms bread flour", rounded
+
+> 200g dark chocolate (70% cocoa), chopped
+1/2 = "100g dark chocolate (70% cocoa), chopped"
+2 = "400g dark chocolate (70% cocoa), chopped"
+3 = "600g dark chocolate (70% cocoa), chopped"
+3/4 = "150g dark chocolate (70% cocoa), chopped"
+5/4 = "250g dark chocolate (70% cocoa), chopped"
+
+> 5 g fine salt
+1/2 = "2.5 g fine salt"
+2 = "10 g fine salt"
+3 = "15 g fine salt"
+3/4 = "3.8 g fine salt", rounded
+5/4 = "6.3 g fine salt", rounded
+
+> 12 g instant yeast
+1/2 = "6 g instant yeast"
+2 = "24 g instant yeast"
+3 = "36 g instant yeast"
+3/4 = "9 g instant yeast"
+5/4 = "15 g instant yeast"
+
+> 400 g tin chopped tomatoes
+1/2 = "200 g tin chopped tomatoes"
+2 = "800 g tin chopped tomatoes"
+3 = "1200 g tin chopped tomatoes"
+3/4 = "300 g tin chopped tomatoes"
+5/4 = "500 g tin chopped tomatoes"
+
+> 1/2 cup sugar
+1/2 = "1/4 cup sugar"
+2 = "1 cup sugar"
+3 = "1 1/2 cups sugar"
+3/4 = "3/8 cup sugar"
+5/4 = "5/8 cup sugar"
+
+> 1/4 tsp salt
+1/2 = "1/8 tsp salt"
+2 = "1/2 tsp salt"
+3 = "3/4 tsp salt"
+3/4 = as written
+5/4 = "1/3 tsp salt", rounded
+
+> 3/4 cup milk
+1/2 = "3/8 cup milk"
+2 = "1 1/2 cups milk"
+3 = "2 1/4 cups milk"
+3/4 = "5/8 cup milk", rounded
+5/4 = "1 cup milk", rounded
+
+> 1/3 cup vegetable oil
+1/2 = "1/8 cup vegetable oil", rounded
+2 = "2/3 cup vegetable oil"
+3 = "1 cup vegetable oil"
+3/4 = "1/4 cup vegetable oil"
+5/4 = "3/8 cup vegetable oil", rounded
+
+> 1/8 teaspoon cayenne pepper
+1/2 = "1/16 teaspoon cayenne pepper"
+2 = "1/4 teaspoon cayenne pepper"
+3 = "3/8 teaspoon cayenne pepper"
+3/4 = as written
+5/4 = as written
+
+> 1 1/2 cups flour
+1/2 = "3/4 cup flour"
+2 = "3 cups flour"
+3 = "4 1/2 cups flour"
+3/4 = "1 1/8 cups flour"
+5/4 = "1 7/8 cups flour"
+
+> 1-1/2 cups milk
+1/2 = "3/4 cup milk"
+2 = "3 cups milk"
+3 = "4 1/2 cups milk"
+3/4 = "1 1/8 cups milk"
+5/4 = "1 7/8 cups milk"
+
+> 1⁄2 cup butter
+1/2 = "1/4 cup butter"
+2 = "1 cup butter"
+3 = "1 1/2 cups butter"
+3/4 = "3/8 cup butter"
+5/4 = "5/8 cup butter"
+
+> 1 1⁄2 cups water
+1/2 = "3/4 cup water"
+2 = "3 cups water"
+3 = "4 1/2 cups water"
+3/4 = "1 1/8 cups water"
+5/4 = "1 7/8 cups water"
+
+> 1/2 C butter
+1/2 = "1/4 C butter"
+2 = "1 C butter"
+3 = "1 1/2 C butter"
+3/4 = "3/8 C butter"
+5/4 = "5/8 C butter"
+
+> ½ cup butter
+1/2 = "¼ cup butter"
+2 = "1 cup butter"
+3 = "1½ cups butter"
+3/4 = "⅜ cup butter"
+5/4 = "⅝ cup butter"
+
+> ¾ cup sugar
+1/2 = "⅜ cup sugar"
+2 = "1½ cups sugar"
+3 = "2¼ cups sugar"
+3/4 = "⅝ cup sugar", rounded
+5/4 = "1 cup sugar", rounded
+
+> ⅓ cup milk
+1/2 = "⅛ cup milk", rounded
+2 = "⅔ cup milk"
+3 = "1 cup milk"
+3/4 = "¼ cup milk"
+5/4 = "⅜ cup milk", rounded
+
+> ⅛ tsp ground cloves
+1/2 = "1/16 tsp ground cloves"
+2 = "¼ tsp ground cloves"
+3 = "⅜ tsp ground cloves"
+3/4 = as written
+5/4 = as written
+
+> ⅕ cup rolled oats
+1/2 = "⅛ cup rolled oats", rounded
+2 = "⅜ cup rolled oats", rounded
+3 = "⅝ cup rolled oats", rounded
+3/4 = "⅛ cup rolled oats", rounded
+5/4 = "¼ cup rolled oats"
+
+> 1½ cups flour
+1/2 = "¾ cup flour"
+2 = "3 cups flour"
+3 = "4½ cups flour"
+3/4 = "1⅛ cups flour"
+5/4 = "1⅞ cups flour"
+
+> 2¼ cups sugar
+1/2 = "1⅛ cups sugar"
+2 = "4½ cups sugar"
+3 = "6¾ cups sugar"
+3/4 = "1⅔ cups sugar", rounded
+5/4 = "2⅞ cups sugar", rounded
+
+> 2⅔ cups oats
+1/2 = "1⅓ cups oats"
+2 = "5⅓ cups oats"
+3 = "8 cups oats"
+3/4 = "2 cups oats"
+5/4 = "3⅓ cups oats"
+
+> 1 ½ cups flour
+1/2 = "¾ cup flour"
+2 = "3 cups flour"
+3 = "4½ cups flour"
+3/4 = "1⅛ cups flour"
+5/4 = "1⅞ cups flour"
+
+> 3 ¾ cups bread flour
+1/2 = "1⅞ cups bread flour"
+2 = "7½ cups bread flour"
+3 = "11½ cups bread flour", rounded
+3/4 = "2⅞ cups bread flour", rounded
+5/4 = "4⅔ cups bread flour", rounded
+
+> ½ teaspoon fine sea salt
+1/2 = "¼ teaspoon fine sea salt"
+2 = "1 teaspoon fine sea salt"
+3 = "1½ teaspoons fine sea salt"
+3/4 = "⅜ teaspoon fine sea salt"
+5/4 = "⅝ teaspoon fine sea salt"
+
+> ½ lemon, juiced
+1/2 = "¼ lemon, juiced"
+2 = "1 lemon, juiced"
+3 = "1½ lemon, juiced"
+3/4 = "⅜ lemon, juiced"
+5/4 = "⅝ lemon, juiced"
+
+> 1 ½ lbs ground turkey
+1/2 = "¾ lbs ground turkey"
+2 = "3 lbs ground turkey"
+3 = "4½ lbs ground turkey"
+3/4 = "1⅛ lbs ground turkey"
+5/4 = "1⅞ lbs ground turkey"
+
+> ¼ cup (60ml) maple syrup
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 0.5 cup milk
+1/2 = "0.25 cup milk"
+2 = "1 cup milk"
+3 = "1.5 cups milk"
+3/4 = "0.375 cup milk"
+5/4 = "0.625 cup milk"
+
+> .5 cup milk
+1/2 = "0.25 cup milk"
+2 = "1 cup milk"
+3 = "1.5 cups milk"
+3/4 = "0.375 cup milk"
+5/4 = "0.625 cup milk"
+
+> 1.5 cups flour
+1/2 = "0.75 cup flour"
+2 = "3 cups flour"
+3 = "4.5 cups flour"
+3/4 = "1.125 cups flour"
+5/4 = "1.875 cups flour"
+
+> 2.25 lbs beef
+1/2 = "1.125 lbs beef"
+2 = "4.5 lbs beef"
+3 = "6.75 lbs beef"
+3/4 = "1.75 lbs beef", rounded
+5/4 = "2.875 lbs beef", rounded
+
+> 0.125 tsp salt
+1/2 = "1/16 tsp salt"
+2 = "0.25 tsp salt"
+3 = "0.375 tsp salt"
+3/4 = as written
+5/4 = as written
+
+> 1.0 cup water
+1/2 = "0.5 cup water"
+2 = "2 cups water"
+3 = "3 cups water"
+3/4 = "0.75 cup water"
+5/4 = "1.25 cups water"
+
+> 1.333 cups water
+1/2 = "0.625 cup water", rounded
+2 = "2.625 cups water", rounded
+3 = "4 cups water", rounded
+3/4 = "1 cup water", rounded
+5/4 = "1.625 cups water", rounded
+
+> 0.75 l stock
+1/2 = "0.4 l stock", rounded
+2 = "1.5 l stock"
+3 = "2.3 l stock", rounded
+3/4 = "0.55 l stock", rounded
+5/4 = "0.95 l stock", rounded
+
+> 2.5kg lamb shoulder
+1/2 = "1.3kg lamb shoulder", rounded
+2 = "5kg lamb shoulder"
+3 = "7.5kg lamb shoulder"
+3/4 = "1.9kg lamb shoulder", rounded
+5/4 = "3.1kg lamb shoulder", rounded
+
+> 0.333333 cup water
+1/2 = "0.125 cup water", rounded
+2 = "0.625 cup water", rounded
+3 = "1 cup water", rounded
+3/4 = "0.25 cup water", rounded
+5/4 = "0.375 cup water", rounded
+
+> 1.5 ml vanilla
+1/2 = "0.75 ml vanilla"
+2 = "3 ml vanilla"
+3 = "4.5 ml vanilla"
+3/4 = "1.1 ml vanilla", rounded
+5/4 = "1.9 ml vanilla", rounded
+
+> 2-3 cloves garlic
+1/2 = "1–1½ cloves garlic"
+2 = "4–6 cloves garlic"
+3 = "6–9 cloves garlic"
+3/4 = "1½–2¼ cloves garlic"
+5/4 = "2½–3¾ cloves garlic"
+
+> 2–3 cloves garlic
+1/2 = "1–1½ cloves garlic"
+2 = "4–6 cloves garlic"
+3 = "6–9 cloves garlic"
+3/4 = "1½–2¼ cloves garlic"
+5/4 = "2½–3¾ cloves garlic"
+
+> 2 to 3 tablespoons water
+1/2 = "1 to 1½ tablespoons water"
+2 = "4 to 6 tablespoons water"
+3 = "6 to 9 tablespoons water"
+3/4 = "1½ to 2¼ tablespoons water"
+5/4 = "2½ to 3¾ tablespoons water"
+
+> 1/2-1 teaspoon chili flakes
+1/2 = "1/4–1/2 teaspoon chili flakes"
+2 = "1–2 teaspoons chili flakes"
+3 = "1 1/2–3 teaspoons chili flakes"
+3/4 = "3/8–3/4 teaspoon chili flakes"
+5/4 = "5/8–1 1/4 teaspoons chili flakes"
+
+> 1 to 1½ cups milk
+1/2 = "½ to ¾ cup milk"
+2 = "2 to 3 cups milk"
+3 = "3 to 4½ cups milk"
+3/4 = "¾ to 1⅛ cups milk"
+5/4 = "1¼ to 1⅞ cups milk"
+
+> 1/2 to 1 cup water
+1/2 = "1/4 to 1/2 cup water"
+2 = "1 to 2 cups water"
+3 = "1 1/2 to 3 cups water"
+3/4 = "3/8 to 3/4 cup water"
+5/4 = "5/8 to 1 1/4 cups water"
+
+> ½ to ¾ cup sugar
+1/2 = "¼ to ⅜ cup sugar"
+2 = "1 to 1½ cups sugar"
+3 = "1½ to 2¼ cups sugar"
+3/4 = "⅜ to ⅝ cup sugar", rounded
+5/4 = "⅝ to 1 cup sugar", rounded
+
+> 1 1/2-2 cups broth
+1/2 = "3/4–1 cup broth"
+2 = "3–4 cups broth"
+3 = "4 1/2–6 cups broth"
+3/4 = "1 1/8–1 1/2 cups broth"
+5/4 = "1 7/8–2 1/2 cups broth"
+
+> 3-4 large potatoes
+1/2 = "1½–2 large potatoes"
+2 = "6–8 large potatoes"
+3 = "9–12 large potatoes"
+3/4 = "2¼–3 large potatoes"
+5/4 = "3¾–5 large potatoes"
+
+> 4—6 chicken thighs
+1/2 = "2–3 chicken thighs"
+2 = "8–12 chicken thighs"
+3 = "12–18 chicken thighs"
+3/4 = "3–4½ chicken thighs"
+5/4 = "5–7½ chicken thighs"
+
+> 1.5-2 kg beef
+1/2 = "0.75–1 kg beef"
+2 = "3–4 kg beef"
+3 = "4.5–6 kg beef"
+3/4 = "1.1–1.5 kg beef", rounded
+5/4 = "1.9–2.5 kg beef", rounded
+
+> 2 to 3 lbs beef chuck
+1/2 = "1 to 1½ lbs beef chuck"
+2 = "4 to 6 lbs beef chuck"
+3 = "6 to 9 lbs beef chuck"
+3/4 = "1½ to 2¼ lbs beef chuck"
+5/4 = "2½ to 3¾ lbs beef chuck"
+
+> 10–12 basil leaves
+1/2 = "5–6 basil leaves"
+2 = "20–24 basil leaves"
+3 = "30–36 basil leaves"
+3/4 = "7½–9 basil leaves"
+5/4 = "12½–15 basil leaves"
+
+> one to two cups milk
+1/2 = "½ to 1 cup milk"
+2 = "2 to 4 cups milk"
+3 = "3 to 6 cups milk"
+3/4 = "¾ to 1½ cups milk"
+5/4 = "1¼ to 2½ cups milk"
+
+> two to three tablespoons milk
+1/2 = "1 to 1½ tablespoons milk"
+2 = "4 to 6 tablespoons milk"
+3 = "6 to 9 tablespoons milk"
+3/4 = "1½ to 2¼ tablespoons milk"
+5/4 = "2½ to 3¾ tablespoons milk"
+
+> one onion, chopped
+1/2 = "½ onion, chopped"
+2 = "2 onion, chopped"
+3 = "3 onion, chopped"
+3/4 = "¾ onion, chopped"
+5/4 = "1¼ onion, chopped"
+
+> One 14-ounce can coconut milk
+1/2 = "½ 14-ounce can coconut milk"
+2 = "2 14-ounce cans coconut milk"
+3 = "3 14-ounce cans coconut milk"
+3/4 = "¾ 14-ounce can coconut milk"
+5/4 = "1¼ 14-ounce cans coconut milk"
+
+> two eggs
+1/2 = "1 eggs"
+2 = "4 eggs"
+3 = "6 eggs"
+3/4 = "1½ eggs"
+5/4 = "2½ eggs"
+
+> ONE egg
+1/2 = "½ egg"
+2 = "2 egg"
+3 = "3 egg"
+3/4 = "¾ egg"
+5/4 = "1¼ egg"
+
+> a pinch of salt
+1/2 = as written
+2 = "2 pinches of salt"
+3 = "3 pinches of salt"
+3/4 = as written
+5/4 = as written
+
+> A pinch salt
+1/2 = as written
+2 = "2 pinches salt"
+3 = "3 pinches salt"
+3/4 = as written
+5/4 = as written
+
+> an 8-ounce package cream cheese, softened
+1/2 = "½ 8-ounce package cream cheese, softened"
+2 = "2 8-ounce packages cream cheese, softened"
+3 = "3 8-ounce packages cream cheese, softened"
+3/4 = "¾ 8-ounce package cream cheese, softened"
+5/4 = "1¼ 8-ounce packages cream cheese, softened"
+
+> a handful of fresh parsley
+1/2 = as written
+2 = "2 handfuls of fresh parsley"
+3 = "3 handfuls of fresh parsley"
+3/4 = as written
+5/4 = as written
+
+> a dash of Worcestershire sauce
+1/2 = as written
+2 = "2 dashes of Worcestershire sauce"
+3 = "3 dashes of Worcestershire sauce"
+3/4 = as written
+5/4 = as written
+
+> a cup of coffee
+1/2 = "½ cup of coffee"
+2 = "2 cups of coffee"
+3 = "3 cups of coffee"
+3/4 = "¾ cup of coffee"
+5/4 = "1¼ cups of coffee"
+
+> a large egg
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> 1 (14 oz) can diced tomatoes, drained
+1/2 = "½ (14 oz) can diced tomatoes, drained"
+2 = "2 (14 oz) cans diced tomatoes, drained"
+3 = "3 (14 oz) cans diced tomatoes, drained"
+3/4 = "¾ (14 oz) can diced tomatoes, drained"
+5/4 = "1¼ (14 oz) cans diced tomatoes, drained"
+
+> 1 (14-ounce) can sweetened condensed milk
+1/2 = "½ (14-ounce) can sweetened condensed milk"
+2 = "2 (14-ounce) cans sweetened condensed milk"
+3 = "3 (14-ounce) cans sweetened condensed milk"
+3/4 = "¾ (14-ounce) can sweetened condensed milk"
+5/4 = "1¼ (14-ounce) cans sweetened condensed milk"
+
+> 2 (8 oz.) packages cream cheese, softened
+1/2 = "1 (8 oz.) package cream cheese, softened"
+2 = "4 (8 oz.) packages cream cheese, softened"
+3 = "6 (8 oz.) packages cream cheese, softened"
+3/4 = "1½ (8 oz.) packages cream cheese, softened"
+5/4 = "2½ (8 oz.) packages cream cheese, softened"
+
+> 1 (15.5 oz) can chickpeas
+1/2 = "½ (15.5 oz) can chickpeas"
+2 = "2 (15.5 oz) cans chickpeas"
+3 = "3 (15.5 oz) cans chickpeas"
+3/4 = "¾ (15.5 oz) can chickpeas"
+5/4 = "1¼ (15.5 oz) cans chickpeas"
+
+> 1 14-ounce can coconut milk
+1/2 = "½ 14-ounce can coconut milk"
+2 = "2 14-ounce cans coconut milk"
+3 = "3 14-ounce cans coconut milk"
+3/4 = "¾ 14-ounce can coconut milk"
+5/4 = "1¼ 14-ounce cans coconut milk"
+
+> 2 9-inch pie crusts
+1/2 = "1 9-inch pie crusts"
+2 = "4 9-inch pie crusts"
+3 = "6 9-inch pie crusts"
+3/4 = "1½ 9-inch pie crusts"
+5/4 = "2½ 9-inch pie crusts"
+
+> 1 (9-inch) pie crust
+1/2 = "½ (9-inch) pie crust"
+2 = "2 (9-inch) pie crust"
+3 = "3 (9-inch) pie crust"
+3/4 = "¾ (9-inch) pie crust"
+5/4 = "1¼ (9-inch) pie crust"
+
+> 1 (about 2 lb) butternut squash
+1/2 = "½ (about 2 lb) butternut squash"
+2 = "2 (about 2 lb) butternut squash"
+3 = "3 (about 2 lb) butternut squash"
+3/4 = "¾ (about 2 lb) butternut squash"
+5/4 = "1¼ (about 2 lb) butternut squash"
+
+> 1 2-inch piece ginger, grated
+1/2 = "½ 2-inch piece ginger, grated"
+2 = "2 2-inch pieces ginger, grated"
+3 = "3 2-inch pieces ginger, grated"
+3/4 = "¾ 2-inch piece ginger, grated"
+5/4 = "1¼ 2-inch pieces ginger, grated"
+
+> 1 (400g) tin chopped tomatoes
+1/2 = "½ (400g) tin chopped tomatoes"
+2 = "2 (400g) tin chopped tomatoes"
+3 = "3 (400g) tin chopped tomatoes"
+3/4 = "¾ (400g) tin chopped tomatoes"
+5/4 = "1¼ (400g) tin chopped tomatoes"
+
+> 2 (12-ounce) bottles beer
+1/2 = "1 (12-ounce) bottles beer"
+2 = "4 (12-ounce) bottles beer"
+3 = "6 (12-ounce) bottles beer"
+3/4 = "1½ (12-ounce) bottles beer"
+5/4 = "2½ (12-ounce) bottles beer"
+
+> 1 (.25 oz) packet active dry yeast
+1/2 = "½ (.25 oz) packet active dry yeast"
+2 = "2 (.25 oz) packet active dry yeast"
+3 = "3 (.25 oz) packet active dry yeast"
+3/4 = "¾ (.25 oz) packet active dry yeast"
+5/4 = "1¼ (.25 oz) packet active dry yeast"
+
+> 1 can (15 oz) black beans
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 pkg (8 oz) cream cheese
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 large can tomatoes (28 oz)
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 5 lb bag potatoes
+1/2 = "2½ lb bag potatoes"
+2 = "10 lb bag potatoes"
+3 = "15 lb bag potatoes"
+3/4 = "3¾ lb bag potatoes"
+5/4 = "6¼ lb bag potatoes"
+
+> 2 cups (250 g) all-purpose flour, sifted
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 cup (2 sticks) butter, softened
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 cup flour, plus more for dusting
+1/2 = "½ cup flour, plus more for dusting"
+2 = "2 cups flour, plus more for dusting"
+3 = "3 cups flour, plus more for dusting"
+3/4 = "¾ cup flour, plus more for dusting"
+5/4 = "1¼ cups flour, plus more for dusting"
+
+> 3 tablespoons fresh lemon juice (from 1 lemon)
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 4 cups (1 liter) water
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1/2 cup (1 stick / 113g) unsalted butter
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 3 apples (about 1 1/2 lb.), peeled, cored, and sliced
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1/2 cup freshly grated Parmesan cheese, plus more for serving
+1/2 = "1/4 cup freshly grated Parmesan cheese, plus more for serving"
+2 = "1 cup freshly grated Parmesan cheese, plus more for serving"
+3 = "1 1/2 cups freshly grated Parmesan cheese, plus more for serving"
+3/4 = "3/8 cup freshly grated Parmesan cheese, plus more for serving"
+5/4 = "5/8 cup freshly grated Parmesan cheese, plus more for serving"
+
+> 3/4 cup (1 1/2 sticks) unsalted butter, cut into cubes and chilled
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 2 ripe bananas, mashed (about 1 cup)
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 kg (2.2 lb) potatoes
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 ½ teaspoons (7g) salt
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 6 cups apples (about 6 medium), peeled and sliced 1/4-inch thick
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 2 CUPS FLOUR
+1/2 = "1 CUP FLOUR"
+2 = "4 CUPS FLOUR"
+3 = "6 CUPS FLOUR"
+3/4 = "1½ CUPS FLOUR"
+5/4 = "2½ CUPS FLOUR"
+
+> 2 Cups Flour
+1/2 = "1 Cup Flour"
+2 = "4 Cups Flour"
+3 = "6 Cups Flour"
+3/4 = "1½ Cups Flour"
+5/4 = "2½ Cups Flour"
+
+> 2 Tablespoons sugar
+1/2 = "1 Tablespoon sugar"
+2 = "4 Tablespoons sugar"
+3 = "6 Tablespoons sugar"
+3/4 = "1½ Tablespoons sugar"
+5/4 = "2½ Tablespoons sugar"
+
+> 2 TBSP butter
+1/2 = "1 TBSP butter"
+2 = "4 TBSP butter"
+3 = "6 TBSP butter"
+3/4 = "1½ TBSP butter"
+5/4 = "2½ TBSP butter"
+
+> 1 LB beef
+1/2 = "½ LB beef"
+2 = "2 LB beef"
+3 = "3 LB beef"
+3/4 = "¾ LB beef"
+5/4 = "1¼ LB beef"
+
+> 3 cups 2% milk
+1/2 = "1½ cups 2% milk"
+2 = "6 cups 2% milk"
+3 = "9 cups 2% milk"
+3/4 = "2¼ cups 2% milk"
+5/4 = "3¾ cups 2% milk"
+
+> 1 cup 2% milk
+1/2 = "½ cup 2% milk"
+2 = "2 cups 2% milk"
+3 = "3 cups 2% milk"
+3/4 = "¾ cup 2% milk"
+5/4 = "1¼ cups 2% milk"
+
+> 1 cup 0% Greek yogurt
+1/2 = "½ cup 0% Greek yogurt"
+2 = "2 cups 0% Greek yogurt"
+3 = "3 cups 0% Greek yogurt"
+3/4 = "¾ cup 0% Greek yogurt"
+5/4 = "1¼ cups 0% Greek yogurt"
+
+> salt, to taste
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> salt to taste
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> kosher salt (to taste)
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> 1 tsp sugar, or to taste
+1/2 = "½ tsp sugar, or to taste"
+2 = "2 tsp sugar, or to taste"
+3 = "3 tsp sugar, or to taste"
+3/4 = "¾ tsp sugar, or to taste"
+5/4 = "1¼ tsp sugar, or to taste"
+
+> 1/2 tsp salt (or to taste)
+1/2 = "1/4 tsp salt (or to taste)"
+2 = "1 tsp salt (or to taste)"
+3 = "1 1/2 tsp salt (or to taste)"
+3/4 = "3/8 tsp salt (or to taste)"
+5/4 = "5/8 tsp salt (or to taste)"
+
+> salt
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> Juice of 2 lemons
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> Zest of ½ lemon
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> zest of 1 orange
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> pinch of salt
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> about 2 cups flour
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> ▢ 2 cups all-purpose flour
+1/2 = "▢ 1 cup all-purpose flour"
+2 = "▢ 4 cups all-purpose flour"
+3 = "▢ 6 cups all-purpose flour"
+3/4 = "▢ 1½ cups all-purpose flour"
+5/4 = "▢ 2½ cups all-purpose flour"
+
+> ▢ salt to taste
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> • 1 cup milk
+1/2 = "• ½ cup milk"
+2 = "• 2 cups milk"
+3 = "• 3 cups milk"
+3/4 = "• ¾ cup milk"
+5/4 = "• 1¼ cups milk"
+
+> - 2 tablespoons butter
+1/2 = "- 1 tablespoon butter"
+2 = "- 4 tablespoons butter"
+3 = "- 6 tablespoons butter"
+3/4 = "- 1½ tablespoons butter"
+5/4 = "- 2½ tablespoons butter"
+
+> 2\u00A0cups flour
+1/2 = "1\u00A0cup flour"
+2 = "4\u00A0cups flour"
+3 = "6\u00A0cups flour"
+3/4 = "1½\u00A0cups flour"
+5/4 = "2½\u00A0cups flour"
+
+> 1 fl\u00A0oz rum
+1/2 = "½ fl\u00A0oz rum"
+2 = "2 fl\u00A0oz rum"
+3 = "3 fl\u00A0oz rum"
+3/4 = "¾ fl\u00A0oz rum"
+5/4 = "1¼ fl\u00A0oz rum"
+
+> 3   cups   flour
+1/2 = "1½   cups   flour"
+2 = "6   cups   flour"
+3 = "9   cups   flour"
+3/4 = "2¼   cups   flour"
+5/4 = "3¾   cups   flour"
+
+> 2 cups flour\u0020\u0020
+1/2 = "1 cup flour  "
+2 = "4 cups flour  "
+3 = "6 cups flour  "
+3/4 = "1½ cups flour  "
+5/4 = "2½ cups flour  "
+
+> 1 cup water, heated to 110 °F
+1/2 = "½ cup water, heated to 110 °F"
+2 = "2 cups water, heated to 110 °F"
+3 = "3 cups water, heated to 110 °F"
+3/4 = "¾ cup water, heated to 110 °F"
+5/4 = "1¼ cups water, heated to 110 °F"
+
+> 2 cups warm water (105-115°F)
+1/2 = "1 cup warm water (105-115°F)"
+2 = "4 cups warm water (105-115°F)"
+3 = "6 cups warm water (105-115°F)"
+3/4 = "1½ cups warm water (105-115°F)"
+5/4 = "2½ cups warm water (105-115°F)"
+
+> 350°F oven
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> 180°C oven
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> 🍎 3 apples
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 cup of
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 0 eggs
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 1,5 kg potatoes
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 1 cup + 2 tbsp flour
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 2 x 400g cans tomatoes
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 2 or 3 eggs
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> ¹⁄₂ cup sugar
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 1000000 g sugar
+1/2 = "500000 g sugar"
+2 = "2000000 g sugar"
+3 = "3000000 g sugar"
+3/4 = "750000 g sugar"
+5/4 = "1250000 g sugar"
+
+> 1 PINCH SALT
+1/2 = as written
+2 = "2 PINCHES SALT"
+3 = "3 PINCHES SALT"
+3/4 = as written
+5/4 = as written
+
+> 2 STICKS BUTTER
+1/2 = "1 STICK BUTTER"
+2 = "4 STICKS BUTTER"
+3 = "6 STICKS BUTTER"
+3/4 = "1½ STICKS BUTTER"
+5/4 = "2½ STICKS BUTTER"
+
+> SIX EGGS
+1/2 = "3 EGGS"
+2 = "12 EGGS"
+3 = "18 EGGS"
+3/4 = "4½ EGGS"
+5/4 = "7½ EGGS"
+
+> a ½-inch piece ginger
+1/2 = "½ ½-inch piece ginger"
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = "¾ ½-inch piece ginger"
+5/4 = "1¼ ½-inch pieces ginger"
+
+> a (14 oz) can tomatoes
+1/2 = "½ (14 oz) can tomatoes"
+2 = "2 (14 oz) cans tomatoes"
+3 = "3 (14 oz) cans tomatoes"
+3/4 = "¾ (14 oz) can tomatoes"
+5/4 = "1¼ (14 oz) cans tomatoes"
+
+> • • 2 cups flour
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1/4-1/2 tsp cayenne
+1/2 = "1/8–1/4 tsp cayenne"
+2 = "1/2–1 tsp cayenne"
+3 = "3/4–1 1/2 tsp cayenne"
+3/4 = "1/4–3/8 tsp cayenne", rounded
+5/4 = "1/3–5/8 tsp cayenne", rounded
+
+> 2 to 2 1/2 cups flour
+1/2 = "1 to 1 1/4 cups flour"
+2 = "4 to 5 cups flour"
+3 = "6 to 7 1/2 cups flour"
+3/4 = "1 1/2 to 1 7/8 cups flour"
+5/4 = "2 1/2 to 3 1/8 cups flour"
+
+> 2 to taste
+1/2 = "1 to taste"
+2 = "4 to taste"
+3 = "6 to taste"
+3/4 = "1½ to taste"
+5/4 = "2½ to taste"
+
+> 1 tsp 5-spice powder
+1/2 = as written, unscaled unparsed
+2 = as written, unscaled unparsed
+3 = as written, unscaled unparsed
+3/4 = as written, unscaled unparsed
+5/4 = as written, unscaled unparsed
+
+> 1 cup’s worth of rice
+1/2 = "½ cup’s worth of rice"
+2 = "2 cup’s worth of rice"
+3 = "3 cup’s worth of rice"
+3/4 = "¾ cup’s worth of rice"
+5/4 = "1¼ cup’s worth of rice"
+
+> 1 (8.5 oz) can corn
+1/2 = "½ (8.5 oz) can corn"
+2 = "2 (8.5 oz) cans corn"
+3 = "3 (8.5 oz) cans corn"
+3/4 = "¾ (8.5 oz) can corn"
+5/4 = "1¼ (8.5 oz) cans corn"
+
+> 1 tea\u00ADspoon salt
+1/2 = "½ tea\u00ADspoon salt"
+2 = "2 tea\u00ADspoon salt"
+3 = "3 tea\u00ADspoon salt"
+3/4 = "¾ tea\u00ADspoon salt"
+5/4 = "1¼ tea\u00ADspoon salt"
+
+> 1/16 tsp cayenne pepper
+1/2 = as written
+2 = "1/8 tsp cayenne pepper"
+3 = "1/4 tsp cayenne pepper", rounded
+3/4 = as written
+5/4 = as written
+
+> 1 fluid  ounce rum
+1/2 = "½ fluid  ounce rum"
+2 = "2 fluid  ounces rum"
+3 = "3 fluid  ounces rum"
+3/4 = "¾ fluid  ounce rum"
+5/4 = "1¼ fluid  ounces rum"
+
+> 1 CUP flour
+1/2 = "½ CUP flour"
+2 = "2 CUPS flour"
+3 = "3 CUPS flour"
+3/4 = "¾ CUP flour"
+5/4 = "1¼ CUPS flour"
+
+> 1 Cup Flour
+1/2 = "½ Cup Flour"
+2 = "2 Cups Flour"
+3 = "3 Cups Flour"
+3/4 = "¾ Cup Flour"
+5/4 = "1¼ Cups Flour"
+
+> whole milk (3.25%)
+1/2 = as written
+2 = as written
+3 = as written
+3/4 = as written
+5/4 = as written
+
+> 1 Tablespoon butter
+1/2 = "½ Tablespoon butter"
+2 = "2 Tablespoons butter"
+3 = "3 Tablespoons butter"
+3/4 = "¾ Tablespoon butter"
+5/4 = "1¼ Tablespoons butter"
+
+> 3 pinches salt
+1/2 = "2 pinches salt", rounded
+2 = "6 pinches salt"
+3 = "9 pinches salt"
+3/4 = "2 pinches salt", rounded
+5/4 = "4 pinches salt", rounded
+
+> 1 drop almond extract
+1/2 = as written
+2 = "2 drops almond extract"
+3 = "3 drops almond extract"
+3/4 = as written
+5/4 = as written
+
+> 7 g instant yeast
+1/2 = "3.5 g instant yeast"
+2 = "14 g instant yeast"
+3 = "21 g instant yeast"
+3/4 = "5.3 g instant yeast", rounded
+5/4 = "8.8 g instant yeast", rounded
+
+> 0.5 kg flour
+1/2 = "0.25 kg flour"
+2 = "1 kg flour"
+3 = "1.5 kg flour"
+3/4 = "0.4 kg flour", rounded
+5/4 = "0.65 kg flour", rounded
+
+> 5 kg flour
+1/2 = "2.5 kg flour"
+2 = "10 kg flour"
+3 = "15 kg flour"
+3/4 = "3.8 kg flour", rounded
+5/4 = "6.3 kg flour", rounded
+
+> 1 egg
+1/2 = "½ egg"
+2 = "2 egg"
+3 = "3 egg"
+3/4 = "¾ egg"
+5/4 = "1¼ egg"
+
+> 10 cups water
+1/2 = "5 cups water"
+2 = "20 cups water"
+3 = "30 cups water"
+3/4 = "7½ cups water"
+5/4 = "12½ cups water"
+
+> 15 cups chicken stock
+1/2 = "7½ cups chicken stock"
+2 = "30 cups chicken stock"
+3 = "45 cups chicken stock"
+3/4 = "11½ cups chicken stock", rounded
+5/4 = "19 cups chicken stock", rounded
+
+> 1 1/3 cups flour
+1/2 = "2/3 cup flour"
+2 = "2 2/3 cups flour"
+3 = "4 cups flour"
+3/4 = "1 cup flour"
+5/4 = "1 2/3 cups flour"
+
+> 1 to 1 1/2 cups milk
+1/2 = "1/2 to 3/4 cup milk"
+2 = "2 to 3 cups milk"
+3 = "3 to 4 1/2 cups milk"
+3/4 = "3/4 to 1 1/8 cups milk"
+5/4 = "1 1/4 to 1 7/8 cups milk"
+
+> Water, 2 cups
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> 1 dozen eggs
+1/2 = "½ dozen eggs"
+2 = "2 dozen eggs"
+3 = "3 dozen eggs"
+3/4 = "¾ dozen eggs"
+5/4 = "1¼ dozen eggs"
+
+> 2 cups warm water (110 °F)
+1/2 = "1 cup warm water (110 °F)"
+2 = "4 cups warm water (110 °F)"
+3 = "6 cups warm water (110 °F)"
+3/4 = "1½ cups warm water (110 °F)"
+5/4 = "2½ cups warm water (110 °F)"
+
+> 1 cup flour (about 120 g)
+1/2 = as written, unscaled other-amounts
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = as written, unscaled other-amounts
+5/4 = as written, unscaled other-amounts
+
+> one 1/2-inch piece ginger
+1/2 = "½ 1/2-inch piece ginger"
+2 = as written, unscaled other-amounts
+3 = as written, unscaled other-amounts
+3/4 = "¾ 1/2-inch piece ginger"
+5/4 = "1¼ 1/2-inch pieces ginger"
+
+> 1-2 pinches salt
+1/2 = "1 pinch salt", rounded
+2 = "2–4 pinches salt"
+3 = "3–6 pinches salt"
+3/4 = as written
+5/4 = "1–3 pinches salt", rounded
+
+> 1/2–¾ cup sugar
+1/2 = "¼–⅜ cup sugar"
+2 = "1–1½ cups sugar"
+3 = "1½–2¼ cups sugar"
+3/4 = "⅜–⅝ cup sugar", rounded
+5/4 = "⅝–1 cup sugar", rounded
+
+> 0.125-0.25 tsp salt
+1/2 = "1/16–1/8 tsp salt"
+2 = "0.25–0.5 tsp salt"
+3 = "0.375–0.75 tsp salt"
+3/4 = as written
+5/4 = "0.125–0.375 tsp salt", rounded
+
+> 1 to 2 pinches salt
+1/2 = "1 pinch salt", rounded
+2 = "2 to 4 pinches salt"
+3 = "3 to 6 pinches salt"
+3/4 = as written
+5/4 = "1 to 3 pinches salt", rounded
+
+> 1/16 to 1/8 tsp cayenne
+1/2 = "1/16 tsp cayenne", rounded
+2 = "1/8 to 1/4 tsp cayenne"
+3 = "1/4 to 3/8 tsp cayenne", rounded
+3/4 = as written
+5/4 = as written
+
+> 0.01-0.02 kg flour
+1/2 = "0.05 kg flour", rounded
+2 = "0.05 kg flour", rounded
+3 = "0.05 kg flour", rounded
+3/4 = "0.05 kg flour", rounded
+5/4 = "0.05 kg flour", rounded
+
+> 7-9 cups water
+1/2 = "3½–4½ cups water"
+2 = "14–18 cups water"
+3 = "21–27 cups water"
+3/4 = "5¼–6¾ cups water"
+5/4 = "8¾–11½ cups water", rounded

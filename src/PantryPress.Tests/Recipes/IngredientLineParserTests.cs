@@ -250,4 +250,23 @@ public sealed class IngredientLineParserTests
         Assert.Equal(IngredientParseProblem.AmbiguousQuantity, parse.Problem);
         IngredientParseInvariants.Check("1 cup + 2 tbsp flour", parse);
     }
+
+    // PP4.7: the scaler reads its own output again, which may be longer than a stored line. Within the cap the uncapped
+    // reading is the parser's, line for line; past it, it reads rather than refusing.
+    [Fact]
+    public void Reading_past_the_length_cap_agrees_with_the_parser_within_it()
+    {
+        foreach (var input in IngredientCorpus.Load().Select(c => c.Input).Where(t => t.Length <= RecipeLimits.MaxIngredientTextLength))
+        {
+            Assert.Equal(IngredientLineParser.Parse(input), IngredientLineParser.ParseAnyLength(input));
+        }
+
+        var longLine = "2 cups flour" + new string(' ', RecipeLimits.MaxIngredientTextLength);
+        Assert.Equal(IngredientParseProblem.TooLong, IngredientLineParser.Parse(longLine).Problem);
+        var read = IngredientLineParser.ParseAnyLength(longLine);
+        Assert.Equal(IngredientParseStatus.Parsed, read.Status);
+        Assert.Equal(Quantity.Amount(2), read.Quantity);
+        Assert.Equal("cup", read.UnitCode);
+        Assert.Throws<ArgumentNullException>(() => IngredientLineParser.ParseAnyLength(null!));
+    }
 }

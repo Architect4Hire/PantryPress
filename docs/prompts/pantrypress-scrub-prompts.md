@@ -4492,13 +4492,124 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
     - `architecture-reviewer`: no blockers. One major (a heading's line was not returned) and five minors (hand-offs,
       ASCII folding, counting lines once, the culture run, the harness limit), all fixed or recorded above.
 
-### PP4.7 Scaling service
+### PP4.7 Scaling service - done
 
 ```text
 SCOPE: Implement deterministic scaling for servings multipliers with rounding and fraction display rules.
 CONSTRAINT: RCP-004; recipes.md.
 BEHAVIOR: Plan, wait for approval, implement with tests for ranges, fractions, and unscalable lines.
 ```
+
+*PP4.7 delivery note (done 2026-11-10):*
+
+- **What shipped.** Pure code in Recipes' `Business/`, plus one enum in `Contracts/`. No endpoint, facade, migration, or page
+  data. The rules are in `recipes.md`, "Scaling (PP4.7)".
+  - `RecipeScaler`:
+    - `ScaleLine(ScalableIngredientLine, ScaleFactor)` returns a `ScaledIngredientLine`: the text, the amount shown, its
+      span in the text, `IsRounded`, and an `UnscaledReason` flag.
+    - `ScaleYield` scales the yield.
+    - `ScalableIngredientLine.From` builds the input from a parse. Its fields are the stored parts, so a snapshot line maps
+      onto it directly.
+  - `ScaleFactor`: the exact factors ½×, 1×, 2×, and 3×, and `ForServings`, which offers custom servings only for a yield
+    of one whole number. A factor's terms are at most `MaxQuantityTerm`.
+  - `FriendlyRounding` and `RoundingGrid`: the banded nearest-friendly-amount rounding (kitchen, kitchen for decimal
+    writers, metric, whole). A tie goes up, and nothing rounds to zero.
+  - `UnitInflections`: singular and plural agreement for spelled-out unit words. Each unit's own words come from `Units`;
+    eight other spellings are listed.
+  - `UnscaledReason` (`Contracts/`): `unparsed` and `other-amounts`.
+  - `QuantityText` gains an `asciiFractions` option, so a blogger who writes `1 1/2` gets `3/4`, not `¾`.
+  - `IngredientLineParser.ParseAnyLength` (internal) is the parser without the stored length cap, for the read-back below.
+- **Owner-approved choices.**
+  - Only the quantity span is written anew. The unit span changes only to agree in number, and abbreviations and the
+    item's words never change.
+  - The blogger's style is kept. Metric is always decimal. A range keeps its `to`, and a dash becomes an en dash.
+  - The rounding bands. Pinch, dash, drop, and handful round to a whole number, at least one.
+  - What is flagged and what is not:
+    - an unparsed line is flagged `unparsed`;
+    - another number outside the quantity is flagged `other-amounts`;
+    - no amount, "to taste", a temperature, and 1× are shown as written, unflagged;
+    - an amount that rounds back to the blogger's own is shown as written.
+  - Custom servings only for a whole single yield. Steps are never scaled.
+- **What differs from the plan.**
+  - **Percentages and temperatures** (`2% milk`, `110 °F`, `105-115°F`) do not count as other amounts. The approved rule
+    exempted only sizes, but these describe the item and cannot be made wrong by scaling. `architecture-reviewer` agreed.
+  - **The read-back guard.** The property tests found that `a ½-inch piece` doubled writes `2 ½-inch`, which reads as 2½.
+    The scaler now reads its own line again with the parser. If the new amount does not read back at its span, the line is
+    shown as written, flagged `other-amounts`.
+    - The read-back ignores the length cap, since a 500-character line can grow when `cup` becomes `cups`.
+    - An amount past `MaxQuantityTerm` is display only and is not checked (a known, contrived gap).
+  - **From `architecture-reviewer`** (no blockers, no majors):
+    - `Validate` refuses quantity terms past the cap, and `FriendlyRounding.Round` refuses terms past `MaxTerm` (10^12).
+    - The unit pairs are built from `Units`.
+    - Two doc comments and two older `recipes.md` passages were corrected.
+  - **From `test-gap-analyzer`** (no blockers; five majors, all fixed):
+    - `Validate` also refuses a line that cannot happen: an unparsed line with parts, or a span without a quantity.
+    - `IsRounded`'s doc now says a line shown as written is never "rounded".
+- **Tests (in `PantryPress.Tests/Recipes/`).**
+  - Golden table `Corpus/scaling.txt`: 221 real lines at ½×, 2×, 3×, ¾×, and 5⁄4×.
+    - Each line was read and approved by hand; the hand-checked rows include ties, range collapses, and the read-back cases.
+    - The table reads alike under `tr-TR`, `ar-SA`, and the invariant culture.
+    - There is no rewrite mode.
+  - At 1×, every line of both corpora is exactly as written.
+  - `RecipeScalerTests`: each rule and its edges.
+    - Flags and their absence; sizes, percentages, and temperatures; the read-back guard.
+    - Styles and grids; range joiners and collapses on every grid.
+    - Unit agreement and case; yields.
+    - A line that grows past 500 characters; an amount past the cap.
+    - Every refusal.
+  - `RecipeScalerPropertyTests` (CsCheck, 20,000 cases each, over both corpora). Every scaled line:
+    - is deterministic, and stays so at the extreme factors (10^6 and 10^-6) without overflowing;
+    - keeps every word outside the replaced spans;
+    - reads back as exactly the amount, unit, item, and note it shows;
+    - shows each end equal to the exact end rounded on the grid, which the test works out on its own;
+    - is shown as written unflagged only when it had nothing to scale;
+    - flags only as described;
+    - when not rounded, scaled back by 1/k, is the original. This is how recipes.md's k-then-1/k property reads once
+      rounding is the one inexact step; PP4.2's property covers the exact arithmetic.
+  - `FriendlyRoundingTests`: an example table with every band edge and tie. Properties (nothing below the smallest step,
+    idempotent, monotone, half-step bound, measurable denominators) run with terms out to 10^12.
+  - `ScaleFactorTests`, `UnitInflectionsTests` (pairs kept on the vocabulary, no abbreviation or temperature), the
+    `QuantityText` ASCII cases, and `ParseAnyLength` agreeing with `Parse` within the cap.
+  - Mutations confirmed caught: the read-back guard removed, the read-back through the capped parser, and the cap check
+    removed.
+  - Two-site test: not owed. The code is pure and adds no site data path (both reviewers agree).
+- **Hand-offs.**
+  - **PP4.8:** convert the *exact* scaled quantity before rounding, so a converted variant is rounded once. That means
+    splitting `RecipeScaler`'s private steps (exact multiply, then grid and round, then write in the span's style) into
+    shared internals.
+  - **PP7.11:**
+    - Map `ScaledIngredientLine` and `ScaledYield` to new contract records, since Contracts may not name `Quantity` or
+      `TextSpan`; don't reuse PP4.6's `Pasted*` types. `RecipeSnapshotIngredient` has every field `ScalableIngredientLine`
+      needs.
+    - Pin `UnscaledReason`'s kebab-case wire names in a contract test.
+    - Choose the closed set of custom servings to precompute (suggested: 1 up to the larger of 12 and three times the
+      yield), since `ForServings` takes any number up to the cap.
+    - Decide whether a stored line that fails `Validate` fails the build or is caught per line.
+    - Owe the two-site test and the golden public output.
+  - **PP4.15:** preview the same variants.
+  - **Any later parser change:** the scaler reads lines with the current parser (other-amounts, read-back), so a parser
+    change can move flags on published revisions, always toward showing as written. The scaling table and the parser
+    corpus are the tripwire.
+- **Not verified or left.**
+  - Pinned limitations, documented in the table's header:
+    - an item's words never agree in number (`1 eggs`, `2 onion`);
+    - an abbreviation is never inflected (`1 lbs`);
+    - a size written after the unit (`1 can (15 oz) black beans`) is flagged as another amount;
+    - a line whose amount the parser does not read (`a large egg`, `pinch of salt`, `Juice of half a lemon`) is shown as
+      written unflagged;
+    - a whole number is shown with fraction characters even when the blogger wrote no fraction;
+    - a tiny kitchen amount or yield shows `1/16`, which has no fraction character.
+  - The scaling table has no thirds-producing factor (⅔×) or large custom servings (6×, 12×); the properties cover them.
+  - `aspire run` was not restarted, because the user's own run is up. Nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 3,240 passed, 0 failed (2,960 before).
+  - Reviewers:
+    - `architecture-reviewer`: no blockers or majors. Eight minors: six fixed, and the PP4.8 split and the PP7.11 notes are
+      recorded above as hand-offs.
+    - `test-gap-analyzer`: no blockers. Five majors, all fixed. Of eleven minors, most were added; the rest are recorded
+      above.
 
 ### PP4.8 Unit and temperature conversion
 

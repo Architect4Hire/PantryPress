@@ -16,6 +16,8 @@ namespace PantryPress.Domain.Modules.Recipes.Business;
 /// <item>A range is its two ends joined by an en dash with no spaces (<c>2–3</c>). "To taste" is <see cref="ToTaste"/>,
 /// the structured line's label in the editor and a paste-to-parse proposal; a reader sees the blogger's own words for such
 /// a line, since a quantity span that never scales is never replaced (RCP-002).</item>
+/// <item>With <c>asciiFractions</c> (PP4.7), fraction style writes every remainder in ASCII (<c>1 1/2</c>, <c>3/4</c>), so
+/// a scaled amount keeps the way a blogger who typed <c>1 1/2</c> writes fractions.</item>
 /// </list>
 /// Text is never parsed back into a quantity here: reading what a blogger wrote is the parser's (PP4.5).
 /// </summary>
@@ -43,14 +45,19 @@ public static class QuantityText
         [(7, 8)] = "⅞",
     };
 
-    public static string Format(Quantity quantity, QuantityStyle style)
+    public static string Format(Quantity quantity, QuantityStyle style) => Format(quantity, style, asciiFractions: false);
+
+    /// <summary>
+    /// The quantity's text; with <paramref name="asciiFractions"/>, fraction style writes no fraction character.
+    /// </summary>
+    public static string Format(Quantity quantity, QuantityStyle style, bool asciiFractions)
     {
         ArgumentNullException.ThrowIfNull(quantity);
         RequireStyle(style);
         return quantity.Kind switch
         {
-            QuantityKind.Amount => Format(quantity.Low!.Value, style),
-            QuantityKind.Range => FormatRange(quantity.Low!.Value, quantity.High!.Value, style),
+            QuantityKind.Amount => Format(quantity.Low!.Value, style, asciiFractions),
+            QuantityKind.Range => FormatRange(quantity.Low!.Value, quantity.High!.Value, style, asciiFractions),
             QuantityKind.ToTaste => ToTaste,
             _ => throw new ArgumentOutOfRangeException(nameof(quantity), quantity.Kind, "Not a quantity kind."),
         };
@@ -60,7 +67,10 @@ public static class QuantityText
     /// One value's text, for any value a <see cref="Rational"/> holds. Zero is <c>0</c> and a value below zero takes a
     /// leading <c>-</c>, for a converted temperature (PP4.8); a quantity itself is always above zero.
     /// </summary>
-    public static string Format(Rational value, QuantityStyle style)
+    public static string Format(Rational value, QuantityStyle style) => Format(value, style, asciiFractions: false);
+
+    /// <summary>One value's text; with <paramref name="asciiFractions"/>, fraction style writes no fraction character.</summary>
+    public static string Format(Rational value, QuantityStyle style, bool asciiFractions)
     {
         RequireStyle(style);
 
@@ -69,7 +79,7 @@ public static class QuantityText
         var sign = value.Sign < 0 ? "-" : string.Empty;
         return sign + (style == QuantityStyle.Decimal && IsExactDecimal(value)
             ? FormatDecimal(numerator, value.Denominator)
-            : FormatFraction(numerator, value.Denominator));
+            : FormatFraction(numerator, value.Denominator, asciiFractions));
     }
 
     private static void RequireStyle(QuantityStyle style)
@@ -80,18 +90,18 @@ public static class QuantityText
         }
     }
 
-    private static string FormatRange(Rational low, Rational high, QuantityStyle style)
+    private static string FormatRange(Rational low, Rational high, QuantityStyle style, bool asciiFractions)
     {
         var both = style == QuantityStyle.Decimal && !(IsExactDecimal(low) && IsExactDecimal(high))
             ? QuantityStyle.Fraction
             : style;
-        return Format(low, both) + RangeSeparator + Format(high, both);
+        return Format(low, both, asciiFractions) + RangeSeparator + Format(high, both, asciiFractions);
     }
 
     private static bool IsExactDecimal(Rational value) => DecimalScale % value.Denominator == 0;
 
     // numerator is zero or above; the remainder is below the denominator, so it fits in a long.
-    private static string FormatFraction(Int128 numerator, long denominator)
+    private static string FormatFraction(Int128 numerator, long denominator, bool asciiFractions)
     {
         var whole = numerator / denominator;
         var remainder = (long)(numerator % denominator);
@@ -101,7 +111,7 @@ public static class QuantityText
         }
 
         var wholeText = whole == 0 ? string.Empty : Invariant(whole);
-        if (Glyphs.TryGetValue((remainder, denominator), out var glyph))
+        if (!asciiFractions && Glyphs.TryGetValue((remainder, denominator), out var glyph))
         {
             return wholeText + glyph;
         }

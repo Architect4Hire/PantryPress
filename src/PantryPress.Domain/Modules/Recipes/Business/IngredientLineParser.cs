@@ -48,14 +48,24 @@ public static class IngredientLineParser
 
     private static readonly string[] ConnectorWords = ["to", "or", "and", "plus", "x"];
 
+    /// <summary>The words read as an amount, lower-case: <c>one</c> to <c>twelve</c> (the scaler looks for them, PP4.7).</summary>
+    internal static IReadOnlyList<string> AmountWords { get; } = Array.AsReadOnly(NumberWords);
+
     public static IngredientLineParse Parse(string originalText)
     {
         ArgumentNullException.ThrowIfNull(originalText);
-        if (originalText.Length > RecipeLimits.MaxIngredientTextLength)
-        {
-            return IngredientLineParse.Unparsed(IngredientParseProblem.TooLong);
-        }
+        return originalText.Length > RecipeLimits.MaxIngredientTextLength
+            ? IngredientLineParse.Unparsed(IngredientParseProblem.TooLong)
+            : ParseAnyLength(originalText);
+    }
 
+    /// <summary>
+    /// <see cref="Parse"/> without the stored length cap, for the scaler's read-back (PP4.7): a stored line can grow past
+    /// the cap once a scaled amount or a plural is written into it, and what the reader sees must still be read.
+    /// </summary>
+    internal static IngredientLineParse ParseAnyLength(string originalText)
+    {
+        ArgumentNullException.ThrowIfNull(originalText);
         var tokens = IngredientLineTokenizer.Tokenize(originalText);
         if (tokens.Any(t => t.Kind == IngredientTokenKind.Invalid))
         {
