@@ -1,0 +1,18 @@
+group -
+  "Instructions" => "Instructions" @0+12
+  "1. Preheat the oven to 375°F (190°C)." => "Preheat the oven to 375°F (190°C)." @3+34
+  "2) Whisk the flour and salt together in a large bowl." => "Whisk the flour and salt together in a large bowl." @3+50
+  "Step 3: Cut in the butter until the mixture looks like coarse crumbs." => "Cut in the butter until the mixture looks like coarse crumbs." @8+61
+  "STEP 4 - Add the ice water a tablespoon at a time, just until the dough holds together." => "Add the ice water a tablespoon at a time, just until the dough holds together." @9+78
+  "Step 5" => "" @6+0 ! no-text
+  "Roll out half the dough and fit it into a 9-inch pie plate." => "Roll out half the dough and fit it into a 9-inch pie plate." @0+59
+group "For the filling"
+  "• Toss the apples with the sugar, flour, cinnamon, and nutmeg." => "Toss the apples with the sugar, flour, cinnamon, and nutmeg." @2+60
+  "- Pour the filling into the crust and dot with butter." => "Pour the filling into the crust and dot with butter." @2+52
+  "1.5 hours is about right for the chill, if you have the time." => "1.5 hours is about right for the chill, if you have the time." @0+61
+  "Bake for 1:00 to 1:15, until the juices bubble." => "Bake for 1:00 to 1:15, until the juices bubble." @0+47
+  "For best results, cool for 2 hours before slicing." => "For best results, cool for 2 hours before slicing." @0+50
+  "Step 9: make the glaze:" => "make the glaze:" @8+15
+group "Glaze"
+group "Whisk the powdered sugar and milk"
+  "Drizzle over the cooled pie." => "Drizzle over the cooled pie." @0+28

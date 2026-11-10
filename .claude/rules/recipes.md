@@ -80,6 +80,33 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - The golden corpus is `PantryPress.Tests/Recipes/Corpus/ingredient-lines.txt`, approved by reading, with nothing that
   rewrites it. A change to the parser shows its moved lines, and each moved line is edited by hand.
 
+## Paste-to-parse (PP4.6)
+
+- `POST /api/v1/sites/{siteSlug}/recipes/paste/ingredients` and `…/steps` (`SiteAuthor`) read a pasted list into
+  proposed groups and lines for review (RCP-003). They save nothing, read no site data, and answer every member of every
+  site alike for the same paste. Limits are `RecipeLimits.MaxPastedTextLength` (30,000) and `MaxPastedLines` (200
+  non-blank lines), and `RateLimits:RecipePastesPerAccountPerMinute` (30).
+- `PastedListReader` in `Business/` is pure, like the parser. Each line is kept exactly as pasted (`originalText`); a
+  heading or a step's text is a cut of its line, with only the marks around it left off.
+  - Lines split at CR LF, LF, CR, U+0085, U+2028, and U+2029. A blank line (whitespace and format characters only) is
+    skipped and never starts a group.
+  - A heading, at most `MaxGroupHeadingLength` once cut and holding a letter, is a line ending in `:` that does not start
+    with a number, a Markdown heading (one to six `#` and a space), or - in an ingredient list only - a line starting with
+    the word `For` with no number, comma, colon, or parenthesis. An ingredient list leaves a leading bullet off a heading;
+    in a step list a line with a step marker is always a step. A group also carries its heading's line exactly as pasted
+    and the heading's span in it, so a line misread as a heading can be turned back into a line in the blogger's words.
+    `For` and `Step` fold ASCII letters only, as unit spellings do.
+  - Ingredient lines go through `IngredientLineParser` unchanged; unreadable ones are kept and flagged with their
+    `IngredientParseProblem`, whose kebab-case names are now a wire contract.
+  - A step is one line with a leading marker cut off: a parser bullet; up to three digits and `.`, `)`, or `:` before a
+    space; or `Step N` with optional punctuation. A line that is only a marker, too long, or holding a control character
+    is flagged (`StepPasteProblem`), never dropped. A lone surrogate never arrives: the JSON edge refuses it as a
+    `validation-failed` on `text`.
+- What the routes propose is advice. The routes that save a recipe (PP4.11) read each line again on the server and never
+  take a client's parts on trust.
+- The golden pastes are `PantryPress.Tests/Recipes/Corpus/paste/`, `<name>.<ingredients|steps>.txt` beside its
+  `.approved.txt`, approved by reading, with nothing that rewrites them.
+
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).

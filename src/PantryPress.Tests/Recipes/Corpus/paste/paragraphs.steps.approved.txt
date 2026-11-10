@@ -1,0 +1,6 @@
+group -
+  "Mix the dry ingredients in a large bowl." => "Mix the dry ingredients in a large bowl." @0+40
+  "Make a well in the center, then pour in the milk and eggs. Stir until just combined; a few lumps are fine." => "Make a well in the center, then pour in the milk and eggs. Stir until just combined; a few lumps are fine." @0+106
+  "Heat a lightly oiled griddle over medium-high heat. Pour about ¼ cup of batter per pancake." => "Heat a lightly oiled griddle over medium-high heat. Pour about ¼ cup of batter per pancake." @0+91
+  "Flip when bubbles form and the edges look dry, about 2 minutes. Cook until golden on the other side." => "Flip when bubbles form and the edges look dry, about 2 minutes. Cook until golden on the other side." @0+100
+  "Serve warm with butter and maple syrup." => "Serve warm with butter and maple syrup." @0+39

@@ -9,7 +9,7 @@ namespace PantryPress.Domain.Modules.Recipes.Contracts;
 /// site: the caller has entered it, and a recipe of any other site is no recipe here.
 /// </summary>
 /// <remarks>
-/// No host registers this yet. Who may freeze a revision, and what publishing asks first - an author's review (POST-010),
+/// ApiService registers it (PP4.6), but no route calls it yet. Who may freeze a revision, and what publishing asks first - an author's review (POST-010),
 /// a confirmed email address (ACCT-001) - are the routes' and the publish use case's to decide (PP4.11, PP5.14).
 /// </remarks>
 public interface IRecipeRevisionsFacade

@@ -25,6 +25,15 @@ public static class RecipeLimits
 
     public const int MaxStepTextLength = 2000;
 
+    /// <summary>
+    /// The most a paste-to-parse request reads at once (RCP-003; PP4.6), in UTF-16 code units: room for a long recipe's
+    /// ingredients or steps, far inside the admin body cap.
+    /// </summary>
+    public const int MaxPastedTextLength = 30_000;
+
+    /// <summary>The most non-blank lines a paste-to-parse request reads at once (PP4.6), headings included.</summary>
+    public const int MaxPastedLines = 200;
+
     public const int MaxEquipmentLength = 200;
 
     public const int MaxNoteLength = 2000;

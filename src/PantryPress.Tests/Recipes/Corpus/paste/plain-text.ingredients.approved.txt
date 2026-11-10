@@ -1,0 +1,18 @@
+group -
+  "2\u0009cups\u0009bread flour" => parsed | 2 @0+1 | cup @2+4 | item "bread flour" | note -
+  "1 1/2 tsp instant yeast" => parsed | 3/2 @0+5 | teaspoon @6+3 | item "instant yeast" | note -
+  "1¼ cups warm water (105–110°F)" => parsed | 5/4 @0+2 | cup @3+4 | item "warm water" | note "105–110°F"
+  "2 tbsp olive oil, plus more for the bowl" => parsed | 2 @0+1 | tablespoon @2+4 | item "olive oil" | note "plus more for the bowl"
+  "Salt and pepper to taste" => parsed | to-taste @16+8 | - | item "Salt and pepper" | note -
+group "Toppings"
+  "* 1 (14-ounce) can crushed tomatoes" => parsed | 1 @2+1 | can @15+3 | item "crushed tomatoes" | note "14-ounce"
+  "- 8 oz fresh mozzarella, torn" => parsed | 8 @2+1 | ounce @4+2 | item "fresh mozzarella" | note "torn"
+  "• a handful of basil leaves" => parsed | 1 @2+1 | handful @4+7 | item "basil leaves" | note -
+  "Fresh mint, for garnish" => parsed | - | - | item "Fresh mint" | note "for garnish"
+  "1 cup + 2 tbsp grated parmesan" => unparsed ambiguous-quantity
+  "2 x 400g tins chickpeas" => unparsed ambiguous-quantity
+  "1. 2 cups milk" => unparsed unreadable-quantity
+  "For garnish: parsley" => parsed | - | - | item "For garnish: parsley" | note -
+group "FOR THE DRIZZLE"
+  "3 tablespoons honey" => parsed | 3 @0+1 | tablespoon @2+11 | item "honey" | note -
+  "1/4 tsp red pepper flakes" => parsed | 1/4 @0+3 | teaspoon @4+3 | item "red pepper flakes" | note -

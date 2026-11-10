@@ -48,7 +48,10 @@ internal static class IngredientParseInvariants
                 break;
             case { Kind: QuantityKind.ToTaste }:
                 var words = Within(text, parse.QuantitySpan);
-                Assert.Equal("to taste", string.Join(' ', words.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)), StringComparer.OrdinalIgnoreCase);
+                // The parser separates words by whitespace and by invisible format characters alike (a zero-width space), so
+                // the words are read back the same way.
+                var separated = new string([.. words.Select(c => IngredientLineTokenizer.IsFormat(c) ? ' ' : c)]);
+                Assert.Equal("to taste", string.Join(' ', separated.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)), StringComparer.OrdinalIgnoreCase);
                 Assert.Null(parse.Style);
                 Assert.Null(parse.UnitCode);
                 break;

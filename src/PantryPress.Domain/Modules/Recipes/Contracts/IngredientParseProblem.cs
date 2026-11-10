@@ -8,13 +8,16 @@ namespace PantryPress.Domain.Modules.Recipes.Contracts;
 /// </summary>
 public enum IngredientParseProblem
 {
-    /// <summary>The line is empty or only spaces.</summary>
+    /// <summary>The line is empty or only spaces. Paste-to-parse never answers it: it skips blank lines.</summary>
     Empty,
 
     /// <summary>The line is longer than <see cref="RecipeLimits.MaxIngredientTextLength"/>.</summary>
     TooLong,
 
-    /// <summary>The line holds a broken character (half of a surrogate pair) or a control character.</summary>
+    /// <summary>
+    /// The line holds a control character, or a broken character (half of a surrogate pair). Over the API only the first
+    /// arrives: a broken character is refused with the request, before anything is read.
+    /// </summary>
     IllFormedText,
 
     /// <summary>A parenthesis is opened and never closed, or closed and never opened.</summary>

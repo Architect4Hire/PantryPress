@@ -59,6 +59,12 @@ public sealed class ApiRateLimitOptions
     public int SiteMemberChangesPerAccountPerMinute { get; set; } = 30;
 
     /// <summary>
+    /// Pasted ingredient or step lists one signed-in account may have read in a minute (PP4.6), across its sites. A
+    /// blogger pastes now and then; each paste reads up to 200 lines, so this bounds the work one account can ask for.
+    /// </summary>
+    public int RecipePastesPerAccountPerMinute { get; set; } = 30;
+
+    /// <summary>
     /// Requests per minute for one signed-in account on any route that names a site, counted ahead of the site policy
     /// (PP2.14). The route's own allowance counts only what the policy lets in; this one counts the membership lookups
     /// themselves, refused ones included, since each is a database read whatever it answers. Set above the sum of today's
@@ -95,6 +101,7 @@ internal static class ApiRateLimits
     public const string InvitationAccept = "sites-invitation-accept";
     public const string SiteMemberList = "sites-members";
     public const string SiteMemberChange = "sites-member-change";
+    public const string RecipePaste = "recipes-paste";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -108,6 +115,7 @@ internal static class ApiRateLimits
                     && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
                     && o.InvitesPerAccountPerHour > 0 && o.InvitationAcceptsPerAccountPerHour > 0
                     && o.SiteMembersPerAccountPerMinute > 0 && o.SiteMemberChangesPerAccountPerMinute > 0
+                    && o.RecipePastesPerAccountPerMinute > 0
                     && o.SiteLookupsPerAccountPerMinute > 0 && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
@@ -197,6 +205,13 @@ internal static class ApiRateLimits
                 return RateLimitPartition.GetFixedWindowLimiter(
                     AccountKey(context),
                     _ => PerMinute(limits.SiteMemberChangesPerAccountPerMinute));
+            });
+
+            // Paste-to-parse, per account (PP4.6). Authorized first, so only a member's request is counted.
+            options.AddPolicy(RecipePaste, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.RecipePastesPerAccountPerMinute));
             });
 
             options.OnRejected = (context, _) => RefuseAsync(context.HttpContext, context.Lease);

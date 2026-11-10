@@ -6,6 +6,7 @@ using PantryPress.Domain.Managers.Outbox;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Time;
 using PantryPress.Domain.Modules.Accounts;
+using PantryPress.Domain.Modules.Recipes;
 using PantryPress.Domain.Modules.Sites;
 using PantryPress.ServiceDefaults.Caching;
 using PantryPress.ServiceDefaults.EdgeHardening;
@@ -37,6 +38,7 @@ builder.AddCacheConnection();
 
 builder.Services.AddAccounts();
 builder.Services.AddSites();
+builder.Services.AddRecipes();
 builder.Services.AddApiControllers();
 builder.Services.AddGatewayTrust(builder.Configuration.GetSection("Gateway"));
 builder.Services.AddApiAuthentication();

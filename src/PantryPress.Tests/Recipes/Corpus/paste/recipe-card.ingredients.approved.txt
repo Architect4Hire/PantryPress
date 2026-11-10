@@ -1,0 +1,18 @@
+group -
+  "Ingredients" => parsed | - | - | item "Ingredients" | note -
+group "For the crust"
+  "▢ 2 ½ cups (315 g) all-purpose flour" => parsed | 5/2 @2+3 | cup @6+4 | item "all-purpose flour" | note "315 g"
+  "▢ 1 teaspoon fine sea salt" => parsed | 1 @2+1 | teaspoon @4+8 | item "fine sea salt" | note -
+  "▢ 1 cup (226 g) cold unsalted butter, cubed" => parsed | 1 @2+1 | cup @4+3 | item "cold unsalted butter" | note "226 g; cubed"
+  "▢ 6–8 tablespoons ice water" => parsed | 6..8 @2+3 | tablespoon @6+11 | item "ice water" | note -
+group "For the filling"
+  "▢ 6 cups thinly sliced apples (about 6 medium)" => parsed | 6 @2+1 | cup @4+4 | item "thinly sliced apples" | note "about 6 medium"
+  "▢ ¾ cup granulated sugar" => parsed | 3/4 @2+1 | cup @4+3 | item "granulated sugar" | note -
+  "▢ 2 tablespoons all-purpose flour" => parsed | 2 @2+1 | tablespoon @4+11 | item "all-purpose flour" | note -
+  "▢ 1 tsp ground cinnamon" => parsed | 1 @2+1 | teaspoon @4+3 | item "ground cinnamon" | note -
+  "▢ ¼ tsp ground nutmeg" => parsed | 1/4 @2+1 | teaspoon @4+3 | item "ground nutmeg" | note -
+  "▢ 1 tablespoon lemon juice" => parsed | 1 @2+1 | tablespoon @4+10 | item "lemon juice" | note -
+  "▢ 1 large egg, beaten, for brushing" => parsed | 1 @2+1 | - | item "large egg" | note "beaten, for brushing"
+group "For serving"
+  "▢ vanilla ice cream (optional)" => parsed | - | - | item "vanilla ice cream" | note "optional"
+  "▢ flaky salt, to taste" => parsed | to-taste @14+8 | - | item "flaky salt" | note -

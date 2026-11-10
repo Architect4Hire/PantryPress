@@ -122,6 +122,7 @@ internal sealed class TwoSiteHarness : IAsyncDisposable
                 ["RateLimits:SiteMembersPerAccountPerMinute"] = "100000",
                 ["RateLimits:SiteLookupsPerAccountPerMinute"] = "100000",
                 ["RateLimits:SiteMemberChangesPerAccountPerMinute"] = "100000",
+                ["RateLimits:RecipePastesPerAccountPerMinute"] = "100000",
                 ["Sites:UnconfirmedAccountSiteLimit"] = "100000",
             };
             foreach (var (key, value) in apiSettings ?? new Dictionary<string, string?>())

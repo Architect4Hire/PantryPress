@@ -4395,13 +4395,102 @@ BEHAVIOR: Plan, wait for approval, implement with a large fixture corpus.
       culture, unreached branches, multiple sizes, text after a parenthesis, size glyphs) fixed with code or corpus lines.
       Its minors were added, apart from the items pinned above.
 
-### PP4.6 Paste-to-parse endpoint
+### PP4.6 Paste-to-parse endpoint - done
 
 ```text
 SCOPE: Add an endpoint that parses a pasted ingredient or step list into proposed structured lines without saving.
 CONSTRAINT: RCP-003; Template B.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP4.6 delivery note (done 2026-11-10):*
+
+- **What shipped.**
+  - `POST /api/v1/sites/{siteSlug}/recipes/paste/ingredients` and `…/steps` (`RecipePasteController`, `SiteAuthor`,
+    rate limit `recipes-paste`, 30 per account per minute). They save nothing, read no site data, and are not
+    `[Idempotent]`. ApiService now calls `AddRecipes()` for the first time.
+  - The seam is Controller → `IRecipePasteFacade` → `PastedListReader` (Business). There is no data layer, because
+    nothing is read or stored; the facade's remarks say so.
+  - Contracts: `PasteListRequest`, `PastedIngredientList` and `PastedStepList`, and their groups, lines, `PastedQuantity`,
+    `PastedFraction` (exact), `PastedSpan` (UTF-16 code units), and `StepPasteProblem`. `IngredientParseProblem`'s
+    kebab-case names are now a wire contract, as PP4.5 handed off.
+  - Limits: `RecipeLimits.MaxPastedTextLength` (30,000) and `MaxPastedLines` (200 non-blank lines).
+  - `PastedListReader` is pure and keeps every line exactly as pasted. Its rules are in `recipes.md`, "Paste-to-parse
+    (PP4.6)". It closes PP4.5's hand-offs: it splits step lists and reads `For the crust:` as a heading.
+- **Owner-approved choices.**
+  - Two routes rather than one with a discriminator.
+  - Three heading rules: a trailing colon, a Markdown `#`, and `For …` in ingredient lists only.
+  - A leading step marker is cut into `text`, while `originalText` keeps the whole line.
+  - The limits and the rate.
+- **What differs from the plan.**
+  - From review, each group also carries `headingOriginalText` and `headingSpan`. A line misread as a heading can then be
+    turned back into a line in the blogger's own words, instead of losing its colon, `#` marks, or bullet.
+  - In an ingredient list, a heading may carry a bullet (`• For the crust:`); in a step list, a marked line is always a
+    step (`Step 2: make the glaze:`).
+  - `Step N` may take its punctuation after one space (`STEP 4 - Add`).
+  - `For` and `Step` fold ASCII letters only, so `ſtep 1` is not a marker.
+  - A lone surrogate never reaches the reader: the API's JSON reading refuses it as `validation-failed` on `text`. Over
+    the API, `ill-formed-text` therefore means a control character.
+- **Tests.**
+  - `PastedListReaderTests`:
+    - every line break and blank-line kind;
+    - each heading rule, and lines that look like headings but are not;
+    - every step marker form, and look-alikes that are not markers;
+    - marker-only, too-long, and ill-formed steps.
+  - Golden pastes in `Recipes/Corpus/paste/`, each approved by reading:
+    - a copied recipe card;
+    - plain text with tabs and bullets;
+    - numbered steps;
+    - steps as paragraphs.
+
+    They read alike under `tr-TR`, `ar-SA`, and the invariant culture.
+  - CsCheck properties (5,000 pastes per list): walking the groups gives back every non-blank line in order, exactly as
+    pasted. Headings and step text are cuts at their spans, and the answer is deterministic.
+  - `RecipePasteFacadeTests`: validation, and the mapping into the contracts with exact fractions.
+  - `RecipePasteApiContractTests`: declared statuses, descriptions checked against the limit constants, every enum's wire
+    names pinned, and every field named.
+  - Two-site (`RecipePasteTwoSiteTests`):
+    - **Members:** every active member gets byte-identical answers on both sites. The answers hold no slug, id, name,
+      tagline, account, or recipe text of either site.
+    - **Refused callers:** non-members, suspended members, and the other site's members are answered exactly as for no
+      site, for every body. That includes invalid and unreadable bodies, so a validation answer never tells a real site
+      from none.
+    - **Nothing saved:** recipe tables, audit entries, and outbox messages are unchanged on both sites.
+    - **Allowance:** the paste allowance is one bucket per account across its sites. A refused request is not counted,
+      and other routes and accounts are untouched.
+    - **On the wire:** the shapes are pinned, and a lone surrogate gets 400 while a control character is flagged.
+  - The harness raises `RecipePastesPerAccountPerMinute` like every other limit.
+  - Fixed on the way: PP4.5's `IngredientParseInvariants` split "to taste" on whitespace only. A random line
+    (`Salt & pepper to` U+200B `taste`, seed `epd4HOJTM_vb`) failed it, although the parser was right to read the
+    zero-width space as a separator. The invariant now separates words as the parser does.
+- **Hand-offs.**
+  - **PP4.11:**
+    - The save routes parse each line again on the server and never trust a client's parts.
+    - Decide whether an empty group (a heading followed by a heading, or a trailing heading) is stored or refused.
+    - If its per-recipe line or group caps are below 200, a paste can propose more than can be saved, so say so in the
+      editor.
+    - Give `{recipeId}` routes a `:guid` constraint, so `recipes/paste` can never be read as an id.
+  - **PP4.14 and PP7:**
+    - Ingredient `originalText` keeps pasted bullets and tabs (`▢ 2 ½ cups…`), per RCP-002, while steps have their
+      marker cut.
+    - Label lines are proposed unflagged (`Ingredients` as an ingredient, `Instructions` as a step), and so is a short
+      step ending in a colon read as a heading (`Whisk the powdered sugar and milk:`). The review screen must make
+      removing a line and un-heading a group obvious; `headingOriginalText` holds the words for that.
+- **Not verified or left.**
+  - A step written across several lines is several steps, and all-caps headings without `For` (`FILLING`) are lines.
+  - `aspire run` was not restarted, because the user's own run is up. Nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 2,960 passed, 0 failed (2,835 before).
+  - Reviewers:
+    - `api-contract-checker`: no blockers. One major (no test of the paste allowance) and five minors (retry and 400
+      descriptions, the `ill-formed-text` docs, the request's required field, limits read from the constants), all
+      fixed. A sixth, the `{recipeId:guid}` constraint, is handed to PP4.11.
+    - `site-isolation-auditor`: no blockers or majors. Four minors (looking for site values in answers, refusals with
+      invalid bodies, the allowance, audit and outbox rows), all fixed.
+    - `architecture-reviewer`: no blockers. One major (a heading's line was not returned) and five minors (hand-offs,
+      ASCII folding, counting lines once, the culture run, the harness limit), all fixed or recorded above.
 
 ### PP4.7 Scaling service
 
