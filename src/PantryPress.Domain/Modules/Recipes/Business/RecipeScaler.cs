@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Text;
 using PantryPress.Domain.Modules.Recipes.Contracts;
 
@@ -34,13 +35,23 @@ public sealed record ScalableIngredientLine(
 /// Whether a scaled amount is shown that differs from the exact one. A line shown as written is never "rounded", even when
 /// its own amount is what the exact one rounded back to (<c>1/4 tsp</c> at ¾× is 3/16 exactly, and shows <c>1/4 tsp</c>).
 /// </param>
-/// <param name="Unscaled">Why the line is shown as written though it has a number scaling would change; none otherwise.</param>
+/// <param name="Unscaled">
+/// Why the line is shown as written though it has a number scaling would change, or - in a converted variant (PP4.8) - a
+/// measure conversion would; none otherwise.
+/// </param>
+/// <param name="IsConverted">
+/// Whether a converted variant (PP4.8) wrote any of the line in the other system: its measure, or a temperature in it. Never
+/// set by <see cref="RecipeScaler"/>. <paramref name="IsRounded"/> is always about <paramref name="Quantity"/> alone - the
+/// line's own amount, scaled, converted, or a temperature line's temperature - and never about a temperature elsewhere in
+/// the text, which a conversion always rounds.
+/// </param>
 public sealed record ScaledIngredientLine(
     string Text,
     Quantity? Quantity,
     TextSpan? QuantitySpan,
     bool IsRounded,
-    UnscaledReason? Unscaled);
+    UnscaledReason? Unscaled,
+    bool IsConverted = false);
 
 /// <summary>A recipe's yield at one scale: the amount, its text, and whether it was rounded. The yield's word is the blogger's.</summary>
 public sealed record ScaledYield(Quantity Quantity, string Text, bool IsRounded);
@@ -76,8 +87,8 @@ public static class RecipeScaler
     // Inexact measures: never a part of one.
     private static readonly HashSet<string> WholeUnits = new(["pinch", "dash", "drop", "handful"], StringComparer.Ordinal);
 
-    private static readonly Dictionary<string, UnitEntry> UnitsByCode =
-        Units.All.ToDictionary(u => u.Code, StringComparer.Ordinal);
+    internal static readonly FrozenDictionary<string, UnitEntry> UnitsByCode =
+        Units.All.ToFrozenDictionary(u => u.Code, StringComparer.Ordinal);
 
     public static ScaledIngredientLine ScaleLine(ScalableIngredientLine line, ScaleFactor factor)
     {
@@ -169,7 +180,7 @@ public static class RecipeScaler
     }
 
     // The unit, after checking the line is one the parser could have read: a bug otherwise, never a reader's input.
-    private static UnitEntry? Validate(ScalableIngredientLine line)
+    internal static UnitEntry? Validate(ScalableIngredientLine line)
     {
         ArgumentNullException.ThrowIfNull(line.OriginalText, nameof(line));
         CheckSpan(line.OriginalText, line.QuantitySpan);
@@ -240,7 +251,7 @@ public static class RecipeScaler
     // is read again - past the stored length cap, since a scaled line may grow - and must give back exactly the new amount
     // at its span. Known gap: the parser reads no term past the stored cap, so an amount past it (1000000 g tripled) is not
     // checked, and a size's fraction joining one would go unseen; such a line is display only and contrived.
-    private static bool ReadsBackAs(string text, Quantity rounded, TextSpan span)
+    internal static bool ReadsBackAs(string text, Quantity rounded, TextSpan span)
     {
         if (!WithinCap(rounded))
         {
@@ -251,11 +262,11 @@ public static class RecipeScaler
         return reread.Quantity == rounded && reread.QuantitySpan == span;
     }
 
-    private static bool WithinCap(Quantity quantity) =>
+    internal static bool WithinCap(Quantity quantity) =>
         new[] { quantity.Low, quantity.High }.OfType<Rational>()
             .All(v => v.Numerator <= RecipeLimits.MaxQuantityTerm && v.Denominator <= RecipeLimits.MaxQuantityTerm);
 
-    private static Quantity Round(Quantity exact, RoundingGrid grid)
+    internal static Quantity Round(Quantity exact, RoundingGrid grid)
     {
         var low = FriendlyRounding.Round(exact.Low!.Value, grid);
         if (exact.Kind == QuantityKind.Amount)
@@ -267,7 +278,7 @@ public static class RecipeScaler
         return high == low ? Quantity.Amount(low) : Quantity.Range(low, high);
     }
 
-    private static string Write(Quantity rounded, RoundingGrid grid, string written)
+    internal static string Write(Quantity rounded, RoundingGrid grid, string written)
     {
         var style = grid is RoundingGrid.Metric or RoundingGrid.KitchenDecimal ? QuantityStyle.Decimal : QuantityStyle.Fraction;
 
@@ -284,7 +295,7 @@ public static class RecipeScaler
         && !IngredientLineTokenizer.Tokenize(written).Any(t => t.Kind == IngredientTokenKind.FractionGlyph);
 
     // The "to" a range was written with, in the blogger's case; none for a dash.
-    private static string? RangeWord(string written)
+    internal static string? RangeWord(string written)
     {
         foreach (var token in IngredientLineTokenizer.Tokenize(written))
         {
@@ -299,7 +310,7 @@ public static class RecipeScaler
 
     // A number outside the quantity span and outside the size between the quantity and the unit or item. A percentage
     // ("2% milk") describes the item, so it is not an amount.
-    private static bool HasOtherAmounts(ScalableIngredientLine line)
+    internal static bool HasOtherAmounts(ScalableIngredientLine line)
     {
         var text = line.OriginalText;
         var (sizeStart, sizeEnd) = SizeRegion(line);

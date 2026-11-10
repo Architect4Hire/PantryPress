@@ -1,0 +1,819 @@
+# The conversion table (RCP-005; PP4.8): what RecipeConverter shows a reader for lines and steps bloggers really write, in
+# metric and in US measures.
+#
+# An ingredient case is a "> " line, the ingredient exactly as written (escapes as in ingredient-lines.txt), then four lines
+# in this order: metric at 1x, metric at 2x, US at 1x, US at 1/2x. Each says:
+#   <variant> = "<the line the reader sees>"     then ", converted" when any of it was written in the other system, and
+#                                                ", rounded" when the amount shown is not exact
+#   <variant> = as written                       nothing to convert or scale
+#   <variant> = as written, unscaled <reason>    not converted or scaled, and flagged: unparsed or other-amounts
+# A line that does not convert is what the scaler shows (scaling.txt), so most "us" rows of a US line are plain scaling.
+#
+# A step case is a "step> " line, the step exactly as written, then two lines, metric and us: the step with its temperatures
+# converted, or "as written". Steps are never scaled.
+#
+# Every expectation here was read and approved by hand. Nothing rewrites this file: when the converter's answer for a line
+# changes on purpose, that line is edited, and the change says why (CLAUDE.md: golden files are never re-approved in bulk).
+# Pinned on purpose:
+# - a teaspoon or tablespoon stays as written in metric; grams of an item with no density become ounces in US, however small
+#   ("5 g salt" is 1/8 oz);
+# - "1 cup sifted flour" matches no density (only the item is matched, and the note is never read), so it becomes ml;
+# - a size in a count line stays in its system ("1 (14 oz) can" in metric);
+# - punctuation the blogger joined after a unit is theirs, and stays ("1 c.flour" is "120 g.flour");
+# - an amount past the stored term cap is display only ("1000000 gallons" is "3785410 liters");
+# - a temperature with no scale ("350 degrees", "350F") is no temperature; a text that already names one in the target
+#   system, or holds one joined to another number ("110°F/43°C") or to a hyphen ("110°F-115°F"), keeps every temperature
+#   as written;
+# - a temperature at or above 100 °C or 215 °F rounds to fives (180 °C is 355 °F, 238 °F is 115 °C).
+
+> 2 cups all-purpose flour
+metric 1 = "240 grams all-purpose flour", converted
+metric 2 = "480 grams all-purpose flour", converted
+us 1 = as written
+us 1/2 = "1 cup all-purpose flour"
+
+> 1 cup flour, sifted
+metric 1 = "120 grams flour, sifted", converted
+metric 2 = "240 grams flour, sifted", converted
+us 1 = as written
+us 1/2 = "½ cup flour, sifted"
+
+> 1 cup sifted flour
+metric 1 = "235 milliliters sifted flour", converted, rounded
+metric 2 = "475 milliliters sifted flour", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup sifted flour"
+
+> 2 cups of flour
+metric 1 = "240 grams of flour", converted
+metric 2 = "480 grams of flour", converted
+us 1 = as written
+us 1/2 = "1 cup of flour"
+
+> 2 c. flour
+metric 1 = "240 g flour", converted
+metric 2 = "480 g flour", converted
+us 1 = as written
+us 1/2 = "1 c. flour"
+
+> 1 C sugar
+metric 1 = "200 g sugar", converted, rounded
+metric 2 = "395 g sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ C sugar"
+
+> 1 cup bread flour
+metric 1 = "120 grams bread flour", converted
+metric 2 = "240 grams bread flour", converted
+us 1 = as written
+us 1/2 = "½ cup bread flour"
+
+> 1 cup cake flour
+metric 1 = "120 grams cake flour", converted
+metric 2 = "240 grams cake flour", converted
+us 1 = as written
+us 1/2 = "½ cup cake flour"
+
+> 1 cup whole wheat flour
+metric 1 = "115 grams whole wheat flour", converted, rounded
+metric 2 = "225 grams whole wheat flour", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup whole wheat flour"
+
+> 1 cup granulated sugar
+metric 1 = "200 grams granulated sugar", converted, rounded
+metric 2 = "395 grams granulated sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup granulated sugar"
+
+> 1 1/2 cups sugar
+metric 1 = "295 grams sugar", converted, rounded
+metric 2 = "595 grams sugar", converted, rounded
+us 1 = as written
+us 1/2 = "3/4 cup sugar"
+
+> 1.5 cups sugar
+metric 1 = "295 grams sugar", converted, rounded
+metric 2 = "595 grams sugar", converted, rounded
+us 1 = as written
+us 1/2 = "0.75 cup sugar"
+
+> 1 cup packed brown sugar
+metric 1 = "215 grams packed brown sugar", converted, rounded
+metric 2 = "425 grams packed brown sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup packed brown sugar"
+
+> ¾ cup brown sugar, packed
+metric 1 = "160 grams brown sugar, packed", converted, rounded
+metric 2 = "320 grams brown sugar, packed", converted, rounded
+us 1 = as written
+us 1/2 = "⅜ cup brown sugar, packed"
+
+> 1 cup light brown sugar
+metric 1 = "215 grams light brown sugar", converted, rounded
+metric 2 = "425 grams light brown sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup light brown sugar"
+
+> 1 cup confectioners' sugar
+metric 1 = "115 grams confectioners' sugar", converted, rounded
+metric 2 = "225 grams confectioners' sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup confectioners' sugar"
+
+> 1 cup confectioners’ sugar
+metric 1 = "115 grams confectioners’ sugar", converted, rounded
+metric 2 = "225 grams confectioners’ sugar", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup confectioners’ sugar"
+
+> 2 cups powdered sugar, sifted
+metric 1 = "225 grams powdered sugar, sifted", converted, rounded
+metric 2 = "450 grams powdered sugar, sifted", converted, rounded
+us 1 = as written
+us 1/2 = "1 cup powdered sugar, sifted"
+
+> 1 cup (2 sticks) unsalted butter, softened
+metric 1 = as written, unscaled other-amounts
+metric 2 = as written, unscaled other-amounts
+us 1 = as written
+us 1/2 = as written, unscaled other-amounts
+
+> ½ cup butter, melted
+metric 1 = "115 grams butter, melted", converted, rounded
+metric 2 = "225 grams butter, melted", converted, rounded
+us 1 = as written
+us 1/2 = "¼ cup butter, melted"
+
+> 1 cup unsalted butter, softened
+metric 1 = "225 grams unsalted butter, softened", converted, rounded
+metric 2 = "455 grams unsalted butter, softened", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup unsalted butter, softened"
+
+> 1 cup cold unsalted butter
+metric 1 = "235 milliliters cold unsalted butter", converted, rounded
+metric 2 = "475 milliliters cold unsalted butter", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup cold unsalted butter"
+
+> ½ cup unsweetened cocoa powder
+metric 1 = "42 grams unsweetened cocoa powder", converted
+metric 2 = "84 grams unsweetened cocoa powder", converted
+us 1 = as written
+us 1/2 = "¼ cup unsweetened cocoa powder"
+
+> 1 cup chocolate chips
+metric 1 = "170 grams chocolate chips", converted
+metric 2 = "340 grams chocolate chips", converted
+us 1 = as written
+us 1/2 = "½ cup chocolate chips"
+
+> 1 cup semisweet chocolate chips
+metric 1 = "170 grams semisweet chocolate chips", converted
+metric 2 = "340 grams semisweet chocolate chips", converted
+us 1 = as written
+us 1/2 = "½ cup semisweet chocolate chips"
+
+> 1 cup old-fashioned oats
+metric 1 = "89 grams old-fashioned oats", converted
+metric 2 = "180 grams old-fashioned oats", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup old-fashioned oats"
+
+> ⅓ cup honey
+metric 1 = "110 grams honey", converted, rounded
+metric 2 = "225 grams honey", converted, rounded
+us 1 = as written
+us 1/2 = "⅛ cup honey", rounded
+
+> 1 cup milk
+metric 1 = "235 milliliters milk", converted, rounded
+metric 2 = "475 milliliters milk", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup milk"
+
+> ¼ cup milk
+metric 1 = "59 milliliters milk", converted, rounded
+metric 2 = "120 milliliters milk", converted, rounded
+us 1 = as written
+us 1/2 = "⅛ cup milk"
+
+> ⅓ cup vegetable oil
+metric 1 = "79 milliliters vegetable oil", converted, rounded
+metric 2 = "160 milliliters vegetable oil", converted, rounded
+us 1 = as written
+us 1/2 = "⅛ cup vegetable oil", rounded
+
+> ¾ cup heavy cream
+metric 1 = "175 milliliters heavy cream", converted, rounded
+metric 2 = "355 milliliters heavy cream", converted, rounded
+us 1 = as written
+us 1/2 = "⅜ cup heavy cream"
+
+> 2 cups chicken broth
+metric 1 = "475 milliliters chicken broth", converted, rounded
+metric 2 = "945 milliliters chicken broth", converted, rounded
+us 1 = as written
+us 1/2 = "1 cup chicken broth"
+
+> 4 cups chicken broth
+metric 1 = "945 milliliters chicken broth", converted, rounded
+metric 2 = "1.9 liters chicken broth", converted, rounded
+us 1 = as written
+us 1/2 = "2 cups chicken broth"
+
+> 6 cups water
+metric 1 = "1.4 liters water", converted, rounded
+metric 2 = "2.8 liters water", converted, rounded
+us 1 = as written
+us 1/2 = "3 cups water"
+
+> 1 quart heavy cream
+metric 1 = "945 milliliters heavy cream", converted, rounded
+metric 2 = "1.9 liters heavy cream", converted, rounded
+us 1 = as written
+us 1/2 = "½ quart heavy cream"
+
+> 1 gallon water
+metric 1 = "3.8 liters water", converted, rounded
+metric 2 = "7.6 liters water", converted, rounded
+us 1 = as written
+us 1/2 = "½ gallon water"
+
+> 1 pint strawberries
+metric 1 = "475 milliliters strawberries", converted, rounded
+metric 2 = "945 milliliters strawberries", converted, rounded
+us 1 = as written
+us 1/2 = "½ pint strawberries"
+
+> 2 fl oz bourbon
+metric 1 = "59 ml bourbon", converted, rounded
+metric 2 = "120 ml bourbon", converted, rounded
+us 1 = as written
+us 1/2 = "1 fl oz bourbon"
+
+> 1-2 cups water
+metric 1 = "235–475 milliliters water", converted, rounded
+metric 2 = "475–945 milliliters water", converted, rounded
+us 1 = as written
+us 1/2 = "½–1 cup water"
+
+> 2 to 3 cups flour
+metric 1 = "240 to 360 grams flour", converted
+metric 2 = "480 to 720 grams flour", converted
+us 1 = as written
+us 1/2 = "1 to 1½ cups flour"
+
+> ½–¾ cup milk
+metric 1 = "120–175 milliliters milk", converted, rounded
+metric 2 = "235–355 milliliters milk", converted, rounded
+us 1 = as written
+us 1/2 = "¼–⅜ cup milk"
+
+> 1 tablespoon olive oil
+metric 1 = as written
+metric 2 = "2 tablespoons olive oil"
+us 1 = as written
+us 1/2 = "½ tablespoon olive oil"
+
+> 2 tsp baking powder
+metric 1 = as written
+metric 2 = "4 tsp baking powder"
+us 1 = as written
+us 1/2 = "1 tsp baking powder"
+
+> 1 teaspoon salt
+metric 1 = as written
+metric 2 = "2 teaspoons salt"
+us 1 = as written
+us 1/2 = "½ teaspoon salt"
+
+> 1 tbsp butter
+metric 1 = as written
+metric 2 = "2 tbsp butter"
+us 1 = as written
+us 1/2 = "½ tbsp butter"
+
+> 1 lb ground beef
+metric 1 = "455 g ground beef", converted, rounded
+metric 2 = "905 g ground beef", converted, rounded
+us 1 = as written
+us 1/2 = "½ lb ground beef"
+
+> 8 oz cream cheese, softened
+metric 1 = "225 g cream cheese, softened", converted, rounded
+metric 2 = "455 g cream cheese, softened", converted, rounded
+us 1 = as written
+us 1/2 = "4 oz cream cheese, softened"
+
+> 1 ounce dark chocolate
+metric 1 = "28 grams dark chocolate", converted, rounded
+metric 2 = "57 grams dark chocolate", converted, rounded
+us 1 = as written
+us 1/2 = "½ ounce dark chocolate"
+
+> 2 pounds potatoes
+metric 1 = "905 grams potatoes", converted, rounded
+metric 2 = "1.8 kilograms potatoes", converted, rounded
+us 1 = as written
+us 1/2 = "1 pound potatoes"
+
+> 1½ pounds boneless chicken breasts
+metric 1 = "680 grams boneless chicken breasts", converted, rounded
+metric 2 = "1.4 kilograms boneless chicken breasts", converted, rounded
+us 1 = as written
+us 1/2 = "¾ pound boneless chicken breasts"
+
+> 12 oz frozen spinach
+metric 1 = "340 g frozen spinach", converted, rounded
+metric 2 = "680 g frozen spinach", converted, rounded
+us 1 = as written
+us 1/2 = "6 oz frozen spinach"
+
+> 1 cup water, heated to 110°F
+metric 1 = "235 milliliters water, heated to 43°C", converted, rounded
+metric 2 = "475 milliliters water, heated to 43°C", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup water, heated to 110°F"
+
+> 2 cups warm water (105-115°F)
+metric 1 = "475 milliliters warm water (41–46°C)", converted, rounded
+metric 2 = "945 milliliters warm water (41–46°C)", converted, rounded
+us 1 = as written
+us 1/2 = "1 cup warm water (105-115°F)"
+
+> 1 cup 110°F water
+metric 1 = as written, unscaled unparsed
+metric 2 = as written, unscaled unparsed
+us 1 = as written, unscaled unparsed
+us 1/2 = as written, unscaled unparsed
+
+> 1 cup water (110°F/43°C)
+metric 1 = "235 milliliters water (110°F/43°C)", converted, rounded
+metric 2 = "475 milliliters water (110°F/43°C)", converted, rounded
+us 1 = as written
+us 1/2 = "½ cup water (110°F/43°C)"
+
+> 350°F oven
+metric 1 = "175°C oven", converted, rounded
+metric 2 = "175°C oven", converted, rounded
+us 1 = as written
+us 1/2 = as written
+
+> 325 °F oven
+metric 1 = "165 °C oven", converted, rounded
+metric 2 = "165 °C oven", converted, rounded
+us 1 = as written
+us 1/2 = as written
+
+> butter, softened to 65°F
+metric 1 = "butter, softened to 18°C", converted
+metric 2 = "butter, softened to 18°C", converted
+us 1 = as written
+us 1/2 = as written
+
+> water (110°F)
+metric 1 = "water (43°C)", converted
+metric 2 = "water (43°C)", converted
+us 1 = as written
+us 1/2 = as written
+
+> salt, to taste
+metric 1 = as written
+metric 2 = as written
+us 1 = as written
+us 1/2 = as written
+
+> 3 large eggs
+metric 1 = as written
+metric 2 = "6 large eggs"
+us 1 = as written
+us 1/2 = "1½ large eggs"
+
+> 2 cloves garlic, minced
+metric 1 = as written
+metric 2 = "4 cloves garlic, minced"
+us 1 = as written
+us 1/2 = "1 clove garlic, minced"
+
+> 1 (14 oz) can coconut milk
+metric 1 = as written
+metric 2 = "2 (14 oz) cans coconut milk"
+us 1 = as written
+us 1/2 = "½ (14 oz) can coconut milk"
+
+> Juice of 2 lemons
+metric 1 = as written
+metric 2 = as written, unscaled other-amounts
+us 1 = as written
+us 1/2 = as written, unscaled other-amounts
+
+> 1 cup (240 ml) milk
+metric 1 = as written, unscaled other-amounts
+metric 2 = as written, unscaled other-amounts
+us 1 = as written
+us 1/2 = as written, unscaled other-amounts
+
+> a pinch of salt
+metric 1 = as written
+metric 2 = "2 pinches of salt"
+us 1 = as written
+us 1/2 = as written
+
+> 1 stick butter
+metric 1 = as written
+metric 2 = "2 sticks butter"
+us 1 = as written
+us 1/2 = "½ stick butter"
+
+> 250 ml whole milk
+metric 1 = as written
+metric 2 = "500 ml whole milk"
+us 1 = "1 cup whole milk", converted, rounded
+us 1/2 = "½ cup whole milk", converted, rounded
+
+> 250 ml milk
+metric 1 = as written
+metric 2 = "500 ml milk"
+us 1 = "1 cup milk", converted, rounded
+us 1/2 = "½ cup milk", converted, rounded
+
+> 500 g all-purpose flour
+metric 1 = as written
+metric 2 = "1000 g all-purpose flour"
+us 1 = "4⅛ cups all-purpose flour", converted, rounded
+us 1/2 = "2⅛ cups all-purpose flour", converted, rounded
+
+> 200 g granulated sugar
+metric 1 = as written
+metric 2 = "400 g granulated sugar"
+us 1 = "1 cup granulated sugar", converted, rounded
+us 1/2 = "½ cup granulated sugar", converted, rounded
+
+> 100 g butter
+metric 1 = as written
+metric 2 = "200 g butter"
+us 1 = "½ cup butter", converted, rounded
+us 1/2 = "3½ tbsp butter", converted, rounded
+
+> 115 g unsalted butter, softened
+metric 1 = as written
+metric 2 = "230 g unsalted butter, softened"
+us 1 = "½ cup unsalted butter, softened", converted, rounded
+us 1/2 = "¼ cup unsalted butter, softened", converted, rounded
+
+> 30 g cocoa powder
+metric 1 = as written
+metric 2 = "60 g cocoa powder"
+us 1 = "⅜ cup cocoa powder", converted, rounded
+us 1/2 = "2⅞ tbsp cocoa powder", converted, rounded
+
+> 5 g salt
+metric 1 = as written
+metric 2 = "10 g salt"
+us 1 = "⅛ oz salt", converted, rounded
+us 1/2 = "1/16 oz salt", converted, rounded
+
+> 7 g instant yeast
+metric 1 = as written
+metric 2 = "14 g instant yeast"
+us 1 = "¼ oz instant yeast", converted, rounded
+us 1/2 = "⅛ oz instant yeast", converted, rounded
+
+> 250g flour
+metric 1 = as written
+metric 2 = "500g flour"
+us 1 = "2⅛ cups flour", converted, rounded
+us 1/2 = "1 cup flour", converted, rounded
+
+> 250g flour, sifted
+metric 1 = as written
+metric 2 = "500g flour, sifted"
+us 1 = "2⅛ cups flour, sifted", converted, rounded
+us 1/2 = "1 cup flour, sifted", converted, rounded
+
+> 450 g brown sugar
+metric 1 = as written
+metric 2 = "900 g brown sugar"
+us 1 = "2⅛ cups brown sugar", converted, rounded
+us 1/2 = "1 cup brown sugar", converted, rounded
+
+> 1 kg potatoes
+metric 1 = as written
+metric 2 = "2 kg potatoes"
+us 1 = "2¼ lb potatoes", converted, rounded
+us 1/2 = "1⅛ lb potatoes", converted, rounded
+
+> 1.5 kg chicken thighs
+metric 1 = as written
+metric 2 = "3 kg chicken thighs"
+us 1 = "3⅓ lb chicken thighs", converted, rounded
+us 1/2 = "1⅔ lb chicken thighs", converted, rounded
+
+> 2 kilos oranges
+metric 1 = as written
+metric 2 = "4 kilos oranges"
+us 1 = "4⅜ pounds oranges", converted, rounded
+us 1/2 = "2¼ pounds oranges", converted, rounded
+
+> 400 grams spaghetti
+metric 1 = as written
+metric 2 = "800 grams spaghetti"
+us 1 = "14 ounces spaghetti", converted, rounded
+us 1/2 = "7 ounces spaghetti", converted, rounded
+
+> 2 litres chicken stock
+metric 1 = as written
+metric 2 = "4 litres chicken stock"
+us 1 = "8½ cups chicken stock", converted, rounded
+us 1/2 = "4¼ cups chicken stock", converted, rounded
+
+> 1 l water
+metric 1 = as written
+metric 2 = "2 l water"
+us 1 = "4¼ cups water", converted, rounded
+us 1/2 = "2⅛ cups water", converted, rounded
+
+> 1.25 l water
+metric 1 = as written
+metric 2 = "2.5 l water"
+us 1 = "5¼ cups water", converted, rounded
+us 1/2 = "2⅝ cups water", converted, rounded
+
+> 1 dl cream
+metric 1 = as written
+metric 2 = "2 dl cream"
+us 1 = "⅜ cup cream", converted, rounded
+us 1/2 = "3⅜ tbsp cream", converted, rounded
+
+> 15 ml olive oil
+metric 1 = as written
+metric 2 = "30 ml olive oil"
+us 1 = "1 tbsp olive oil", converted, rounded
+us 1/2 = "1½ tsp olive oil", converted, rounded
+
+> 5 ml vanilla extract
+metric 1 = as written
+metric 2 = "10 ml vanilla extract"
+us 1 = "1 tsp vanilla extract", converted, rounded
+us 1/2 = "½ tsp vanilla extract", converted, rounded
+
+> 75 ml maple syrup
+metric 1 = as written
+metric 2 = "150 ml maple syrup"
+us 1 = "⅓ cup maple syrup", converted, rounded
+us 1/2 = "2½ tbsp maple syrup", converted, rounded
+
+> 200-250 ml water
+metric 1 = as written
+metric 2 = "400–500 ml water"
+us 1 = "⅞–1 cup water", converted, rounded
+us 1/2 = "⅜–½ cup water", converted, rounded
+
+> 300 to 400 g flour
+metric 1 = as written
+metric 2 = "600 to 800 g flour"
+us 1 = "2½ to 3⅓ cups flour", converted
+us 1/2 = "1¼ to 1⅔ cups flour", converted
+
+> 180°C oven
+metric 1 = as written
+metric 2 = as written
+us 1 = "355°F oven", converted, rounded
+us 1/2 = "355°F oven", converted, rounded
+
+> 1 litre water, heated to 40°C
+metric 1 = as written
+metric 2 = "2 litres water, heated to 40°C"
+us 1 = "4¼ cups water, heated to 104°F", converted, rounded
+us 1/2 = "2⅛ cups water, heated to 104°F", converted, rounded
+
+> 0.5 ml almond extract
+metric 1 = as written
+metric 2 = "1 ml almond extract"
+us 1 = "⅛ tsp almond extract", converted, rounded
+us 1/2 = "1/16 tsp almond extract", converted, rounded
+
+> 500 millilitres stock
+metric 1 = as written
+metric 2 = "1000 millilitres stock"
+us 1 = "2⅛ cups stock", converted, rounded
+us 1/2 = "1 cup stock", converted, rounded
+
+> 2 tablespoons sugar
+metric 1 = as written
+metric 2 = "4 tablespoons sugar"
+us 1 = as written
+us 1/2 = "1 tablespoon sugar"
+
+> ½ cup sugar
+metric 1 = "99 grams sugar", converted
+metric 2 = "200 grams sugar", converted, rounded
+us 1 = as written
+us 1/2 = "¼ cup sugar"
+
+> 2 tablespoons all-purpose flour
+metric 1 = as written
+metric 2 = "4 tablespoons all-purpose flour"
+us 1 = as written
+us 1/2 = "1 tablespoon all-purpose flour"
+
+> 3 cups flour
+metric 1 = "360 grams flour", converted
+metric 2 = "720 grams flour", converted
+us 1 = as written
+us 1/2 = "1½ cups flour"
+
+> 1 tablespoon water, warmed to 110°F
+metric 1 = "1 tablespoon water, warmed to 43°C", converted
+metric 2 = "2 tablespoons water, warmed to 43°C", converted
+us 1 = as written
+us 1/2 = "½ tablespoon water, warmed to 110°F"
+
+> 1 litre milk, scalded to 180°F
+metric 1 = "1 litre milk, scalded to 82°C", converted
+metric 2 = "2 litres milk, scalded to 82°C", converted
+us 1 = "4¼ cups milk, scalded to 180°F", converted, rounded
+us 1/2 = "2⅛ cups milk, scalded to 180°F", converted, rounded
+
+> 10 eggs, at 70°F
+metric 1 = "10 eggs, at 21°C", converted
+metric 2 = "20 eggs, at 21°C", converted
+us 1 = as written
+us 1/2 = "5 eggs, at 70°F"
+
+> 2 cups water, chilled to 28°F
+metric 1 = "475 milliliters water, chilled to -2°C", converted, rounded
+metric 2 = "945 milliliters water, chilled to -2°C", converted, rounded
+us 1 = as written
+us 1/2 = "1 cup water, chilled to 28°F"
+
+> 1000000 gallons water
+metric 1 = "3785410 liters water", converted, rounded
+metric 2 = "7570825 liters water", converted, rounded
+us 1 = as written
+us 1/2 = "500000 gallons water"
+
+> 212°F water
+metric 1 = "100°C water", converted
+metric 2 = "100°C water", converted
+us 1 = as written
+us 1/2 = as written
+
+> 356-358°F oil
+metric 1 = "180°C oil", converted, rounded
+metric 2 = "180°C oil", converted, rounded
+us 1 = as written
+us 1/2 = as written
+
+> 350°F (180°C) oven
+metric 1 = as written
+metric 2 = as written
+us 1 = as written
+us 1/2 = as written
+
+> 1 c.flour
+metric 1 = "120 g.flour", converted
+metric 2 = "240 g.flour", converted
+us 1 = as written
+us 1/2 = "½ c.flour"
+
+> 250 ml (1 cup) milk
+metric 1 = as written
+metric 2 = as written, unscaled other-amounts
+us 1 = as written, unscaled other-amounts
+us 1/2 = as written, unscaled other-amounts
+
+step> Preheat the oven to 350°F.
+metric = "Preheat the oven to 175°C."
+us = as written
+
+step> Preheat oven to 350°F (180°C).
+metric = as written
+us = as written
+
+step> Bake at 425 °F for 20-25 minutes.
+metric = "Bake at 220 °C for 20-25 minutes."
+us = as written
+
+step> Heat the oil to 325-350°F.
+metric = "Heat the oil to 165–175°C."
+us = as written
+
+step> Heat the oil to 325 to 350 degrees F.
+metric = "Heat the oil to 165 to 175 degrees C."
+us = as written
+
+step> Cook until the thermometer reads 165°F.
+metric = "Cook until the thermometer reads 74°C."
+us = as written
+
+step> Bake at 180°C for 30 minutes.
+metric = as written
+us = "Bake at 355°F for 30 minutes."
+
+step> Preheat the oven to 200 degrees C (fan 180 degrees C).
+metric = as written
+us = "Preheat the oven to 390 degrees F (fan 355 degrees F)."
+
+step> Bake at 350 degrees until golden.
+metric = as written
+us = as written
+
+step> Chill to 40°F.
+metric = "Chill to 4°C."
+us = as written
+
+step> Freeze at 0°F until firm.
+metric = "Freeze at -18°C until firm."
+us = as written
+
+step> Freeze at -18°C until firm.
+metric = as written
+us = as written
+
+step> Heat the cream to 110°F-115°F.
+metric = as written
+us = as written
+
+step> Mix 2 cups flour with 1 cup sugar.
+metric = as written
+us = as written
+
+step> Bring to a boil (212°F).
+metric = "Bring to a boil (100°C)."
+us = as written
+
+step> Bring to a boil (100°C).
+metric = as written
+us = "Bring to a boil (212°F)."
+
+step> Cook to 238°F (soft ball stage).
+metric = "Cook to 115°C (soft ball stage)."
+us = as written
+
+step> Roast at 450 Fahrenheit.
+metric = "Roast at 230 Celsius."
+us = as written
+
+step> Bake at 160 °C fan.
+metric = as written
+us = "Bake at 320 °F fan."
+
+step> Proof at 75–80°F until doubled.
+metric = "Proof at 24–27°C until doubled."
+us = as written
+
+step> Heat to 350ºF and fry in batches.
+metric = "Heat to 175ºC and fry in batches."
+us = as written
+
+step> Bake at 350F for 30 minutes.
+metric = as written
+us = as written
+
+step> Bake at 375°F for 10 minutes, then lower to 350°F.
+metric = "Bake at 190°C for 10 minutes, then lower to 175°C."
+us = as written
+
+step> Bake at 220°C, then reduce to 180°C.
+metric = as written
+us = "Bake at 430°F, then reduce to 355°F."
+
+step> Warm the milk to 98.6°F.
+metric = "Warm the milk to 37°C."
+us = as written
+
+step> Toast at 300 deg F for 8 minutes.
+metric = "Toast at 150 deg C for 8 minutes."
+us = as written
+
+step> Preheat to 400°F/200°C.
+metric = as written
+us = as written
+
+step> Smoke at 225°F for 6 hours, until it reaches 203 °F.
+metric = "Smoke at 105°C for 6 hours, until it reaches 95 °C."
+us = as written
+
+step> Bake at 160°F -165°F.
+metric = "Bake at 71°C -74°C."
+us = as written
+
+step> Bake at 160°F-165°F.
+metric = as written
+us = as written
+
+step> Heat to 325 - 350°F.
+metric = "Heat to 165–175°C."
+us = as written
+
+step> Heat to 325 To 350°F.
+metric = "Heat to 165 To 175°C."
+us = as written
+
+step> Keep at 32-40°F.
+metric = "Keep at 0–4°C."
+us = as written

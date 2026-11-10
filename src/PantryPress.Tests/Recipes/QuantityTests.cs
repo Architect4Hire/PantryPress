@@ -159,6 +159,9 @@ public sealed partial class QuantityTests
     [InlineData("NFloat x;")]
     [InlineData("var d = BitConverter.Int64BitsToDouble(n);")]
     [InlineData("var f = BitConverter.Int32BitsToSingle(n);")]
+    [InlineData("var l = BigInteger.Log(n);")]
+    [InlineData("var l = System.Numerics.BigInteger.Log10(n);")]
+    [InlineData("var e = BigInteger.Exp(n);")]
     public void The_floating_point_scan_finds_floating_point(string code) =>
         Assert.Matches(FloatingPoint(), WithoutComments(code));
 
@@ -167,6 +170,7 @@ public sealed partial class QuantityTests
     [InlineData("private const long DecimalScale = 1_000;")]
     [InlineData("var places = scaled % DecimalScale;")]
     [InlineData("var x = 0x1F;")]
+    [InlineData("var g = BigInteger.GreatestCommonDivisor(a, b);")]
     [InlineData("// a decimal that ends within three places, never a double")]
     [InlineData("var x = 1; // 0.5 as a double")]
     public void The_floating_point_scan_lets_exact_code_by(string code) =>
@@ -180,6 +184,6 @@ public sealed partial class QuantityTests
 
     // Floating-point keywords and types, Math, conversions to them, and literals with a point, an exponent, or a suffix.
     // Decimal alone is QuantityStyle's member name, so that type is caught by its full name or a member access.
-    [GeneratedRegex(@"\b(double|float|decimal|Double|Single|Half|NFloat|MathF?|ToDouble|ToSingle|ToDecimal|ToHalf)\b|BitsTo(Double|Single|Half)\b|\bSystem\.Decimal\b|\bDecimal\s*\.|\b\d[\d_]*(\.\d[\d_]*([eE][+-]?\d+)?[dDfFmM]?|[eE][+-]?\d+[dDfFmM]?|[dDfFmM])\b")]
+    [GeneratedRegex(@"\b(double|float|decimal|Double|Single|Half|NFloat|MathF?|ToDouble|ToSingle|ToDecimal|ToHalf)\b|BitsTo(Double|Single|Half)\b|\bBigInteger\s*\.\s*(Log10|Log|Exp)\b|\bSystem\.Decimal\b|\bDecimal\s*\.|\b\d[\d_]*(\.\d[\d_]*([eE][+-]?\d+)?[dDfFmM]?|[eE][+-]?\d+[dDfFmM]?|[dDfFmM])\b")]
     private static partial Regex FloatingPoint();
 }

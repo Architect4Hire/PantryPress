@@ -15,7 +15,7 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - Scaling: ½×, 1×, 2×, 3×, and custom servings, with documented rounding and fraction display (⅛, ¼, ⅓, ½,
   ⅔, ¾). Unscalable lines show unscaled and flagged.
 - Conversion: US and metric for volume, weight, and temperature from platform reference data. Volume to
-  weight only when a density is known.
+  weight only when a density is known ("Conversion (PP4.8)").
 - Time totals and nutrition per serving are arithmetic only. Nutrition is creator-entered; PantryPress never
   estimates it, and diet labels appear only when the blogger sets them (RCP-006).
 - Every scaled and converted variant is precomputed when page data is built (RND-003). The browser only
@@ -144,6 +144,54 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - The golden table is `PantryPress.Tests/Recipes/Corpus/scaling.txt`: real lines at ½×, 2×, 3×, ¾×, and 5⁄4×, approved by
   reading, with nothing that rewrites it.
 
+## Conversion (PP4.8)
+
+- `RecipeConverter` in `Business/` is pure and deterministic, like the scaler. A recipe card's toggle has three settings: as
+  written (`RecipeScaler.ScaleLine`), US, and metric. `ConvertLine(line, factor, target)` makes a converted variant at any
+  scale, and `ConvertStep(text, target)` converts a step's temperatures. Steps are never scaled.
+- The lists are platform reference data (PP-D06) held as code only (owner decision, PP4.8). Each is versioned, has no site,
+  and is never taken from a request. They have no table, because nothing stored refers to them.
+  - `UnitConversions`: each US and metric volume and weight unit's exact size in ml or g, from its legal definition. A US
+    gallon is 3.785411784 L, and a teaspoon is 1/768 of one. A pound is 453.59237 g.
+  - `IngredientDensities`: twelve ingredients, in grams per US cup, from King Arthur Baking's chart.
+  - A table comes with the first thing that stores a density's code.
+- What a line shows, in this order:
+  - An unparsed line is as written, flagged `unparsed`, in every converted variant, 1× included.
+  - A temperature line in the other system is converted at every scale, since temperatures never scale. One that would
+    convert to zero or below stays as written.
+  - A line whose measure does not convert is exactly what the scaler shows: no unit, a count, a unit already in the target
+    system, or a tsp or tbsp in metric, which metric kitchens use too. Temperatures in the rest of it still convert.
+  - A line whose measure would convert is as written, flagged `other-amounts`, when it has another number
+    (`1 cup (240 ml) milk`) or a size before its unit.
+  - Otherwise the exact scaled amount is converted exactly (`ExactValue`, no size limit) and rounded once by
+    `FriendlyRounding`: the metric grid for metric, the kitchen grid for US. This is the PP4.7 hand-off: never round, then
+    convert.
+  - The new line is read again, and must give back its amount and unit at its span.
+- Volume and weight cross only through a density.
+  - US volume becomes grams in metric, and grams become US volume in US, never the other way round.
+  - The item, folded, must equal one of an entry's spellings exactly. Folding lower-cases ASCII letters, makes each run of
+    whitespace one space, and turns a curly apostrophe straight. The note is never read, so `1 cup flour, sifted` is
+    all-purpose flour, and `1 cup sifted flour` becomes ml.
+- The target unit is chosen by the exact amount (a range's low end), and rounding never changes it:
+  - metric: ml below 1000, then L; g below 1000, then kg;
+  - US: tsp below a tablespoon, tbsp below a quarter cup, then cups; oz below a pound, then lb.
+- Wording (RCP-002): only the quantity span, the unit span, and each temperature's numbers and unit are written anew.
+  - Metric is decimal. US is fractions, ASCII when the blogger's were. A range keeps its `to`, and a dash becomes an en dash.
+  - A spelled-out unit becomes the target's word, agreeing in number. An abbreviation becomes the target's abbreviation, or
+    the word where there is none (cup). A word is never joined to its number (`250g` reads `1 cup`).
+- Temperatures (`TemperatureMentions`) are digits with an optional decimal part, an optional range by dash or `to`, then a
+  temperature spelling. A number with no scale (`350 degrees`, `350F`) is no temperature.
+  - The conversion is exact, then rounded: whole degrees below 100 °C or 215 °F, and fives at or above (`RoundTemperature`),
+    a tie to the warmer. Both thresholds are multiples of five, so rounding is monotone; 100 °C still shows 212 °F.
+  - The unit keeps its spelling with the scale swapped (`°F` to `°C`, `degrees f` to `degrees c`).
+  - A text's temperatures convert together or not at all. One in the target system, one joined to another number
+    (`110°F/43°C`) or after a minus or a joined dash, or a range that would start below zero keeps them all as written. A
+    single temperature below zero is written with a minus sign (`0°F` is `-18°C`).
+- `ScaledIngredientLine.IsConverted` says a variant wrote any of the line in the other system. `IsRounded` is about the
+  converted amount.
+- The golden table is `PantryPress.Tests/Recipes/Corpus/conversion.txt`. It holds real lines in metric and US at 1× and at a
+  second scale, and real steps, approved by reading, with nothing that rewrites it.
+
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).
@@ -219,7 +267,8 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   be corrected.
 - A unit alias is an exact spelling. A case-insensitive one is stored lower-case; only a case-sensitive pair may differ by
   case (`T` is a tablespoon, `t` a teaspoon). No spelling names two units, and there is no bare `C` or `F` temperature.
-- Volume is US customary or metric; imperial measures are not listed. Conversion factors and densities are PP4.8's.
+- Volume is US customary or metric; imperial measures are not listed. Conversion factors and densities are code-only
+  lists, `UnitConversions` and `IngredientDensities` ("Conversion (PP4.8)").
 - A diet maps to a schema.org `RestrictedDiet` member where one exists; diets and allergens appear only as the blogger
   sets them, never inferred (RCP-006). The allergens are the US FDA's nine and the EU's fourteen together.
 - Only the Recipes module and the migrations name the vocabulary's tables (`DomainBoundaryTests`).

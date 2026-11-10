@@ -26,7 +26,7 @@ public sealed record UnitAliasEntry(string Alias, string UnitCode, bool CaseSens
 /// (PP4.5), as platform reference data (PP-D06, ADR 0006). The aliases are exact spellings: whatever else the parser
 /// forgives is the parser's rule, and recognizing a unit never rewrites what the blogger wrote (RCP-002). Volume units are
 /// US customary or metric; imperial measures are not listed, so a <c>pint</c> is the US pint. Conversion factors and
-/// densities are PP4.8's. This list is the one source: the <c>Units</c> and <c>UnitAliases</c> tables are seeded from
+/// densities are <see cref="UnitConversions"/> and <see cref="IngredientDensities"/> (PP4.8). This list is the one source: the <c>Units</c> and <c>UnitAliases</c> tables are seeded from
 /// it, so a change here changes the model and needs a reviewed migration. To change it, bump <see cref="Version"/>; a new
 /// unit takes that version as its <c>Since</c>, and its spellings with it, and a spelling added to a unit already listed
 /// goes in <see cref="AddedAliases"/> with that version. Never remove a unit or change a code, because ingredient lines

@@ -91,4 +91,41 @@ public sealed class UnitInflectionsTests
     [Fact]
     public void A_look_alike_letter_is_not_a_listed_word() =>
         Assert.Equal("Kilo", UnitInflections.Agree("Kilo", plural: true));
+
+    // PP4.8: a converted unit is written as a word when the blogger wrote a word, and as an abbreviation otherwise.
+    [Theory]
+    [InlineData("cup", true)]
+    [InlineData("cups", true)]
+    [InlineData("Tablespoon", true)]
+    [InlineData("TEASPOONFULS", true)]
+    [InlineData("kilo", true)]
+    [InlineData("litres", true)]
+    [InlineData("fluid ounce", true)]
+    [InlineData("fluid  ounces", true)]
+    [InlineData("pinch", true)]
+    [InlineData("c", false)]
+    [InlineData("c.", false)]
+    [InlineData("T", false)]
+    [InlineData("t", false)]
+    [InlineData("tbsp", false)]
+    [InlineData("fl. oz.", false)]
+    [InlineData("g", false)]
+    [InlineData("lbs", false)]
+    [InlineData("kg", false)]
+    [InlineData("L", false)]
+    [InlineData("°F", false)]
+    [InlineData("degrees fahrenheit", false)]
+    [InlineData("", false)]
+    public void IsWord_tells_a_spelled_out_unit_from_an_abbreviation(string written, bool word) =>
+        Assert.Equal(word, UnitInflections.IsWord(written));
+
+    // Every word alias of a unit that converts can be put in either number, so a converted word always agrees.
+    [Fact]
+    public void Every_word_alias_of_a_convertible_unit_agrees_in_number()
+    {
+        foreach (var alias in Units.Aliases.Where(a => UnitConversions.InBase(a.UnitCode) is not null && UnitInflections.IsWord(a.Alias)))
+        {
+            Assert.NotEqual(UnitInflections.Agree(alias.Alias, plural: true), UnitInflections.Agree(alias.Alias, plural: false));
+        }
+    }
 }

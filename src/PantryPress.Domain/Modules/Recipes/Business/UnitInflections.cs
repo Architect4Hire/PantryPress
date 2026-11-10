@@ -68,6 +68,17 @@ public static class UnitInflections
         return unitText;
     }
 
+    /// <summary>
+    /// Whether <paramref name="unitText"/> is a spelled-out unit word in either number (<c>cups</c>, <c>Tablespoon</c>,
+    /// <c>litre</c>) rather than an abbreviation (<c>tbsp</c>, <c>g</c>), so a converted unit is written the same way (PP4.8).
+    /// </summary>
+    internal static bool IsWord(string unitText)
+    {
+        ArgumentNullException.ThrowIfNull(unitText);
+        var folded = Fold(unitText);
+        return All.Any(w => folded == w.Singular || folded == w.Plural);
+    }
+
     // ASCII letters folded to lower case and every run of whitespace read as one space, the way UnitSpellings matches.
     private static string Fold(string text)
     {

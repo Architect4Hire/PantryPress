@@ -4611,7 +4611,7 @@ BEHAVIOR: Plan, wait for approval, implement with tests for ranges, fractions, a
     - `test-gap-analyzer`: no blockers. Five majors, all fixed. Of eleven minors, most were added; the rest are recorded
       above.
 
-### PP4.8 Unit and temperature conversion
+### PP4.8 Unit and temperature conversion - done
 
 ```text
 SCOPE: Implement US and metric conversion for volume, weight, and temperature, with a small density table
@@ -4619,6 +4619,136 @@ used only when known.
 CONSTRAINT: RCP-005; recipes.md.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
+
+*PP4.8 delivery note (done 2026-11-10):*
+
+- **What shipped.** Pure code in Recipes' `Business/`. No endpoint, facade, migration, or page data. The rules are in
+  `recipes.md`, "Conversion (PP4.8)".
+  - `RecipeConverter`:
+    - `ConvertLine(line, factor, target)` gives a line in US or metric measures at any scale. It returns the same
+      `ScaledIngredientLine` the scaler does, which gained `IsConverted`.
+    - `ConvertStep(text, target)` converts a step's temperatures.
+    - `RoundTemperature` rounds a converted temperature.
+  - `UnitConversions`: each US and metric volume and weight unit's exact size in ml or g, from its legal definition.
+  - `IngredientDensities`: twelve ingredients in grams per US cup, from King Arthur Baking's ingredient weight chart, every
+    row read word for word on 2026-11-10. Butter is the exact half pound.
+  - `TemperatureMentions` (internal): finds the temperatures in a text in one pass over the parser's tokens.
+  - `ExactValue` (internal): an exact `BigInteger` fraction for the step between a scaled amount and its rounding, where a
+    term times a unit's factor can pass 64 bits. `FriendlyRounding` gained an internal overload over it, and the public
+    `Round` delegates to it, with the same results.
+  - `RecipeScaler`'s private steps are now `internal` and shared: the PP4.7 hand-off. `UnitInflections` gained `IsWord`.
+- **Owner-approved choices** (decision log, 2026-11-10):
+  - The lists are code only, with no table or migration.
+  - Volume and weight cross only through a density, matched on the folded item alone.
+  - Teaspoons and tablespoons stay as written in metric.
+  - PP4.7's rounding grids are reused unchanged.
+  - Temperatures round to whole degrees, then to fives.
+- **What differs from the plan.**
+  - **The Fahrenheit threshold is 215, not 212.** 212 is not a multiple of five, so 212.4 °F would round to 210 while
+    211.9 rounded to 212. A threshold on a multiple of five keeps rounding monotone, and 100 °C still shows 212 °F. The plan's
+    example "238 °F is 114 °C" was wrong under the approved rule: 114.4 is past 100, so it rounds to 115.
+  - **Temperatures in the rest of a line convert too** (`1 cup water, heated to 110°F` reads `235 milliliters water, heated
+    to 43°C`), including on lines whose measure does not convert (`butter, softened to 65°F`). The plan named only the
+    quantity and unit spans. Leaving them would have mixed systems in one line.
+  - **A text's temperatures convert together or not at all.** One already in the target system, one joined to another
+    number (`110°F/43°C`), one after a minus or a joined dash, or a range that would start below zero keeps them all as
+    written. A single temperature below zero is written with a minus sign (`0°F` is `-18°C`). The property tests found the
+    range case: `4-6°F` would have read `-16–-14°C`.
+  - **An unparsed line is flagged in every converted variant, 1× included**, so a reader's toggle says which lines it could
+    not convert. A line whose measure would convert but has another number is flagged too. Every other line not converted is
+    exactly what `ScaleLine` shows.
+  - **A size between the amount and a convertible unit** (`1 (8 oz) cup yogurt`) is flagged `other-amounts`.
+  - **From `architecture-reviewer`** (no blockers; one major, fixed; seven minors, six fixed):
+    - The major: code-only lists were called reference data, which `backend.md` defined as stored. `backend.md` now has the
+      written exception, beside the `recipes.md` section and the decision-log row.
+    - `UnscaledReason`'s doc now covers converted variants and the size case.
+    - `IsRounded` is defined as being about the line's own amount only, which all three paths already did.
+    - The shared unit map is now a `FrozenDictionary`, and `TemperatureMentions` reuses it.
+    - A malformed `paramref` was fixed.
+    - `FriendlyRounding`'s comment now says the term cap is an input contract.
+    - The lists' docs say how a correction moves the version and when it reaches published pages.
+    - Left by choice: unparsed lines are flagged at 1× in a converted variant (see above).
+  - **From `test-gap-analyzer`** (no blockers; four majors, all fixed; twelve minors, ten fixed):
+    - Temperatures after a measure whose scaled text changes length: new golden rows and a theory.
+    - A property that a line's temperatures convert together or not at all.
+    - `ExactValueTests`, worked by hand.
+    - The read-back guards turned out to be unreachable; see "Not verified or left".
+    - Minors added: the edges of temperature lines, ranges in steps (spaced dash, capital `To`, starting at exactly zero, the
+      joined-dash pair), a temperature below zero in a line's tail, other amounts in the US direction, `IsWord`, a no-break
+      space before the unit, stronger extreme-factor checks with a cap-sized line, `BigInteger.Log`/`Log10`/`Exp` in the
+      floating-point scan, and the refusals of the internal helpers. The `MinusBefore` comment was corrected.
+    - Not added: a line exactly on a unit threshold. No stored quantity can sit on one, because the factors' terms pass the
+      stored cap (453.59237 g is past it), so `<` against `<=` cannot be observed.
+- **Tests (in `PantryPress.Tests/Recipes/`).**
+  - Golden table `Corpus/conversion.txt`: 109 real lines at metric 1×, metric 2×, US 1×, and US ½×, and 34 real steps in
+    metric and US.
+    - Every row was read and approved by hand before it was written; nothing rewrites the file.
+    - The table reads alike under `tr-TR`, `ar-SA`, `fr-FR`, and the invariant culture.
+    - It covers every target unit, both directions of a density, ranges with `to` and with a dash, the kept spoons,
+      temperatures in lines and steps, and every reason to stay as written.
+  - `RecipeConverterTests`:
+    - unit choice either side of each threshold;
+    - density hits and misses, and word and abbreviation styles;
+    - ranges sharing one unit, and ranges collapsing;
+    - converting before rounding (100 g butter halved is 3½ tbsp; rounding first would give ¼ cup);
+    - spoons, lines that are the scaler's, other amounts, sizes, and unparsed lines;
+    - temperature lines, temperatures within a line, and steps;
+    - the rounding table, its monotonicity across both thresholds, and every spelling's counterpart;
+    - refusals.
+  - `RecipeConverterPropertyTests` (CsCheck, 20,000 cases each, over all three corpora, with generated steps):
+    - deterministic, including at the extreme factors (10^6 and 10^-6) in both systems;
+    - a line not converted is the scaler's, or is flagged as written;
+    - a converted line reads back as what it shows, with no measure left in the other system but a metric spoon;
+    - the blogger's words around the measure are kept;
+    - each end is the exact conversion rounded once, worked out independently from the definitions;
+    - temperature lines ignore the scale;
+    - steps change only their temperatures, all of them, and converting them again changes nothing.
+  - `ExactValueTests`: lowest terms, default zero, floors of negatives, arithmetic and comparison past 64 bits, the overflow
+    and divide-by-zero refusals, and the wide rounding overload, with every answer worked by hand.
+  - `UnitInflectionsTests`: `IsWord` for words and abbreviations, and every word alias of a convertible unit agrees in number.
+  - `ConversionReferenceTests`:
+    - each factor equals its definition, and exactly the convertible units have one;
+    - each density is pinned;
+    - spellings are folded, ASCII, unique, and never a unit spelling;
+    - the folding rules.
+  - Existing suites pass unchanged, so the scaler's refactor moved nothing: `scaling.txt`, the scaler's properties,
+    `FriendlyRoundingTests`, and the floating-point scan, which now covers the new files.
+  - Mutations confirmed caught: the 212 threshold, a range below zero allowed, a range starting at zero refused, spoons
+    converting in metric, and temperatures after a measure dropped. A density read from the note cannot be written, since a
+    stored line has no note.
+  - Two-site test: not owed. The code is pure and adds no site data path.
+- **Hand-offs.**
+  - **PP7.11:**
+    - Precompute three settings × the scale variants.
+    - Map `IsConverted` beside PP4.7's fields into the new contract records.
+    - Pin `UnscaledReason`'s names. They now also say why a line was not converted.
+    - Convert steps with `ConvertStep`.
+    - Decide whether page data records `UnitConversions.Version` and `IngredientDensities.Version`. The lists are not stored,
+      so a correction reaches published recipes when their page data is next built, which is intended.
+    - Decide whether to flag unparsed lines in the reader's own system at 1×; they are flagged in every converted variant
+      today.
+  - **PP4.15:** preview the same variants.
+  - **A density table in SQL** comes with the first thing that stores a density's code, for example a blogger choosing the
+    ingredient for a line.
+- **Not verified or left.** Pinned limitations, in the table's header:
+  - grams of an item with no density become ounces in US, however small (`5 g salt` is ⅛ oz, half of it 1/16 oz);
+  - a size in a count line stays in its system (`1 (14 oz) can` in metric);
+  - a temperature with no scale (`350 degrees`, `350F`) is no temperature;
+  - a unit straight before a hyphen (`110°F-115°F`) does not end a word for the parser, so that step stays as written;
+  - item words never change number (`1 cup flour` is `120 grams flour`).
+
+  Also:
+  - The three read-back guards (measure, temperature line, temperatures after a measure) are defensive. Deleting each one
+    fails no test: nothing in the corpora or in 20,000 property cases each reaches them, because the converter writes the
+    unit's spelling itself. The net is the property that every converted line reads back as exactly what it shows.
+  - Every scaled line now rounds through `BigInteger` arithmetic. Results are unchanged; PP7.11 may want to measure the cost
+    when it precomputes every variant.
+  - `aspire run` was not restarted, because the user's own run is up; nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 3,477 passed, 0 failed (3,240 before).
+  - Reviewers: `architecture-reviewer` and `test-gap-analyzer`, as above.
 
 ### PP4.9 Time totals and nutrition arithmetic
 

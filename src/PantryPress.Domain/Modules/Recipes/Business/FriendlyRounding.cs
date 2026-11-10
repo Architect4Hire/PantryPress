@@ -31,8 +31,10 @@ public enum RoundingGrid
 /// </list>
 /// The nearest friendly amount wins, a tie goes to the larger, and nothing rounds to zero: a value below the smallest step
 /// becomes that step. Each band's lower edge is a friendly amount of that band and of the band below too, so rounding never
-/// puts a larger value below a smaller one, and a rounded value rounds to itself. A value's terms are at most
-/// <see cref="MaxTerm"/>: a stored term times a factor's (<see cref="ScaleFactor"/>), so the arithmetic stays exact in 64 bits.
+/// puts a larger value below a smaller one, and a rounded value rounds to itself. A scaled value's terms are at most
+/// <see cref="MaxTerm"/>, a stored term times a factor's (<see cref="ScaleFactor"/>): an input contract that catches a bug.
+/// The arithmetic itself is exact at any size (<see cref="ExactValue"/>), because a converted value (PP4.8) - a scaled one
+/// times a unit's exact factor - can pass 64 bits before it is rounded.
 /// </summary>
 public static class FriendlyRounding
 {
@@ -85,10 +87,25 @@ public static class FriendlyRounding
             throw new ArgumentOutOfRangeException(nameof(value), value, "A rounded value's terms are at most a stored term times a factor's.");
         }
 
+        return Round((ExactValue)value, grid);
+    }
+
+    /// <summary>
+    /// The friendly amount nearest an exact converted value (PP4.8), whose terms may pass 64 bits: a scaled amount times a
+    /// unit's exact factor. The rules are the same; only the arithmetic is wider. The rounded value is a multiple of a step
+    /// no larger than the value plus one step, so it fits a <see cref="Rational"/> for every amount a recipe can hold.
+    /// </summary>
+    internal static Rational Round(ExactValue value, RoundingGrid grid)
+    {
+        if (value.Sign <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), value, "Only an amount above zero is rounded.");
+        }
+
         var bands = BandsOf(grid);
         var rounded = Nearest(value, BandFor(value, bands).Steps);
         var smallest = bands[0].Steps.Min();
-        return rounded < smallest ? smallest : rounded;
+        return rounded < smallest ? smallest : rounded.ToRational();
     }
 
     /// <summary>The largest step of the band <paramref name="value"/> falls in: how far apart its friendly amounts are.</summary>
@@ -103,21 +120,21 @@ public static class FriendlyRounding
         _ => throw new ArgumentOutOfRangeException(nameof(grid), grid, "Not a rounding grid."),
     };
 
-    private static Band BandFor(Rational value, Band[] bands) =>
+    private static Band BandFor(ExactValue value, Band[] bands) =>
         bands.First(b => b.Below is not { } below || value < below);
 
-    // The multiple of any step nearest the value; a tie goes to the larger. The value is above zero, so its floor is the
-    // numerator divided by the denominator, and every candidate is a whole number of steps.
-    private static Rational Nearest(Rational value, Rational[] steps)
+    // The multiple of any step nearest the value; a tie goes to the larger. The value is above zero, so every candidate is a
+    // whole number of steps: the count below it, and one more.
+    private static ExactValue Nearest(ExactValue value, Rational[] steps)
     {
-        var best = Rational.Zero;
-        var bestDistance = Rational.Zero;
+        var best = default(ExactValue);
+        var bestDistance = default(ExactValue);
         var found = false;
         foreach (var step in steps)
         {
-            var count = value / step;
-            var below = (Rational)(count.Numerator / count.Denominator) * step;
-            Rational[] candidates = below == value ? [below] : [below, below + step];
+            ExactValue exactStep = step;
+            var below = ExactValue.Whole((value / exactStep).Floor()) * exactStep;
+            ExactValue[] candidates = below == value ? [below] : [below, below + exactStep];
             foreach (var candidate in candidates)
             {
                 var distance = candidate > value ? candidate - value : value - candidate;

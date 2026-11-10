@@ -98,7 +98,12 @@ Controller → Facade → Business → DataLayer → Repository | Gateway
 - Platform reference data (PP-D06) implements `IReferenceData` (`Managers/Persistence`): a versioned list in its
   module's `Business/` is the one source, the table is seeded from it by a reviewed migration, and the app never writes
   it - the context refuses a save that adds, changes, or removes a row, and a bulk update or delete (PP4.1). Today that is
-  the reserved slugs (Sites) and the recipe vocabulary (Recipes); a test lists every marked type.
+  the reserved slugs (Sites) and the recipe vocabulary (Recipes); a test lists every marked type. The written exception is
+  reference data that nothing stored refers to: the conversion factors and the density table (`UnitConversions`,
+  `IngredientDensities`, PP4.8) are versioned lists in Recipes' `Business/` with no table, no migration, and no
+  `IReferenceData` marker (owner decision). They are still read-only, site-free, and never taken from a request, and a change
+  reaches published recipes when their page data is next built. A table comes with the first thing that stores one of
+  their codes.
 - A row written once and never changed or removed implements `IAppendOnly` (`Managers/Persistence`, PP4.4): the context
   refuses a save that changes or removes one, and a bulk update or delete, and the table carries an `AFTER UPDATE, DELETE`
   trigger that refuses raw SQL, declared with `HasTrigger`. Today that is the recipe revisions; a test lists every marked
