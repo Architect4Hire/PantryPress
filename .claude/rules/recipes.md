@@ -192,6 +192,28 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - The golden table is `PantryPress.Tests/Recipes/Corpus/conversion.txt`. It holds real lines in metric and US at 1× and at a
   second scale, and real steps, approved by reading, with nothing that rewrites it.
 
+## Times and nutrition (PP4.9)
+
+- `RecipeTimes` and `NutritionFacts` in `Business/` are pure, like the scaler: whole minutes and whole hundredths, no floating
+  point, `decimal`, culture, or clock. What each time or nutrient is called, and the disclaimer, are the recipe card's (PP7.7).
+- Times (RCP-001):
+  - prep, cook, and additional are exactly as entered. An empty time was not entered; zero was, so it shows (`0 min`) and
+    counts (owner decision).
+  - The total is the sum of the times entered, never stored. With none entered there is no total.
+  - `RecipeDuration` writes `20 min`, `2 hr 20 min`, `1 day 3 hr`, and `2 days`: days from 24 hours, leaving out each zero
+    part. Its ISO 8601 form is hours and minutes only (`PT27H`, `PT0M`), since an ISO day is a calendar day.
+- Nutrition (RCP-006, RND-004, CMP-005): only what the blogger entered, per serving, and nothing else.
+  - The nutrients entered are listed in `Nutrient`'s order (a US label's); an empty one is left out, and zero is shown.
+  - Nothing is derived (no calories from the macronutrients, no unsaturated fat from total fat), rounded, or totalled for the
+    recipe. Nothing takes a yield or a scale, so every scaled variant shows the same facts.
+  - An amount is its hundredths written exactly: ASCII digits and `.`, no trailing zero after the point, no thousands
+    separator (`14`, `14.5`, `2300`; owner decision). Units are `kcal`, `g`, and `mg`, as the columns are named.
+  - The serving size is the blogger's own words. A panel shows only when a value was entered (`HasNutrition`), and always
+    with the disclaimer.
+- Each is made only by its `From`: no public constructor and no setter, so a total is always its times' sum and the facts are
+  always what was entered, in order. `NutritionFacts` is equal by value, facts compared in order.
+- `Nutrient`'s kebab-case names become a wire contract when page data carries them (PP7.11).
+
 ## Model
 
 - Recipes are structured, not rich text. A post's recipe card block references a recipe (RCP-009).

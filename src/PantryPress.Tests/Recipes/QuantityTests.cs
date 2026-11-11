@@ -176,6 +176,47 @@ public sealed partial class QuantityTests
     public void The_floating_point_scan_lets_exact_code_by(string code) =>
         Assert.DoesNotMatch(FloatingPoint(), WithoutComments(code));
 
+    // PP4.9: Recipes' Business reads no clock and no current culture, so the same input gives the same output anywhere,
+    // at any time (PP-D05, ARCH-005). A time handed in as a value (RecipeRevisionRules' "now") is not a read.
+    [Fact]
+    public void Recipe_business_code_reads_no_clock_or_current_culture()
+    {
+        var business = new DirectoryInfo(Path.Combine(DomainSource.Modules.FullName, "Recipes", "Business"));
+        var files = business.GetFiles("*.cs", SearchOption.AllDirectories);
+        Assert.Contains(files, f => f.Name == "RecipeTimes.cs");
+        foreach (var file in files)
+        {
+            var code = WithoutComments(File.ReadAllText(file.FullName));
+            Assert.True(ClockOrCulture().Matches(code).Count == 0, $"{file.Name} reads a clock or culture: {ClockOrCulture().Match(code).Value}");
+        }
+    }
+
+    [Theory]
+    [InlineData("var t = DateTime.Now;")]
+    [InlineData("var t = DateTimeOffset.UtcNow;")]
+    [InlineData("var d = DateTime.Today;")]
+    [InlineData("var t = time.GetUtcNow();")]
+    [InlineData("TimeProvider clock")]
+    [InlineData("IClock clock")]
+    [InlineData("var s = Stopwatch.StartNew();")]
+    [InlineData("var t = Environment.TickCount64;")]
+    [InlineData("var c = CultureInfo.CurrentCulture;")]
+    [InlineData("var c = CultureInfo.CurrentUICulture;")]
+    [InlineData("var c = Thread.CurrentThread.CurrentCulture;")]
+    public void The_clock_and_culture_scan_finds_a_read(string code) =>
+        Assert.Matches(ClockOrCulture(), WithoutComments(code));
+
+    [Theory]
+    [InlineData("DateTimeOffset now) => new()")]
+    [InlineData("value.ToString(CultureInfo.InvariantCulture)")]
+    [InlineData("var nowhere = Known;")]
+    [InlineData("// never DateTime.Now")]
+    public void The_clock_and_culture_scan_lets_a_value_by(string code) =>
+        Assert.DoesNotMatch(ClockOrCulture(), WithoutComments(code));
+
+    [GeneratedRegex(@"\.(Now|UtcNow|Today|GetUtcNow|GetLocalNow|GetTimestamp)\b|\b(TimeProvider|IClock|Stopwatch|TickCount64|TickCount|CurrentCulture|CurrentUICulture)\b")]
+    private static partial Regex ClockOrCulture();
+
     private static string WithoutComments(string code) => LineComment().Replace(code, string.Empty);
 
     // No scanned file has "//" inside a string, so a line comment runs from "//" to the end of the line.

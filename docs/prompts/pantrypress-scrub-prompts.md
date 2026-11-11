@@ -4759,6 +4759,79 @@ RESTRICTION: Never estimates nutrition.
 BEHAVIOR: Plan, wait for approval, implement with tests.
 ```
 
+*PP4.9 delivery note (2026-11-11):*
+
+- **What shipped.** Pure code in Recipes' `Business/`. No endpoint, facade, migration, or page data. The rules are in
+  `recipes.md`, "Times and nutrition (PP4.9)".
+  - `RecipeTimes.From(prep, cook, additional)`: each time as entered, and the total as their sum. Never stored (PP4.3).
+  - `RecipeDuration`: whole minutes up to `MaxTotalMinutes` (three times at the cap). It gives the parts (days, hours,
+    minutes), the reader's text (`2 hr 20 min`, `1 day 3 hr`), and an ISO 8601 form in hours and minutes (`PT27H`).
+  - `NutritionFacts.From(RecipeSnapshotNutrition)`: the serving size and only the nutrients entered, in label order. Each
+    `NutritionFact` keeps the nutrient, its hundredths, the exact amount text, and the unit (`kcal`, `g`, `mg`).
+  - `Nutrient` in `Contracts/`: the eleven nutrients in US label order, a future wire enum.
+  - Both types are made only by their `From`: no public constructor, no setter, so a total cannot disagree with its times and
+    facts cannot be out of order. `NutritionFacts` is equal by value, facts compared in order.
+- **Owner-approved choices** (decision log, 2026-11-11):
+  - A time entered as zero is entered: shown (`0 min`) and counted. None entered means no total.
+  - Days from 24 hours (`1 day 3 hr`). ISO durations are hours and minutes only, because an ISO day is a calendar day.
+  - No thousands separator in nutrition (`2300 mg`).
+  - Display text is English in Business, as the scaler's unit words are.
+- **What never happens** (RCP-006): nothing derived (no calories from macronutrients, no unsaturated fat from total fat),
+  rounded, totalled for the recipe, or scaled. Nothing takes a yield or a factor, so every scaled variant shows the same facts.
+- **What differs from the plan.**
+  - **From `architecture-reviewer`** (no blockers; one major, fixed; six minors, five fixed, one recorded):
+    - The major: both types were positional records, so a caller could build a total that is not the sum, or copy one with
+      `with` and keep a stale total. Each now has a private constructor and get-only properties.
+    - `NutritionFacts` compared its list by reference; it is now equal by value.
+    - `RecipeDuration.MaxMinutes` was renamed `MaxTotalMinutes`, since `RecipeLimits.MaxMinutes` is per time.
+    - A refusal's message is formatted with the invariant culture, so "no culture" holds on the bug path too.
+    - Hand-offs recorded below.
+    - Left: `RecipeTimes.From` is public over its stored minutes, and `NutritionFacts.From` is internal, because its input,
+      `RecipeSnapshotNutrition`, is. Its callers (PP4.10, PP7.11, PP4.15) sit inside Recipes.
+  - **From `test-gap-analyzer`** (no blockers; one major, fixed; four minors, three added, one owed):
+    - The major was the same as the architecture major; tests now pin that neither type has a public constructor or setter.
+    - `RecipeSnapshotTests.A_frozen_recipe_reads_its_times_and_nutrition`: a revision's times and nutrition read through the
+      JSON round trip, and a time entered as zero stays entered through the freeze.
+    - Value equality is pinned, including as a property.
+    - A new scan, `Recipe_business_code_reads_no_clock_or_current_culture`, with its own self-tests, keeps Recipes' Business
+      from reading a clock or the current culture. A time passed in as a value (`RecipeRevisionRules`' `now`) is allowed.
+    - Owed by PP7.11: pin `Nutrient`'s kebab-case wire names.
+- **Tests (in `PantryPress.Tests/Recipes/`).**
+  - `RecipeTimesTests`: every mix of empty, zero, and entered times; the edges where a part appears or carries (0, 1, 59, 60,
+    61, 1,439, 1,440, 1,441, 2,880, and the largest total); ISO forms; refusals with their parameter names; five cultures.
+  - `RecipeTimesPropertyTests` (CsCheck, 20,000 cases each): the total is the sum of what was entered; the parts add back; the
+    text, read by its own grammar, is the length; the ISO form, read by `XmlConvert`, is the length.
+  - `NutritionFactsTests`: label order, each column to its own nutrient, zero shown and empty left out, nothing derived,
+    serving size alone is no panel, the serving size passed on unchanged, every amount edge up to 9,999,999.99, refusals,
+    five cultures, the enum pinned, and the enum tied to the snapshot's columns and their units.
+  - `NutritionFactsPropertyTests` (CsCheck, 20,000 cases each): the facts are exactly the values entered; each amount reads
+    back exactly with the framework's own decimal reader; the same nutrition gives equal facts.
+  - Mutations confirmed caught: a time dropped from the total, zero read as empty, days never shown, ISO carrying days, a
+    trailing zero kept, a zero nutrient dropped, two fat columns swapped, and a wrong unit.
+  - Two-site test: not owed. The code is pure and adds no site data path (both reviewers agree). The first consumer that reads
+    a revision for a site owes it.
+- **Hand-offs.**
+  - **PP4.10:**
+    - Write `calories` in schema.org's form (Google's examples say `270 calories`) from the nutrient and its amount. Don't
+      reuse `NutritionFact.Text`, which is the card's `kcal`.
+    - Decide whether a time entered as zero is emitted (`cookTime: PT0M`) or left out.
+    - A total can come from the additional time alone. Google wants `totalTime`, or both `prepTime` and `cookTime`, so the
+      missing-fields report should say which is missing.
+  - **PP7.11:** carry `Nutrient` as kebab-case and pin the names in a contract test; carry the facts and times as contract
+    records, since Contracts may not name Business types.
+  - **PP7.7:** the labels ("Prep", "Total", the blogger's additional-time label, each nutrient's name), the panel's heading, and
+    the disclaimer copy. Show the panel only when `HasNutrition`, and always with the disclaimer.
+  - **PP4.15:** preview the same times and facts.
+- **Not verified or left.**
+  - The 31 `RecipeRevisionsFacadeTests`, and every other test that needs the SQL container, could not run: Docker Desktop was
+    not running. Nothing in this change reaches them.
+  - `aspire run` was not restarted, because the user's own run is up; nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test` over every test that runs without a container: passing.
+  - Reviewers: `architecture-reviewer` and `test-gap-analyzer`, as above.
+
 ### PP4.10 Recipe JSON-LD generator
 
 ```text

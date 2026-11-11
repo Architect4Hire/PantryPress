@@ -452,6 +452,33 @@ public sealed class RecipeSnapshotTests
         Assert.Throws<OverflowException>(() => RecipeRevisionRules.NextNumber(int.MaxValue));
     }
 
+    // PP4.9: what a frozen revision carries is what times and nutrition read - the total from its three times, and only the
+    // nutrients entered, the zero protein included - and a time entered as zero stays entered through the freeze.
+    [Fact]
+    public void A_frozen_recipe_reads_its_times_and_nutrition()
+    {
+        var read = RoundTrip(RecipeRows.WorkingCopy(FullRows()).ToSnapshot());
+
+        var times = RecipeTimes.From(read.PrepMinutes, read.CookMinutes, read.AdditionalMinutes);
+        Assert.Equal("3 hr 45 min", times.Total!.Value.Text);
+        Assert.Equal("PT3H45M", times.Total.Value.IsoDuration);
+
+        var facts = NutritionFacts.From(read.Nutrition);
+        Assert.Equal("1 slice", facts.ServingSize);
+        Assert.Equal(["410.5 kcal", "19.25 g", "230 mg", "0 g"], facts.Facts.Select(f => f.Text));
+
+        var rows = FullRows();
+        rows.Recipe.PrepMinutes = 0;
+        rows.Recipe.CookMinutes = null;
+        rows.Recipe.AdditionalMinutes = null;
+        rows.Recipe.AdditionalTimeLabel = null;
+        var zero = RoundTrip(RecipeRows.WorkingCopy(rows).ToSnapshot());
+        var zeroTimes = RecipeTimes.From(zero.PrepMinutes, zero.CookMinutes, zero.AdditionalMinutes);
+        Assert.Equal("0 min", zeroTimes.Prep!.Value.Text);
+        Assert.Null(zeroTimes.Cook);
+        Assert.Equal("0 min", zeroTimes.Total!.Value.Text);
+    }
+
     private static RecipeRowSet FullRows() => RecipeRows.New(Recipe, IngredientGroup, Ingredient, StepGroup, Step);
 
     private static RecipeSnapshot RoundTrip(RecipeSnapshot snapshot) =>
