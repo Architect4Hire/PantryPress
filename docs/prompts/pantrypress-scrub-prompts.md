@@ -4945,13 +4945,150 @@ BEHAVIOR: Verify the current schema vocabulary, plan, wait for approval, impleme
       cases each.
   - Reviewers: `architecture-reviewer`, `public-site-reviewer`, and `test-gap-analyzer`, as above.
 
-### PP4.11 Recipe CRUD endpoints
+### PP4.11a Recipe library columns - done
+
+```text
+SCOPE: Add the archived state and the recipe's maker to Recipes, and the library's index, for PP4.11.
+CONSTRAINT: RCP-001, RCP-007, SITE-010; Templates C and K.
+BEHAVIOR: Split from PP4.11 (owner-approved, 2026-11-14): archive had no state to hold, and one seam per prompt.
+```
+
+*PP4.11a delivery note (done 2026-11-14):*
+
+- **What shipped.** Migration `RecipeLibrary` (`20261114110414`). It is additive only and fills in nothing.
+  - `Recipes.ArchivedAt`: a nullable `datetimeoffset`. A recipe with a revision is never deleted (PP4.4), so archiving is
+    how one leaves the library. A check keeps it no earlier than `CreatedAt`.
+  - `Recipes.CreatedByAccountId`: a nullable `uniqueidentifier`, with no foreign key, since a module never names another
+    module's entities. Null means no person made the recipe (the publishing API, an import).
+  - `IX_Recipes_Library (SiteId, UpdatedAt, Id)`.
+  - Neither column is frozen into a revision. The snapshot's not-frozen list says so.
+  - The rollback refuses (51015, under `TABLOCKX, HOLDLOCK`) while any recipe is archived or has a maker.
+  - Module edge Recipes → Accounts, Sites (`ModuleBoundaryTests`), with its reason.
+- **Tests.** Model tests for the index and the two columns. Schema tests for the check and for each of the rollback
+  guard's three cases. The migration list.
+- **From Template K review** (`architecture-reviewer`; no blockers):
+  - The major is fixed: account erasure now owes clearing `CreatedByAccountId`, a hand-off written under PP19.11a.
+  - Recorded rather than changed:
+    - No `INCLUDE` on the library index, because Domain does not reference the SQL Server provider.
+    - "Set once" for the maker is enforced by the facade, and PP4.11's tests pin it; no trigger.
+    - Archiving does not move `UpdatedAt` (PP4.11), so there is no `ArchivedAt <= UpdatedAt` check.
+- **Verification.** Build clean; 288 focused tests passed, SQL included. The full suite ran with PP4.11, below.
+
+### PP4.11 Recipe CRUD endpoints - done
 
 ```text
 SCOPE: Add create, read, update draft, list, archive, and duplicate recipe endpoints.
 CONSTRAINT: RCP-001, RCP-007; Template B.
 BEHAVIOR: Plan, wait for approval, implement with two-site tests.
 ```
+
+*PP4.11 delivery note (done 2026-11-14):*
+
+- **What shipped.** Seven routes under `/api/v1/sites/{siteSlug}/recipes`, all `SiteAuthor`. The rules are in
+  `recipes.md`, "Recipe routes (PP4.11)".
+  - The routes:
+    - create (`POST`, 201) and list (`GET`);
+    - `/{recipeId:guid}`: read, save the working copy (`PUT`), archive, restore, and duplicate (201);
+    - every write is `[Idempotent]`.
+  - The seam: Controller → `IRecipesFacade` → `RecipeEditor` and `RecipeDetails` (Business) → `RecipesDataLayer` →
+    `RecipeRepository`.
+  - New in Business: `RecipeText`, `RecipeVideoHosts`, `RecipeListCursor`, `RecipeVersion`.
+  - New codes: `recipe-not-yours` (403) and `recipe-archived` (409).
+  - Rate limits per account: recipe reads 120, saves 120, and creates 30 a minute. `SiteLookupsPerAccountPerMinute` went
+    from 300 to 600.
+- **Owner-approved choices** (2026-11-14):
+  - The split into PP4.11a.
+  - An Author changes only recipes they made; any member reads, lists, and duplicates.
+  - The video hosts: YouTube and Vimeo.
+  - Restore as well as archive.
+  - Empty groups are stored (the PP4.6 hand-off).
+  - The caps: 20 groups and 200 lines; 20 groups and 100 steps; 30, 20, and 20 for equipment, notes, and keywords;
+    5 courses and 5 cuisines.
+- **Hand-offs closed:**
+  - PP4.3:
+    - two-site tests;
+    - `UpdatedAt` moves on every change to a part;
+    - validators for counts, video hosts, text that is only tabs or line breaks, and a third decimal place.
+  - PP4.4:
+    - every write takes `FindLockedAsync`;
+    - ill-formed UTF-16 is a field error;
+    - indistinguishable answers, the cross accounts, and the site-id binding check (no route binds one).
+  - PP4.5: lines stored as the parser reads them.
+  - PP4.6:
+    - lines read again on the server;
+    - the empty-group decision;
+    - the paste versus cap note (to PP4.14);
+    - `{recipeId:guid}`.
+- **What differs from the plan.**
+  - The save body is `{version, content}`. A field named `recipe` read as the root type to the boundary scan.
+  - `RecipeIngredient.GroupId` and `RecipeStep.GroupId` became settable, so a line or step keeps its id when it moves
+    between groups of the same recipe.
+  - Nutrition is answered in its shortest form (`410.5`, never the column's `410.50`). The tests found that a save and a
+    read disagreed.
+  - The nutrition mapping moved to `Repositories/RecipeNutritionColumns`. It is the written exception: no EF Core, but it
+    is about the columns.
+  - **From review** (no blockers from any reviewer):
+    - All four reviewers found the same bug: create took part ids from its caller as keys. Posting back a recipe read on
+      the site gave a 500, and another site's ids gave twin ids. Create now refuses any part id at its path.
+    - `api-contract-checker`:
+      - The PUT description promised retries were safe without a key, but a save that added a part is not. It now says
+        to send a key; a test pins the replay and the 409.
+      - A huge nutrition amount overflowed into a 500. The range is now checked first.
+      - Minors fixed:
+        - `auth.md` now says 600;
+        - the rate-limit sum comment;
+        - the list's and the PUT's 400 descriptions.
+    - `site-isolation-auditor` and `architecture-reviewer`:
+      - The read-path check for the list's raw query was missing. It is added, with and without a cursor, library and
+        archived, and with a same-id twin on the other site.
+      - Staging is closed to the working copy's rows, so a revision is never staged past its own repository.
+      - The version's encoding and decoding are now one Business type.
+      - The rule that Business mutates untracked rows only is written down.
+    - `test-gap-analyzer`, all added:
+      - a commit that landed but lost its answer (create, duplicate, save);
+      - keyset ties under a fixed clock;
+      - a 22-case theory showing that each field alone moves the version, is kept, and refuses a stale freeze;
+      - duplicate fidelity;
+      - each nutrient in its own column;
+      - empty groups;
+      - the order of the checks;
+      - an Author archiving and restoring their own recipe;
+      - the archived list across sites;
+      - one rate-limit bucket per account across sites;
+      - broken text at every field;
+      - acceptance at every limit;
+      - the remaining caps.
+- **Not verified or left.**
+  - A read takes the recipe's update lock, so two reads of one recipe wait for each other. A lock-free consistent read
+    needs `ALLOW_SNAPSHOT_ISOLATION`, a MigrationService change, if it ever matters.
+  - The convention's 422 `idempotency-key-reused` has no description on any route. This predates PP4.11, so it is left
+    for the contract work.
+  - A recipe at every limit, in text that is all non-ASCII, can exceed the gateway's 1 MiB body cap. That save is
+    refused whole (413).
+  - Nothing checks whether a published post still uses a recipe before it is archived. That belongs with posts (PP5).
+  - `aspire run` was not restarted, because the user's own run is up. The migration job applies `RecipeLibrary` when it
+    next runs.
+- **Hand-offs.**
+  - **PP4.12 and PP4.13:**
+    - send an `Idempotency-Key` with every save, and renew it after a refusal the person can fix;
+    - send back `version` from each answer;
+    - show `canEdit`;
+    - library filters owe a read-path check on the `(SiteId, Code)` indexes (the PP4.3 hand-off).
+  - **PP4.14:** a pasted step list can propose up to 200 steps, but a recipe holds 100, so say so; a new part's id comes
+    from the answer.
+  - **PP5:** decide what archiving a recipe that a published post shows means (RCP-009).
+  - **PP19.11a:** clear `CreatedByAccountId` on erasure (written under that prompt).
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 errors.
+  - `dotnet format --verify-no-changes --no-restore`: clean. Restore still needs `-p:WarningsNotAsErrors=NU1903` (the
+    PP4.10 note).
+  - `dotnet test PantryPress.slnx`: 3,932 passed and 1 failed, of 3,933 (2,960 before PP4.7; 3,727 at PP4.10).
+    - The SQL container tests ran and passed.
+    - The one failure is `AdminAppTests`, the whole-system hosting test that times out waiting for the Angular `admin`
+      resource (the PP4.10 note). Nothing here touches a resource or the front end.
+    - One earlier run failed every SQL-backed test in 1 ms, because the shared database fixture did not start. Those
+      tests passed when run again.
+  - Reviewers: `api-contract-checker`, `site-isolation-auditor`, `test-gap-analyzer`, and `architecture-reviewer`, as above.
 
 ### PP4.12 Recipe API service and library screen
 
@@ -6956,6 +7093,12 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
 
 *Added at PP1.12 (owner-approved "fix all", 2026-10-24):* the audit found ACCT-004 listed for PP1 and PP19 but built by
 no prompt. PP19.12 extends the export this prompt creates.
+
+*Hand-off from PP4.11a (2026-11-14):* erasing an account clears `Recipes.CreatedByAccountId` for that account across
+sites. Nothing does it for you: the column has no foreign key, by design, and no index led by the account (indexes lead
+with the site), so it is operator code (`Modules/Platform/`, `// Cross-site:`) or a reviewed raw statement over a table
+scan. A cleared recipe is then changed only by Editors and Owners, like one from the publishing API or an import. The
+column is not frozen into revisions, so no append-only row holds the account.
 
 ### PP19.12 Reader data requests
 

@@ -70,8 +70,10 @@ public sealed class RecipeRevisionModelTests
     }
 
     // What the working copy holds that a revision does not: the site, the keys that make the nesting, the positions that
-    // make the order, and the recipe's own bookkeeping.
-    private static readonly string[] NotFrozen = ["SiteId", "RecipeId", "GroupId", "Position", "CreatedAt", "UpdatedAt", "Version"];
+    // make the order, and the recipe's own bookkeeping - who made it and whether it is archived (PP4.11a) included, since
+    // neither is anything a reader sees.
+    private static readonly string[] NotFrozen =
+        ["SiteId", "RecipeId", "GroupId", "Position", "CreatedAt", "UpdatedAt", "Version", "CreatedByAccountId", "ArchivedAt"];
 
     // Every column the snapshot freezes, by table. A quantity's are its five field-mapped columns.
     public static TheoryData<Type, string[]> Frozen => new()

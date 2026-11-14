@@ -64,14 +64,28 @@ public sealed class ApiRateLimitOptions
     /// </summary>
     public int RecipePastesPerAccountPerMinute { get; set; } = 30;
 
+    /// <summary>Recipe reads - one recipe, or a page of the list - one signed-in account may make in a minute (PP4.11).</summary>
+    public int RecipeReadsPerAccountPerMinute { get; set; } = 120;
+
+    /// <summary>
+    /// Saves of a recipe's working copy, archives, and restores one signed-in account may make in a minute (PP4.11), across
+    /// its sites. The editor autosaves within two seconds of a pause (PNFR-007), so this leaves room for two tabs typing.
+    /// </summary>
+    public int RecipeSavesPerAccountPerMinute { get; set; } = 120;
+
+    /// <summary>Recipes one signed-in account may create or duplicate in a minute (PP4.11), across its sites.</summary>
+    public int RecipeCreatesPerAccountPerMinute { get; set; } = 30;
+
     /// <summary>
     /// Requests per minute for one signed-in account on any route that names a site, counted ahead of the site policy
     /// (PP2.14). The route's own allowance counts only what the policy lets in; this one counts the membership lookups
     /// themselves, refused ones included, since each is a database read whatever it answers. Set above the sum of today's
     /// site routes' own per-minute allowances, so it binds only on a caller probing sites it does not belong to; every
-    /// later prompt that adds a site route (autosave, media) checks it still is.
+    /// later prompt that adds a site route (autosave, media) checks it still is. PP4.11 raised it from 300 when the recipe
+    /// routes brought the sum to about 470 (reading a site 60, members 60 and 30, invitations 20 an hour, paste 30, recipe
+    /// reads 120, saves 120, and creates 30).
     /// </summary>
-    public int SiteLookupsPerAccountPerMinute { get; set; } = 300;
+    public int SiteLookupsPerAccountPerMinute { get; set; } = 600;
 
     /// <summary>
     /// Requests per minute across every caller for the internal sign-in routes. Deliberately still a global ceiling:
@@ -102,6 +116,9 @@ internal static class ApiRateLimits
     public const string SiteMemberList = "sites-members";
     public const string SiteMemberChange = "sites-member-change";
     public const string RecipePaste = "recipes-paste";
+    public const string RecipeRead = "recipes-read";
+    public const string RecipeSave = "recipes-save";
+    public const string RecipeCreate = "recipes-create";
 
     /// <summary>One shared bucket for a request whose address this service cannot see.</summary>
     private const string UnknownAddress = "unknown";
@@ -115,7 +132,8 @@ internal static class ApiRateLimits
                     && o.SlugChecksPerAccountPerMinute > 0 && o.SiteCreatesPerAccountPerHour > 0
                     && o.InvitesPerAccountPerHour > 0 && o.InvitationAcceptsPerAccountPerHour > 0
                     && o.SiteMembersPerAccountPerMinute > 0 && o.SiteMemberChangesPerAccountPerMinute > 0
-                    && o.RecipePastesPerAccountPerMinute > 0
+                    && o.RecipePastesPerAccountPerMinute > 0 && o.RecipeReadsPerAccountPerMinute > 0
+                    && o.RecipeSavesPerAccountPerMinute > 0 && o.RecipeCreatesPerAccountPerMinute > 0
                     && o.SiteLookupsPerAccountPerMinute > 0 && o.SignInPerMinute > 0
                     && o.SessionChecksPerMinute > 0,
                 "Rate limits must be positive.")
@@ -212,6 +230,26 @@ internal static class ApiRateLimits
             {
                 var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
                 return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.RecipePastesPerAccountPerMinute));
+            });
+
+            // The recipe routes, per account (PP4.11), each kind with its own allowance so reading never spends a save.
+            // Authorized first, so only a member's request is counted.
+            options.AddPolicy(RecipeRead, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.RecipeReadsPerAccountPerMinute));
+            });
+
+            options.AddPolicy(RecipeSave, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.RecipeSavesPerAccountPerMinute));
+            });
+
+            options.AddPolicy(RecipeCreate, context =>
+            {
+                var limits = context.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<ApiRateLimitOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(AccountKey(context), _ => PerMinute(limits.RecipeCreatesPerAccountPerMinute));
             });
 
             options.OnRejected = (context, _) => RefuseAsync(context.HttpContext, context.Lease);

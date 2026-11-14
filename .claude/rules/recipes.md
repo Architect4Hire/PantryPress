@@ -240,6 +240,8 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   - Diets and allergens exist only as the blogger's choices.
   - Nutrition is `decimal(9,2)` as entered, never estimated.
 - `Recipe.Version` is the one concurrency token, so a change to any part moves the recipe's `UpdatedAt` (PP4.11).
+- Two bookkeeping columns, never frozen into a revision (PP4.11a): `CreatedByAccountId` (who made it in the editor, set
+  once; null from the publishing API or an import; no foreign key; erasure clears it, PP19.11a) and `ArchivedAt`.
 - Badges come from a closed list, max 4; the chef note is plain text, max 280 characters (RCP-010).
 
 ## Revisions (PP4.4)
@@ -278,6 +280,64 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
 - Autosave writes only the working copy. A draft revision is a save point someone asked for, never an autosave, because
   revisions are never pruned.
 - Erasing a site or an account (ADR 0003, PP19.11a) lists `RecipeRevisions` itself and changes its trigger on purpose.
+
+## Recipe routes (PP4.11)
+
+- `/api/v1/sites/{siteSlug}/recipes` (`SiteAuthor`): create (`POST`, 201) and list (`GET`); `…/{recipeId:guid}`: read
+  (`GET`), save the working copy (`PUT`), `…/archive`, `…/restore`, and `…/duplicate` (201). `IRecipesFacade` is the seam.
+  The `:guid` keeps `recipes/paste` from ever reading as an id. Nothing here audits, uses the outbox, or touches a
+  revision: a working copy changes nothing a reader sees (PP-D04). Publishing is PP5.14's.
+- Who may change a recipe (SITE-010; owner decision): an Owner or Editor any of the site's recipes, an Author only one
+  they made (`Recipe.CreatedByAccountId`, PP4.11a). Changing covers saving, archiving, and restoring. A recipe no person
+  made (the publishing API, an import, an erased maker) is no Author's. Every member reads, lists, and duplicates every
+  recipe, and a duplicate is the caller's own. `RecipeEditor.CanChange` decides, from the role `ISiteMembershipFacade.FindAsync`
+  gives (cached for the request). It is checked once the recipe is found: `recipe-not-yours` (403).
+- A save is the whole recipe (`RecipeContent`) with the version as read (`UpdateRecipeRequest`, the row version in
+  Base64). A part sent with its id keeps its row, including a line or step that moves to another group of the same
+  recipe; a part sent with no id is new; a part left out is removed. Positions are renumbered from 0 in the order sent.
+  - Every ingredient line is read again with the parser on the server. The request has no field for parsed parts, so a
+    client's are never read (the PP4.6 hand-off).
+  - A claimed id that is not one of this recipe's parts of that kind - unknown, another recipe's, another site's - is a
+    field error at the id's JSON path, with one message for all.
+  - Create takes no part ids: any id sent is that field error, so a client never chooses a key.
+  - Empty groups are stored (owner decision, the PP4.6 hand-off): a draft is work in progress. Readiness (POST-006)
+    warns about them later.
+- Under the recipe's lock (`FindLockedAsync`), in order: not found, `recipe-not-yours`, `recipe-archived` (409), unknown
+  parts, then:
+  - content whose snapshot hash equals the current one saves nothing and answers the recipe as it is, whatever version
+    came with it, so an idle autosave never conflicts or moves the version. A retry of a save that added a part is not
+    such a save - the new part has no id until the answer gives it one - so the editor sends an `Idempotency-Key` with
+    every save, and a retry replays the first answer;
+  - otherwise a stale version is `recipe-changed`, never last-write-wins;
+  - otherwise the recipe's row is always updated (`UpdatedAt` moves, and so does `Version`), with only the part rows whose
+    stored values change. So the one token guards the whole recipe, and a freeze never captures half an edit (PP4.4).
+- Every id a call mints - a new recipe's, a new part's - is minted before its first attempt, so a retry of a commit that
+  landed meets its own rows.
+- A read takes the same lock, so its parts are always one save's. An unparsed line is read again for its reason
+  (`problem`), which is not stored.
+- Archiving sets `ArchivedAt`, and restoring clears it. Repeating either changes nothing. Neither moves `UpdatedAt`, the
+  library's order, because neither is an edit. An archived recipe is read and duplicated, never saved.
+- A duplicate is titled `Copy of …` where that fits in 200 characters, and the original title otherwise. It is in the
+  library, its parts get new ids, its lines are read again, and its revisions are not copied.
+- The list is newest edited first by `(UpdatedAt, Id)` on `IX_Recipes_Library`, through `RecipeListCursor` (limit 1 to
+  100, default 50), in the library or `archived=true`. A recipe edited during paging moves to the top.
+- Limits (`RecipeLimits`): 20 ingredient groups and 200 lines, which equals `MaxPastedLines`; 20 step groups and 100
+  steps, which is below a paste's 200, so the editor says so (PP4.14); 30 pieces of equipment, 20 notes, 20 keywords,
+  5 courses, and 5 cuisines; diets and allergens each at most once.
+- Text (`RecipeText`): well-formed UTF-16 and no control character but a tab. Line breaks are allowed in the summary,
+  notes, and steps only. Text that is only white space or format characters is refused, tabs and line breaks
+  included, since the tables trim spaces only. Every word is stored exactly as sent.
+- Nutrition: 0 to 9,999,999.99, at most two decimal places (a third would be rounded by the column). Answers write each
+  amount in its shortest form (`410.5`).
+- Video (`RecipeVideoHosts`, versioned, code-only like the conversion lists): `https://` on YouTube or Vimeo hosts exactly,
+  printable ASCII, no user info, no port.
+- Rate limits per account: `RecipeReadsPerAccountPerMinute` (120), `RecipeSavesPerAccountPerMinute` (120: saves,
+  archives, restores), and `RecipeCreatesPerAccountPerMinute` (30: creates and duplicates).
+  `SiteLookupsPerAccountPerMinute` rose to 600 to stay above the site routes' sum (about 470).
+- A read takes the recipe's update lock, so two reads of one recipe wait for each other; a lock-free consistent read
+  needs `ALLOW_SNAPSHOT_ISOLATION`, a MigrationService change for later if it matters.
+- `RecipeNutritionColumns` (in `Repositories/`, with no EF Core) is the one mapping between the nutrition columns and the
+  snapshot's hundredths and the API's amounts, since Business names no `decimal`; the data layer passes it up.
 
 ## Reference vocabulary (PP4.1)
 

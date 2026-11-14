@@ -72,13 +72,15 @@ public sealed class ModuleBoundaryTests
     /// account's email address is confirmed before letting it own more sites (PP2.10), whether an account holds the
     /// address an invitation went to before letting it join (PP2.11), and its members' addresses to show their Owner
     /// (PP2.11b). Platform also asks Sites to create the local development seed's sites, through the same facade the API
-    /// calls (PP3.9a). Nothing goes the
+    /// calls (PP3.9a). Recipes names the account that made a recipe by its <c>AccountId</c> (PP4.11a), and asks Sites the
+    /// caller's role on the request's site, so an Author changes only their own recipes (SITE-010; PP4.11). Nothing goes the
     /// other way, so the graph stays acyclic. Add an edge here only with a reason.
     /// </summary>
     private static readonly Dictionary<string, string[]> AllowedModuleEdges = new(StringComparer.Ordinal)
     {
         ["Platform"] = ["Accounts", "Sites"],
         ["Sites"] = ["Accounts"],
+        ["Recipes"] = ["Accounts", "Sites"],
     };
 
     /// <summary>

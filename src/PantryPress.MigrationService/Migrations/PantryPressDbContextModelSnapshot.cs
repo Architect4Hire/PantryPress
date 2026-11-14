@@ -1001,6 +1001,9 @@ namespace PantryPress.MigrationService.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<decimal?>("Calories")
                         .HasPrecision(9, 2)
                         .HasColumnType("decimal(9,2)");
@@ -1018,6 +1021,9 @@ namespace PantryPress.MigrationService.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedByAccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal?>("FatGrams")
                         .HasPrecision(9, 2)
@@ -1106,9 +1112,14 @@ namespace PantryPress.MigrationService.Migrations
 
                     b.HasKey("SiteId", "Id");
 
+                    b.HasIndex("SiteId", "UpdatedAt", "Id")
+                        .HasDatabaseName("IX_Recipes_Library");
+
                     b.ToTable("Recipes", null, t =>
                         {
                             t.HasCheckConstraint("CK_Recipes_AdditionalTimeLabel", "[AdditionalTimeLabel] IS NULL OR ([AdditionalMinutes] IS NOT NULL AND LEN([AdditionalTimeLabel]) > 0)");
+
+                            t.HasCheckConstraint("CK_Recipes_ArchivedAt", "[ArchivedAt] IS NULL OR [ArchivedAt] >= [CreatedAt]");
 
                             t.HasCheckConstraint("CK_Recipes_Nutrition", "([Calories] IS NULL OR [Calories] >= 0) AND ([FatGrams] IS NULL OR [FatGrams] >= 0) AND ([SaturatedFatGrams] IS NULL OR [SaturatedFatGrams] >= 0) AND ([TransFatGrams] IS NULL OR [TransFatGrams] >= 0) AND ([UnsaturatedFatGrams] IS NULL OR [UnsaturatedFatGrams] >= 0) AND ([CholesterolMilligrams] IS NULL OR [CholesterolMilligrams] >= 0) AND ([SodiumMilligrams] IS NULL OR [SodiumMilligrams] >= 0) AND ([CarbohydrateGrams] IS NULL OR [CarbohydrateGrams] >= 0) AND ([FiberGrams] IS NULL OR [FiberGrams] >= 0) AND ([SugarGrams] IS NULL OR [SugarGrams] >= 0) AND ([ProteinGrams] IS NULL OR [ProteinGrams] >= 0)");
 

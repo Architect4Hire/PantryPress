@@ -41,7 +41,8 @@ public sealed class MigrationServiceRegistrationTests
             eleventh => Assert.EndsWith("_SiteInvitations", eleventh, StringComparison.Ordinal),
             twelfth => Assert.EndsWith("_RecipeVocabulary", twelfth, StringComparison.Ordinal),
             thirteenth => Assert.EndsWith("_Recipes", thirteenth, StringComparison.Ordinal),
-            fourteenth => Assert.EndsWith("_RecipeRevisions", fourteenth, StringComparison.Ordinal));
+            fourteenth => Assert.EndsWith("_RecipeRevisions", fourteenth, StringComparison.Ordinal),
+            fifteenth => Assert.EndsWith("_RecipeLibrary", fifteenth, StringComparison.Ordinal));
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

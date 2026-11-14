@@ -61,28 +61,55 @@ internal sealed class RecipeRepository(PantryPressDbContext db, ISiteContext sit
             await db.Set<RecipeAllergen>().AsNoTracking().Where(a => a.RecipeId == id).ToListAsync(cancellationToken));
     }
 
-    // Nutrition in hundredths, which is what its two-place columns hold (RCP-006). Here, beside the columns, because the
-    // Recipes Business code never names a fractional number type (PP-D05).
-    private static RecipeSnapshotNutrition Nutrition(Recipe recipe) => new(
-        recipe.ServingSize,
-        Hundredths(recipe.Calories),
-        Hundredths(recipe.FatGrams),
-        Hundredths(recipe.SaturatedFatGrams),
-        Hundredths(recipe.TransFatGrams),
-        Hundredths(recipe.UnsaturatedFatGrams),
-        Hundredths(recipe.CholesterolMilligrams),
-        Hundredths(recipe.SodiumMilligrams),
-        Hundredths(recipe.CarbohydrateGrams),
-        Hundredths(recipe.FiberGrams),
-        Hundredths(recipe.SugarGrams),
-        Hundredths(recipe.ProteinGrams));
-
-    // Exact, never rounded: a value with more places than the column keeps is not one the column could have held.
-    private static long? Hundredths(decimal? value) => value switch
+    /// <summary>
+    /// Up to <paramref name="take"/> of the site's recipes, archived or in the library, most recently edited first, after
+    /// <paramref name="after"/> (PP4.11). The keyset comparison is SQL Server's own uniqueidentifier order, the same order
+    /// the list is sorted in, so a page after a cursor never repeats a recipe that has not been edited since. The raw query
+    /// names the site as well, and the filter applies over it as usual.
+    /// </summary>
+    public Task<List<Recipe>> ListPageAsync(
+        bool archived,
+        RecipeListPosition? after,
+        int take,
+        CancellationToken cancellationToken)
     {
-        null => null,
-        { Scale: <= RecipeLimits.NutritionScale } v => decimal.ToInt64(v * 100m),
-        { } v => throw new InvalidOperationException(
-            $"A nutrition value has {v.Scale} decimal places; its column keeps {RecipeLimits.NutritionScale}."),
-    };
+        var site = siteContext.Required.Value;
+        var recipes = after is { } position
+            ? db.Set<Recipe>().FromSql($"""
+                SELECT * FROM [Recipes]
+                WHERE [SiteId] = {site}
+                  AND ([UpdatedAt] < {position.UpdatedAt}
+                    OR ([UpdatedAt] = {position.UpdatedAt} AND [Id] < {position.Recipe.Value}))
+                """)
+            : db.Set<Recipe>();
+        return recipes
+            .AsNoTracking()
+            .Where(r => archived ? r.ArchivedAt != null : r.ArchivedAt == null)
+            .OrderByDescending(r => r.UpdatedAt)
+            .ThenByDescending(r => r.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Stages <paramref name="row"/> - the recipe or one of its parts, untracked - as added, changed, or removed, saved when
+    /// the attempt it was staged in commits. A changed or removed row keeps the site and version it was read with, so the
+    /// stamp and the concurrency token still decide whether the save may touch it (tenancy.md rule 3).
+    /// </summary>
+    public void StageAdded(object row) => db.Add(Owned(row));
+
+    /// <inheritdoc cref="StageAdded"/>
+    public void StageChanged(object row) => db.Update(Owned(row));
+
+    /// <inheritdoc cref="StageAdded"/>
+    public void StageRemoved(object row) => db.Remove(Owned(row));
+
+    // Only the working copy's rows are staged here; a revision is added by its own repository alone, never past it.
+    private static object Owned(object row) =>
+        row is Recipe or RecipeIngredientGroup or RecipeIngredient or RecipeStepGroup or RecipeStep or RecipeEquipment
+            or RecipeNote or RecipeKeyword or RecipeCourse or RecipeCuisine or RecipeDiet or RecipeAllergen
+            ? row
+            : throw new InvalidOperationException($"{row.GetType().Name} is not a row of a recipe's working copy.");
+
+    private static RecipeSnapshotNutrition Nutrition(Recipe recipe) => RecipeNutritionColumns.Hundredths(recipe);
 }

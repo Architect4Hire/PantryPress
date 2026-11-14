@@ -624,14 +624,14 @@ public sealed class RecipeRevisionsFacadeTests(MigratedDatabase database) : IAsy
         return await scope.ServiceProvider.GetRequiredService<PantryPressDbContext>().Set<RecipeRevision>().CountAsync(r => r.RecipeId == recipe);
     }
 
-    private sealed class FixedClock(DateTimeOffset now) : PantryPress.Domain.Managers.Time.IClock
+    internal sealed class FixedClock(DateTimeOffset now) : PantryPress.Domain.Managers.Time.IClock
     {
         public DateTimeOffset UtcNow => now;
     }
 
     // A commit that reaches the server and then loses its answer once, as a dropped connection would, with a strategy that
     // retries exactly that fault once.
-    private sealed class LandedCommitFault : Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
+    internal sealed class LandedCommitFault : Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
     {
         public int Attempts { get; private set; }
 

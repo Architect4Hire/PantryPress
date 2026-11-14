@@ -135,8 +135,13 @@ public sealed class ApiServiceHostTests
                 "/api/v1/sites/{siteSlug}/members",
                 "/api/v1/sites/{siteSlug}/members/{memberId}",
                 "/api/v1/sites/{siteSlug}/members/{memberId}/role",
+                "/api/v1/sites/{siteSlug}/recipes",
                 "/api/v1/sites/{siteSlug}/recipes/paste/ingredients",
                 "/api/v1/sites/{siteSlug}/recipes/paste/steps",
+                "/api/v1/sites/{siteSlug}/recipes/{recipeId}",
+                "/api/v1/sites/{siteSlug}/recipes/{recipeId}/archive",
+                "/api/v1/sites/{siteSlug}/recipes/{recipeId}/duplicate",
+                "/api/v1/sites/{siteSlug}/recipes/{recipeId}/restore",
                 "/api/v1/slug-availability",
             ],
             paths.Order(StringComparer.Ordinal));

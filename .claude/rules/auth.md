@@ -46,7 +46,7 @@
 | --- | --- | --- |
 | Owner | site | Everything, including billing, members, domains, publishing keys |
 | Editor | site | All content, design, and moderation |
-| Author | site | Own posts only; cannot publish when review is required (POST-010) |
+| Author | site | Own posts and own recipes only (PP4.11); cannot publish when review is required (POST-010) |
 | PlatformAdmin | platform | Operator console only, audited; granted only to an account that confirmed its address (PP1.12) |
 
 - Policies are named (`SiteOwner`, `SiteEditor`, `SiteAuthor`, `PlatformAdmin`) and checked in controllers;
@@ -61,7 +61,7 @@
   route names a site after `sites/` by anything but a required `{siteSlug}` - another value, a literal, or an
   optional slug. Only the policy's handler asks the decision (PP2.14).
 - Every signed-in request to a `{siteSlug}` route is counted per account before the policy looks the caller up
-  (`RateLimits:SiteLookupsPerAccountPerMinute`, 300), so a refused lookup - a database read whatever it answers - is
+  (`RateLimits:SiteLookupsPerAccountPerMinute`, 600 since PP4.11), so a refused lookup - a database read whatever it answers - is
   bounded too; each route's own allowance counts only what the policy lets in (PP2.14).
 - Membership lookups are cached for one request only, keyed by account and slug, and never across requests.
 - Only an Owner lists, re-roles, and removes members (PP2.11b), naming a member by their account id within the route's site;
