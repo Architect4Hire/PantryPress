@@ -1,0 +1,329 @@
+<pp-page-header [heading]="heading()">
+  <div ppPageActions class="actions">
+    @if (saveView(); as view) {
+      @if (view.state !== 'none') {
+        <pp-save-status [state]="view.state" [detail]="view.detail" />
+      }
+    }
+    <a class="back" [routerLink]="library()">All recipes</a>
+  </div>
+</pp-page-header>
+
+@switch (loading().kind) {
+  @case ('loading') {
+    <pp-progress label="Loading the recipe" />
+  }
+  @case ('gone') {
+    <pp-empty-state
+      heading="We couldn't find that recipe"
+      description="It may have been made on another site, or the address may be mistyped."
+      [level]="2"
+    >
+      <a pp-button [routerLink]="library()">Go to your recipes</a>
+    </pp-empty-state>
+  }
+  @case ('failed') {
+    <pp-notice tone="danger" heading="The recipe couldn't be loaded" announce>
+      <p class="text">Check your connection and try again.</p>
+      <button pp-button size="sm" (click)="retryLoad()">Try again</button>
+    </pp-notice>
+  }
+  @case ('ready') {
+    <div class="notices">
+      @switch (stop()) {
+        @case ('changed') {
+          <pp-notice tone="warning" heading="This recipe was changed somewhere else" announce>
+            <p class="text">
+              Your changes here are kept on this device. Keep them over the newer copy, or use the
+              newer copy instead.
+            </p>
+            <div class="buttons">
+              <button
+                pp-button
+                size="sm"
+                variant="primary"
+                [busy]="deciding()"
+                (click)="keepMine()"
+              >
+                Keep my changes
+              </button>
+              <button pp-button size="sm" [disabled]="deciding()" (click)="useSaved()">
+                Use the newer copy
+              </button>
+            </div>
+          </pp-notice>
+        }
+        @case ('archived') {
+          <pp-notice tone="info" heading="This recipe is archived" announce>
+            <p class="text">Restore it to your library to make changes.</p>
+            <button pp-button size="sm" [busy]="restoring()" (click)="restore()">Restore</button>
+          </pp-notice>
+        }
+        @case ('read-only') {
+          <pp-notice tone="info" heading="You can view this recipe" announce>
+            <p class="text">You can't change it. Its maker, an editor, or the site's owner can.</p>
+            @if (hasEdits()) {
+              <p class="text">
+                What you typed is still shown below, so you can copy it. It can't be saved to this
+                recipe.
+              </p>
+              <button pp-button size="sm" (click)="discard()">Show the recipe as it is</button>
+            }
+          </pp-notice>
+        }
+        @case ('gone') {
+          <pp-notice tone="danger" heading="This recipe is no longer on this site" announce>
+            @if (hasEdits()) {
+              <p class="text">
+                What you typed is still shown below, so you can copy it. It can't be saved to this
+                recipe.
+              </p>
+            }
+            <a pp-button size="sm" [routerLink]="library()">Go to your recipes</a>
+          </pp-notice>
+        }
+      }
+
+      @if (refusal(); as refusal) {
+        <pp-notice tone="danger" announce>
+          <p class="text">{{ refusal }}</p>
+        </pp-notice>
+      }
+
+      @if (placed().elsewhere.length > 0) {
+        <pp-notice tone="danger" heading="Something else in this recipe needs fixing" announce>
+          @for (message of placed().elsewhere; track $index) {
+            <p class="text">{{ message }}</p>
+          }
+          <p class="text">It isn't on this screen yet. Reload the recipe to try again.</p>
+        </pp-notice>
+      }
+
+      @if (resumed()) {
+        <pp-notice tone="info" heading="We kept the recipe you started" announce>
+          <p class="text">Carry on where you left off, or start a blank one.</p>
+          <button pp-button size="sm" [disabled]="busy()" (click)="startOver()">
+            Start a blank recipe
+          </button>
+        </pp-notice>
+      }
+    </div>
+
+    <form class="sections" [formGroup]="form" (submit)="$event.preventDefault()">
+      <pp-card>
+        <section class="section" aria-labelledby="details-heading">
+          <h2 class="section-heading" id="details-heading">Details</h2>
+
+          <pp-field
+            label="Title"
+            [hint]="isNew() ? 'Your recipe is saved as soon as it has a title.' : undefined"
+            [error]="error('title')"
+          >
+            <input
+              pp-text-field
+              formControlName="title"
+              [readonly]="locked()"
+              required
+              autocomplete="off"
+              [attr.maxlength]="limits.title"
+            />
+          </pp-field>
+
+          <pp-field label="Summary" optional [error]="error('summary')">
+            <textarea
+              pp-textarea
+              formControlName="summary"
+              [readonly]="locked()"
+              rows="3"
+              [attr.maxlength]="limits.summary"
+            ></textarea>
+          </pp-field>
+
+          @switch (vocabulary().kind) {
+            @case ('ready') {
+              <pp-chip-group
+                legend="Course"
+                [options]="courseOptions()"
+                formControlName="courses"
+                [error]="error('courses')"
+              />
+              <pp-chip-group
+                legend="Cuisine"
+                [options]="cuisineOptions()"
+                formControlName="cuisines"
+                [error]="error('cuisines')"
+              />
+              <pp-chip-group
+                legend="Diet"
+                [options]="dietOptions()"
+                formControlName="diets"
+                [error]="error('diets')"
+              />
+            }
+            @case ('failed') {
+              <pp-notice tone="info">
+                <p class="text">
+                  Courses, cuisines, diets, and allergens can't be shown right now. Anything already
+                  chosen is kept.
+                </p>
+                <button pp-button size="sm" (click)="retryVocabulary()">Try again</button>
+              </pp-notice>
+            }
+            @default {
+              <pp-progress label="Loading courses, cuisines, and diets" />
+            }
+          }
+
+          <details class="more" [open]="moreOpen()" (toggle)="toggled($event)">
+            <summary class="more-summary">More details</summary>
+            <div class="more-body">
+              @if (vocabulary().kind === 'ready') {
+                <pp-chip-group
+                  legend="Allergens"
+                  [options]="allergenOptions()"
+                  formControlName="allergens"
+                  [error]="error('allergens')"
+                />
+              }
+              <pp-field
+                label="Keywords"
+                hint="Separate keywords with commas."
+                optional
+                [error]="error('keywords')"
+              >
+                <input
+                  pp-text-field
+                  formControlName="keywords"
+                  [readonly]="locked()"
+                  autocomplete="off"
+                />
+              </pp-field>
+              <pp-field
+                label="Video"
+                hint="The address of a video on YouTube or Vimeo, starting https://."
+                optional
+                [error]="error('videoUrl')"
+              >
+                <input
+                  pp-text-field
+                  type="url"
+                  inputmode="url"
+                  formControlName="videoUrl"
+                  [readonly]="locked()"
+                  autocomplete="off"
+                  [attr.maxlength]="limits.videoUrl"
+                />
+              </pp-field>
+            </div>
+          </details>
+        </section>
+      </pp-card>
+
+      <pp-card>
+        <section class="section" aria-labelledby="times-heading">
+          <h2 class="section-heading" id="times-heading">Times</h2>
+          <p class="section-hint">Leave a time empty if the recipe doesn't have it.</p>
+
+          @for (time of times; track time.name) {
+            <div class="time" [formGroupName]="time.name">
+              <pp-fieldset #set="ppFieldset" [legend]="time.legend" [error]="error(time.name)">
+                <pp-field label="Hours">
+                  <input
+                    pp-text-field
+                    formControlName="hours"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    [readonly]="locked()"
+                    [attr.aria-label]="time.legend + ', hours'"
+                    [aria-describedby]="set.describedBy()"
+                    [aria-invalid]="set.invalid()"
+                  />
+                </pp-field>
+                <pp-field label="Minutes">
+                  <input
+                    pp-text-field
+                    formControlName="minutes"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    [readonly]="locked()"
+                    [attr.aria-label]="time.legend + ', minutes'"
+                    [aria-describedby]="set.describedBy()"
+                    [aria-invalid]="set.invalid()"
+                  />
+                </pp-field>
+              </pp-fieldset>
+              @if (time.name === 'additional' && hasAdditionalTime()) {
+                <pp-field
+                  label="What it's for"
+                  hint="Like Rising or Chilling."
+                  optional
+                  [error]="error('additionalTimeLabel')"
+                >
+                  <input
+                    pp-text-field
+                    [formControl]="form.controls.additionalTimeLabel"
+                    autocomplete="off"
+                    [readonly]="locked()"
+                    [attr.maxlength]="limits.additionalTimeLabel"
+                  />
+                </pp-field>
+              }
+            </div>
+          }
+
+          @if (totalTime(); as total) {
+            <p class="total">
+              Total time: <strong>{{ total }}</strong>
+            </p>
+          }
+        </section>
+      </pp-card>
+
+      <pp-card>
+        <section class="section" aria-labelledby="yield-heading">
+          <h2 class="section-heading" id="yield-heading">Yield</h2>
+          <p class="section-hint">How much the recipe makes, like 8 servings or 2 to 3 loaves.</p>
+          <div class="yield">
+            <pp-field
+              label="Makes"
+              hint="A number, like 8 or 1½."
+              optional
+              [error]="error('yieldLow')"
+            >
+              <input
+                pp-text-field
+                formControlName="yieldLow"
+                [readonly]="locked()"
+                inputmode="decimal"
+                autocomplete="off"
+              />
+            </pp-field>
+            <pp-field label="Up to" hint="For a range only." optional [error]="error('yieldHigh')">
+              <input
+                pp-text-field
+                formControlName="yieldHigh"
+                [readonly]="locked()"
+                inputmode="decimal"
+                autocomplete="off"
+              />
+            </pp-field>
+            <pp-field
+              label="Of what"
+              hint="Like servings, loaves, or cookies."
+              optional
+              [error]="error('yieldUnit')"
+            >
+              <input
+                pp-text-field
+                formControlName="yieldUnit"
+                [readonly]="locked()"
+                autocomplete="off"
+                [attr.maxlength]="limits.yieldUnit"
+              />
+            </pp-field>
+          </div>
+        </section>
+      </pp-card>
+    </form>
+  }
+}

@@ -1,0 +1,65 @@
+import { RecipeDetail } from '../../core/recipes/recipes-client';
+
+/** A recipe as the API answers it, with a part of every kind this screen does not edit, for the specs. */
+export function recipeDetail(extra: Partial<RecipeDetail> = {}): RecipeDetail {
+  return {
+    id: '3c1d6e0a-4b5f-4e2a-9d8c-7b6a5f4e3d2c',
+    version: 'AAAAAAAAB9E=',
+    title: 'Apple pie',
+    summary: 'A deep-dish pie.',
+    yield: { kind: 'amount', low: { numerator: 8, denominator: 1 }, high: null },
+    yieldUnit: 'servings',
+    prepMinutes: 30,
+    cookMinutes: 75,
+    additionalMinutes: null,
+    additionalTimeLabel: null,
+    videoUrl: null,
+    nutrition: {
+      servingSize: '1 slice',
+      calories: 410.5,
+      fatGrams: null,
+      saturatedFatGrams: null,
+      transFatGrams: null,
+      unsaturatedFatGrams: null,
+      cholesterolMilligrams: null,
+      sodiumMilligrams: null,
+      carbohydrateGrams: null,
+      fiberGrams: null,
+      sugarGrams: null,
+      proteinGrams: null,
+    },
+    ingredientGroups: [
+      {
+        id: 'g1',
+        heading: 'For the crust',
+        lines: [
+          {
+            id: 'l1',
+            originalText: '2 ½ cups flour',
+            status: 'parsed',
+            problem: null,
+            quantity: { kind: 'amount', low: { numerator: 5, denominator: 2 }, high: null },
+            quantitySpan: { start: 0, length: 3 },
+            unitCode: 'cup',
+            unitSpan: { start: 4, length: 4 },
+            item: 'flour',
+            note: null,
+          },
+        ],
+      },
+    ],
+    stepGroups: [{ id: 's1', heading: null, steps: [{ id: 'st1', text: 'Make the crust.' }] }],
+    equipment: ['9-inch pie dish'],
+    notes: ['Keeps two days.'],
+    keywords: ['pie', 'fall baking'],
+    courses: ['dessert'],
+    cuisines: ['american'],
+    diets: [],
+    allergens: [],
+    createdAt: '2026-11-01T12:00:00Z',
+    updatedAt: '2026-11-14T18:30:00Z',
+    archivedAt: null,
+    canEdit: true,
+    ...extra,
+  };
+}

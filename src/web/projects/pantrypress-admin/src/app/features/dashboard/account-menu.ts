@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { PpDropdown, PpDropdownItem, PpToaster } from '@pantrypress/ui';
 import { DocumentLoad } from '../../core/navigation/document-load';
+import { RecipeDrafts } from '../../core/recipes/recipe-drafts';
 import { SessionClient } from '../../core/session/session-client';
 import { PendingInvitation } from '../../core/sites/pending-invitation';
 
@@ -23,6 +24,7 @@ import { PendingInvitation } from '../../core/sites/pending-invitation';
 export class AccountMenu {
   private readonly sessions = inject(SessionClient);
   private readonly invitation = inject(PendingInvitation);
+  private readonly drafts = inject(RecipeDrafts);
   private readonly documents = inject(DocumentLoad);
   private readonly toaster = inject(PpToaster);
   private readonly busy = signal(false);
@@ -43,6 +45,8 @@ export class AccountMenu {
       const result = await this.sessions.signOut();
       if (result.ok) {
         this.invitation.clear();
+        // Unsaved recipe edits are the blogger's own words: they leave this device with the session (PP4.13).
+        this.drafts.clearAll();
         this.documents.to('/');
         return;
       }

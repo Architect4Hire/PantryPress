@@ -10,6 +10,7 @@ export type { PpButtonSize, PpButtonVariant } from './primitives/button/button-b
 export { PpButton } from './primitives/button/button';
 export { PpIconButton } from './primitives/icon-button/icon-button';
 export { PpField } from './primitives/field/field';
+export { PpFieldset } from './primitives/fieldset/fieldset';
 export { PpTextField } from './primitives/text-field/text-field';
 export { PpTextarea } from './primitives/textarea/textarea';
 export { PpSelect } from './primitives/select/select';
@@ -32,6 +33,8 @@ export { PpNotice } from './primitives/notice/notice';
 export { PpEmptyState } from './primitives/empty-state/empty-state';
 export { PpProgress } from './primitives/progress/progress';
 export { PpStatusPill } from './primitives/status-pill/status-pill';
+export type { PpSaveState } from './primitives/save-status/save-status';
+export { PpSaveStatus } from './primitives/save-status/save-status';
 export type { PpListStatus, PpPageTurn, PpSortOption } from './primitives/list/list';
 export { PpList } from './primitives/list/list';
 export { PpSearchField } from './primitives/search-field/search-field';

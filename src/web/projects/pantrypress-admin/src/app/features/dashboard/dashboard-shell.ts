@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { isSameScreen } from '../../core/navigation/same-screen';
 import { AccountMenu } from './account-menu';
 import { DashboardSites } from './dashboard-sites';
 import { SITE_SECTIONS } from './site-sections';
@@ -57,7 +58,9 @@ export class DashboardShell {
       // A move that changes only the query - a search, a filter, a tab (PP4.12b) - stays on the same screen, so focus
       // stays on the control the reader used; moving it would break the tabs pattern and make a select navigate (3.2.2).
       const bare = event.urlAfterRedirects.split(/[?#]/)[0];
-      const samePath = path === bare;
+      // A move that only gives the screen its address - a new recipe getting its id (PP4.13) - stays put too.
+      const navigation = router.currentNavigation() ?? router.lastSuccessfulNavigation();
+      const samePath = path === bare || isSameScreen(navigation?.extras.state);
       path = bare;
       // Navigation 1 is the document's own first; every later one is a move the reader made.
       if (event.id > 1 && !samePath) {

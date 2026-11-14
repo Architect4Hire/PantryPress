@@ -497,6 +497,23 @@
     </ng-template>
   </ppa-specimen>
 
+  <ppa-specimen
+    anchor="save-status"
+    heading="Save status"
+    use="Where an autosaved screen's work stands. It speaks only when saving runs into trouble, and when it recovers."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <div class="row">
+        <pp-save-status state="saved" detail="Last saved 3:42 PM" />
+        <pp-save-status state="pending" />
+        <pp-save-status state="saving" />
+        <pp-save-status state="retrying" detail="Your changes are kept on this device." />
+        <pp-save-status state="failed" detail="Fix what's marked below." />
+      </div>
+    </ng-template>
+  </ppa-specimen>
+
   <!-- Data (PP3.5) -->
 
   <ppa-specimen
@@ -598,6 +615,53 @@
         [formControl]="panel.periodChip"
       />
       <pp-chip-group legend="Diet" [options]="panel.diets" [formControl]="panel.disabledChips" />
+      <pp-chip-group
+        legend="Cuisine"
+        [options]="panel.courses"
+        [formControl]="panel.courseChips"
+        error="Choose up to 5 cuisines."
+      />
+    </ng-template>
+  </ppa-specimen>
+
+  <ppa-specimen
+    anchor="fieldset"
+    heading="Fieldset"
+    use="A few fields that answer one question together, with one error for all of them."
+    [panels]="panels"
+  >
+    <ng-template ppaPanel>
+      <pp-fieldset legend="Prep time">
+        <pp-field label="Hours">
+          <input pp-text-field inputmode="numeric" value="1" />
+        </pp-field>
+        <pp-field label="Minutes">
+          <input pp-text-field inputmode="numeric" value="30" />
+        </pp-field>
+      </pp-fieldset>
+      <pp-fieldset
+        #cook="ppFieldset"
+        legend="Cook time"
+        error="Enter whole hours and minutes, like 1 and 30."
+      >
+        <pp-field label="Hours">
+          <input
+            pp-text-field
+            inputmode="numeric"
+            value="one"
+            [aria-describedby]="cook.describedBy()"
+            [aria-invalid]="cook.invalid()"
+          />
+        </pp-field>
+        <pp-field label="Minutes">
+          <input
+            pp-text-field
+            inputmode="numeric"
+            [aria-describedby]="cook.describedBy()"
+            [aria-invalid]="cook.invalid()"
+          />
+        </pp-field>
+      </pp-fieldset>
     </ng-template>
   </ppa-specimen>
 

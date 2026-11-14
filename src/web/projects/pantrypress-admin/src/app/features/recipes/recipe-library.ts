@@ -12,7 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import {
   PpButton,
   PpEmptyState,
@@ -103,6 +103,7 @@ function sameFilters(a: LibraryFilters, b: LibraryFilters): boolean {
     PpStatusPill,
     PpTab,
     PpTabs,
+    RouterLink,
   ],
   templateUrl: './recipe-library.html',
   styleUrl: './recipe-library.css',
@@ -248,6 +249,19 @@ export class RecipeLibrary {
 
   protected restore(recipe: RecipeSummary): Promise<void> {
     return this.change(recipe, 'restore');
+  }
+
+  /** The editor for a new recipe (PP4.13). */
+  protected readonly newRecipe = computed(() => [
+    '/dashboard/sites',
+    this.slug() ?? '',
+    'recipes',
+    'new',
+  ]);
+
+  /** A recipe's editor (PP4.13), where a recipe the caller may only read is shown as such. */
+  protected editorFor(recipe: RecipeSummary): string[] {
+    return ['/dashboard/sites', this.slug() ?? '', 'recipes', recipe.id];
   }
 
   /** When a recipe was last edited, in the site's own language and time zone. */

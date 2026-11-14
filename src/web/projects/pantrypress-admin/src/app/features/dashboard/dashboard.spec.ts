@@ -9,6 +9,7 @@ import { ApiResult } from '../../core/api/api-problem';
 import { DocumentLoad } from '../../core/navigation/document-load';
 import { AccountClient } from '../../core/session/account-client';
 import { SessionClient, SessionView } from '../../core/session/session-client';
+import { RecipeDrafts } from '../../core/recipes/recipe-drafts';
 import { PendingInvitation } from '../../core/sites/pending-invitation';
 import { SiteDetail, SitePage, SitesClient, SiteSummary } from '../../core/sites/sites-client';
 import dashboardRoutes from './dashboard.routes';
@@ -332,9 +333,11 @@ describe('the account menu (PP3.9)', () => {
     );
   });
 
-  it('signs out at the API, forgets a waiting invitation, and loads the home page as a new document', async () => {
+  it('signs out at the API, forgets a waiting invitation and unsaved recipe edits, and loads the home page as a new document', async () => {
     const page = await open('/dashboard');
     TestBed.inject(PendingInvitation).keep('token=abc');
+    const draft = { recipeId: null, baseVersion: null, fields: {}, edited: [], outstanding: null };
+    TestBed.inject(RecipeDrafts).write('acct', 'apple-pie', null, draft);
     const announce = vi.spyOn(TestBed.inject(PpToaster), 'announce');
     page.button('Sign out').click();
     await page.settle();
@@ -342,6 +345,7 @@ describe('the account menu (PP3.9)', () => {
     expect(page.sessions.signOutCalls.made).toHaveLength(1);
     expect(page.documents.loaded).toEqual(['/']);
     expect(page.invitation()).toBeNull();
+    expect(TestBed.inject(RecipeDrafts).read('acct', 'apple-pie', null)).toBeNull();
   });
 
   it('keeps the session and says why when signing out is refused', async () => {

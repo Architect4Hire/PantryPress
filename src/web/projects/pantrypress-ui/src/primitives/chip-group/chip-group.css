@@ -83,3 +83,8 @@
   color: var(--disabled-ink);
   cursor: not-allowed;
 }
+
+/* The error sits under the chips, inside the group it describes (PP4.13). */
+.error {
+  margin-block-start: var(--space-2);
+}

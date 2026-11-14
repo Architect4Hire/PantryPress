@@ -42,6 +42,12 @@ const routes: Routes = [
             loadComponent: () => import('../recipes/recipe-library').then((m) => m.RecipeLibrary),
           },
           {
+            // `new` for a recipe not made yet, or the recipe's id (PP4.13). One route for both, so the screen stays the
+            // same one when a new recipe is given its address. No route title: the screen sets its own, with the recipe's.
+            path: 'recipes/:recipeId',
+            loadComponent: () => import('../recipes/recipe-editor').then((m) => m.RecipeEditor),
+          },
+          {
             path: '**',
             title: 'Page not found - PantryPress',
             loadComponent: () => import('./dashboard-not-found').then((m) => m.DashboardNotFound),

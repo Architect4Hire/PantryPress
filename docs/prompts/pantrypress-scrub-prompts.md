@@ -5204,13 +5204,105 @@ BEHAVIOR: Plan, wait for approval, implement.
   - The local `node_modules` was damaged (`@angular-devkit/core` had lost its `.js` files) and was restored with `npm ci`.
     Playwright's browsers were installed for this version.
 
-### PP4.13 Recipe editor: details, times, and yield
+### PP4.13 Recipe editor: details, times, and yield - done
 
 ```text
 SCOPE: Add the recipe editor shell with autosave and the details, times, and yield sections.
 CONSTRAINT: RCP-001, PNFR-007; Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
+
+*PP4.13 delivery note (done 2026-11-14):*
+
+- **Owner-approved choices** (2026-11-14):
+  - **Details** holds title, summary, and the course, cuisine, and diet chips. Allergens, keywords (separated by commas),
+    and video are behind a "More details" disclosure.
+  - Equipment, notes, and nutrition wait for a later slice, called PP4.13a here.
+  - Unsaved text is kept in local storage, and signing out clears it.
+  - A read-only "Total time" line is shown.
+- **What shipped.** There are no server changes; the routes and contracts are PP4.11's.
+  - **The screen.** `features/recipes/recipe-editor.*` serves `/dashboard/sites/{siteSlug}/recipes/{id}`, and `…/new` too.
+    - Both use one route, so the screen stays the same when a new recipe gets its id.
+    - The sections are Details, Times, and Yield, each a card with an `h2`.
+  - **Saving.** There is no Save button; the header's `pp-save-status` says where saving stands.
+  - **Times.** Each time is hours and minutes inside a `pp-fieldset`, with one error for both boxes. A box left empty is
+    "not entered"; `0` counts as entered.
+  - **Yield.** "Makes", "Up to", and "Of what".
+    - `recipe-amount.ts` reads `8`, `1.5`, `1 1/2`, `1½`, and `½` into exact fractions. It is a format only: ranges and
+      bounds are the server's to judge.
+  - **Autosave (PNFR-007), `recipe-autosave.ts`.**
+    - It saves 1.5 s after a pause, with one save in flight at a time.
+    - Every edit goes to `RecipeDrafts` at once. A draft is filed by account, site slug, and recipe (or `new`), and is
+      cleared when the server has it.
+    - A save that got no answer is sent again exactly (key, version, and body) before anything newer. "No answer" means
+      status 0, 408, 5xx, 429 with `Retry-After`, or `idempotency-key-in-use`. The backoff is 2, 4, 8, 15, then 30 s,
+      and the save goes at once when the browser comes back online.
+    - A save that still has no answer survives a reload. One older than 23 hours is let go, and the person is told,
+      because the server's memory of its key is 24 hours.
+    - Every other answer ends that key; the next save gets a new one.
+    - `recipe-changed`, and a 400 naming only parts the recipe no longer has, stop saving. The person then chooses "Keep
+      my changes" (their edited groups over the newer copy) or "Use the newer copy", which can be undone.
+    - `recipe-archived` offers Restore.
+    - `recipe-not-yours` makes the screen read-only. The text is kept on screen so the person can copy it, and "Show the
+      recipe as it is" sets it aside (also undoable).
+    - A new recipe is created by its first save that has a title, under a key kept in its draft. Its address then
+      changes with `SAME_SCREEN_STATE`, so focus stays where the person is typing. "Start a blank recipe" drops the
+      answer to any create already on its way, and can be undone.
+  - **Library (the PP4.12b hand-off).** "New recipe" is in the header and in the empty library, and every title links to
+    the editor. `recipe-not-found`, `not-found`, and `site-not-found` are one "We couldn't find that recipe".
+  - **`@pantrypress/ui`.**
+    - New: `PpSaveStatus`. It is not a live region; it speaks through the announcer only when trouble starts and when it
+      ends.
+    - New: `PpFieldset`.
+    - `PpChipGroup` takes an `error` (the `PpRadioGroup` pattern).
+    - All three are in the showcase.
+  - **Shell and account menu.** The shell leaves focus alone on a `SAME_SCREEN_STATE` navigation. Signing out clears
+    every draft, and no draft is written after that.
+  - **Rule.** `frontend.md` has a new "Autosave" paragraph.
+- **Reviews.** There were no blockers; everything below was fixed.
+  - `design-review`:
+    - M1: "More details" no longer closes when its error clears.
+    - M2: read-only and "gone" now say the text can't be saved and keep it on screen to copy. M3: they use `readonly`,
+      not `disabled`; only the chips are disabled.
+    - M4: one error per time, linked to both boxes. m4: each box is named "Prep time, hours" and so on.
+    - M5: chip errors now sit inside their group.
+    - M6: every discard can be undone.
+    - M7: Start over during a create.
+    - m1: no draft is written after sign-out. m2: the two lines are spoken as separate sentences. m3: the "We kept…"
+      offer appears only when nothing sends by itself.
+    - m5: wording for errors this screen can't fix. m6: "Changes not saved yet". m7: no account means no editor.
+    - m8: axe now checks the error, retrying, conflict, and read-only states.
+  - `api-contract-checker`:
+    - Major 1: same as M7.
+    - Major 2: what counts as edited is now measured against the server's answer, not the form at sending time.
+    - Minors 1–7: stale saves, a late create after leaving, a missing part treated as a change, 408, keywords that
+      contain commas kept as one, Start over status, and `site-not-found` on load.
+- **Not done, as reviewed.**
+  - Signing out with a save still waiting asks nothing. The draft is cleared as approved; a warning would need the menu
+    to know about the editor.
+  - A replayed answer after another tab moved the recipe shows the older copy until the next save gets 409. The
+    `Idempotent-Replayed` header is not read.
+  - A draft for a recipe that is gone at load is removed, since it can never be shown or saved.
+  - Equipment, notes, and nutrition belong to PP4.13a. Until PP4.14, an error about a part this screen doesn't show can
+    only be fixed by reloading.
+- **Hand-offs.**
+  - **PP4.14:** add the ingredient and step sections to this page and this autosave. Add their groups to
+    `RecipeFieldGroup`, and their error paths to `placeErrors`.
+  - **PP4.13a:** equipment, notes, and nutrition, the same way.
+  - **PP5 and PP10:** reuse `RecipeAutosave`'s shape for posts and the studio.
+- **Verification.**
+  - `npm run lint`: clean.
+  - `npm test`: ui 184 and admin 442 passed. The site suite was not run, because nothing in it changed.
+  - `ng build pantrypress-ui`, `ng build pantrypress-admin`, `check:admin-build` (7 documents, no inline script), and
+    `ng build pantrypress-site` all succeeded.
+  - `npx playwright test`:
+    - First run, before the review fixes: 213 of 213 passed.
+    - After the fixes: the editor flow passed 27 of 27 in Chromium, Firefox, and WebKit.
+    - First full run after the fixes: 218 passed and 1 failed. The failure was the showcase's axe pass over "the list's
+      other states", dark panel, in Chromium; the reason was not captured. It passed 6 of 6 run alone. The showcase
+      suite then passed 81 of 81, and a second full run passed 219 of 219. It is recorded as a flake under full
+      parallel load, likely its time limit, since the showcase gained two specimens.
+  - There was no .NET change, so `dotnet build` and `dotnet test` were not run.
 
 ### PP4.14 Recipe editor: ingredients and steps
 

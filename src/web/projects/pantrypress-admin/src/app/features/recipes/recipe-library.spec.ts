@@ -235,6 +235,24 @@ describe('the recipe library (PP4.12b)', () => {
     expect(view.main().querySelector('time')?.textContent).toBe('Nov 14, 2026');
   });
 
+  it('links every recipe to its editor, and offers a new one at the top (PP4.13)', async () => {
+    const view = await open(LIBRARY);
+    expect(
+      [...view.main().querySelectorAll<HTMLAnchorElement>('.recipe a.title')].map((a) => [
+        a.textContent?.trim(),
+        a.getAttribute('href'),
+      ]),
+    ).toEqual([
+      ['Apple pie', `${LIBRARY}/r1`],
+      ['Plum tart', `${LIBRARY}/r2`],
+    ]);
+    const add = view.main().querySelector<HTMLAnchorElement>('pp-page-header a');
+    expect([add?.textContent?.trim(), add?.getAttribute('href')]).toEqual([
+      'New recipe',
+      `${LIBRARY}/new`,
+    ]);
+  });
+
   it('reads the search, filters, and tab from the address, and asks the server for exactly those', async () => {
     const view = await open(`${LIBRARY}?q=pie&course=dessert&diet=vegan&archived=true`);
     expect(view.recipes.queries()[0]).toEqual({
@@ -310,6 +328,13 @@ describe('the recipe library (PP4.12b)', () => {
         .querySelector('pp-empty-state:not([hidden]) h2, .empty:not([hidden]) h2')
         ?.textContent?.trim(),
     ).toBe('No recipes yet');
+    // The empty library's next step is the first recipe (PP4.13).
+    expect(
+      [...empty.main().querySelectorAll<HTMLAnchorElement>('pp-empty-state a')].map((a) => [
+        a.textContent?.trim(),
+        a.getAttribute('href'),
+      ]),
+    ).toEqual([['New recipe', `${LIBRARY}/new`]]);
     TestBed.resetTestingModule();
 
     const archived = await open(`${LIBRARY}?archived=true`, (r) => r.listCalls.answer(page([])));

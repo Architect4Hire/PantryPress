@@ -1,7 +1,9 @@
 <pp-page-header
   heading="Recipes"
   description="Every recipe on this site, most recently edited first."
-/>
+>
+  <a ppPageActions pp-button variant="primary" [routerLink]="newRecipe()">New recipe</a>
+</pp-page-header>
 
 @if (vocabulary().kind === 'failed') {
   <pp-notice tone="info" class="degraded" announce>
@@ -95,7 +97,7 @@
       @for (recipe of items(); track recipe.id) {
         <li class="recipe">
           <div class="about">
-            <span class="title">{{ recipe.title }}</span>
+            <a class="title" [routerLink]="editorFor(recipe)">{{ recipe.title }}</a>
             <span class="meta">
               Edited <time [attr.datetime]="recipe.updatedAt">{{ edited(recipe.updatedAt) }}</time>
             </span>
@@ -153,7 +155,9 @@
         heading="No recipes yet"
         description="Recipes on this site will show up here."
         [level]="2"
-      />
+      >
+        <a pp-button [routerLink]="newRecipe()">New recipe</a>
+      </pp-empty-state>
     }
   </pp-list>
 </ng-template>

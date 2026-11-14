@@ -58,6 +58,18 @@ false`), and hydration runs without event replay or incremental hydration (on by
   stored 403 for a day - so it comes through signing in, and signing up and confirming in another
   tab, without ever entering an address. `/dashboard/join` takes it out of the address bar and accepts it as the page
   opens; the link is forgotten once accepted, refused for good, replaced, or on signing out from the account menu.
+- Autosave (PP4.13, PNFR-007): the recipe editor has no Save button. `RecipeAutosave` saves 1.5 seconds after a pause,
+  one save at a time, and `pp-save-status` in the page header says where saving stands - aloud only on trouble and on
+  recovery. Every edit is kept at once in `RecipeDrafts` (local storage, filed by account, site slug, and recipe or `new`)
+  until the server has it, and signing out from the account menu forgets every draft. A save sent and never answered is
+  sent again exactly - key, version, and body - before anything newer, because it may have landed; every other answer
+  ends that key. A recipe changed elsewhere (`recipe-changed`) is never overwritten unasked: the person keeps their
+  edited fields over the newer copy or takes the newer copy. A new recipe is made by its first save with a title, under a
+  key kept in its draft, and its address then changes with `SAME_SCREEN_STATE`, which the shell reads as a move that
+  keeps focus where it is. A recipe that cannot be changed (read-only, archived, gone) makes its text boxes `readonly`,
+  never `disabled`, so the words can still be read and copied; only the chips, which have no read-only state, are
+  disabled. Every way of setting typed words aside - the newer copy, a blank recipe, showing the recipe as it is - offers
+  Undo in its toast. The post editor and the design studio (PP5, PP10) are meant to reuse this shape.
 - The app's one `pp-toast-region` is in `app.html`, so every page has the polite announcer a notice speaks through;
   no screen or shell draws another.
 
