@@ -1,0 +1,24 @@
+# issues
+recommended description-missing
+recommended times-missing
+recommended yield-missing
+recommended ingredients-missing
+recommended instructions-missing
+recommended category-missing
+recommended cuisine-missing
+recommended keywords-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Tea",
+  "image": [
+    "https://cdn.example.com/tea.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Sam"
+  },
+  "datePublished": "2026-11-02T14:30:05Z"
+}

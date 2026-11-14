@@ -1,0 +1,19 @@
+# issues
+required image-missing
+recommended author-missing
+recommended date-published-missing
+recommended description-missing
+recommended times-missing
+recommended yield-missing
+recommended ingredients-missing
+recommended instructions-missing
+recommended category-missing
+recommended cuisine-missing
+recommended keywords-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Toast"
+}

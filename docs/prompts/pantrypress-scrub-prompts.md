@@ -4832,7 +4832,7 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
   - `dotnet test` over every test that runs without a container: passing.
   - Reviewers: `architecture-reviewer` and `test-gap-analyzer`, as above.
 
-### PP4.10 Recipe JSON-LD generator
+### PP4.10 Recipe JSON-LD generator - done
 
 ```text
 SCOPE: Implement deterministic schema.org Recipe JSON-LD from a published recipe revision, with a
@@ -4841,6 +4841,109 @@ CONSTRAINT: RCP-008; recipes.md.
 RESTRICTION: No inferred facts, ratings, or nutrition.
 BEHAVIOR: Verify the current schema vocabulary, plan, wait for approval, implement with golden tests.
 ```
+
+*PP4.10 delivery note (2026-11-14):*
+
+- **Vocabulary verified (2026-11-14).**
+  - schema.org V30.1 (2026-09-16): every `Recipe` property used is current, and `recipeIngredient` supersedes
+    `ingredients`. `NutritionInformation`'s names match `Nutrient`. `RestrictedDiet` still has exactly the 11 members
+    `Diets` maps to.
+  - Google's recipe guidance: required `name` and `image`; nutrition needs `recipeYield`; `totalTime` or both `prepTime`
+    and `cookTime`; no keyword repeating a category or cuisine.
+  - Google's video guidance: a `VideoObject` requires `name`, `thumbnailUrl`, and `uploadDate`.
+- **What shipped.** Pure code in Recipes' `Business/` and one contract. No endpoint, facade, migration, or page data. The
+  rules are in `recipes.md`, "JSON-LD (PP4.10)".
+  - `RecipeJsonLd.Write(snapshot, context)` gives the compact JSON-LD and the issues, in enum order.
+  - `RecipeJsonLdContext` and `RecipeJsonLdAuthor` carry what a revision does not hold: page address, images, author,
+    and publish date. Each address must be lower-case `https://` with RFC 3986 characters only and no user-info. The
+    date must be UTC.
+  - `Contracts/RecipeJsonLdIssue.cs`: 16 issues with pinned kebab-case names, and `RecipeJsonLdSeverity`
+    (`Required`, `Recommended`) through `RecipeJsonLdIssues.SeverityOf`. Severity is part of the contract, because the
+    preview and the readiness check outside this module will rank by it.
+- **Owner-approved choices** (decision log, 2026-11-14):
+  - A time entered as zero is written (`PT0M`).
+  - A video address alone is left out and reported (`video-not-described`).
+  - A keyword repeating the recipe's course or cuisine is left out (ASCII letters folded, white space at the ends
+    ignored).
+  - No step `url` or `name`.
+- **What differs from the plan.**
+  - Golden inputs are C# cases (`RecipeJsonLdCases`) whose lines go through the real parser, not hand-written snapshot
+    JSON. The generator reads only a line's text.
+  - A property test instead runs every generated recipe through `RecipeSnapshotJson` write and read, and requires
+    identical bytes.
+  - Each case is one `<case>.approved.txt`: the report, then the JSON-LD indented to be read. A test proves the compact
+    bytes are that JSON with its layout removed.
+  - The planned `prep-or-cook-time-missing` is two issues, `prep-time-missing` and `cook-time-missing`, so the report
+    says which is missing (the PP4.9 hand-off).
+  - The keyword comparison also ignores white space at the ends, after `"Italian "` slipped past it.
+- **From `public-site-reviewer`** (no blockers):
+  - One major, fixed: nutrition with no yield was written. Google requires the yield beside nutrition, so the whole
+    recipe would lose its rich result. Nutrition is now withheld until a yield exists, and
+    `yield-missing-for-nutrition` asks for one. The `nutrition-without-yield` golden was edited by hand.
+  - Minors fixed:
+    - the encoder is named (`JavaScriptEncoder.Default`);
+    - a blank title throws, since the table refuses one;
+    - the address check refuses user-info and non-RFC 3986 characters, replacing a check that did nothing;
+    - the ratings wording now matches PP12.8, which adds `aggregateRating` inside the Recipe.
+  - Minors recorded:
+    - The yield is the card's fraction text (`1½`, `2–3 loaves`), not a bare number. Whether Google reads it is for
+      RND-005's Rich Results test.
+    - A comma inside a keyword reads as two keywords, and repeats are kept. Both are written exactly, and both are pinned
+      by a test.
+    - There is no `@id` for PP7.10's graph. PP7.10 decides whether to add `{url}#recipe` or a graph-member form.
+    - Mixed `HowToStep` and `HowToSection` lists are valid schema.org. RND-005's Rich Results test should confirm Google
+      reads them.
+- **From `architecture-reviewer`** (no blockers or majors):
+  - Fixed: the weak determinism property (it compared shared lists) is replaced by the stored-revision round trip.
+  - Recorded: severity stays in `Contracts/`, as above.
+  - Recorded: the yield text and the recipe card (PP7.7) must share one formatter, with a test pinning them.
+  - Recorded: wire names are pinned with the tests' kebab helper. PP7.11 pins them through the API's serializer when
+    page data carries them.
+- **From `test-gap-analyzer`** (no blockers): four majors fixed.
+  - Every issue is now a property law, and so is issue order.
+  - Zero calories is written and not reported.
+  - The context is generated too: an author named in any words, and every part optional. `>` is asserted absent.
+  - A stored-revision round trip.
+  - Minors fixed:
+    - address edge cases;
+    - a null image;
+    - the images list is copied;
+    - groups with no lines;
+    - headings appear nowhere;
+    - no internal id is written (property);
+    - out-of-range enums;
+    - diet members unique;
+    - keyword commas, repeats, and Unicode white space.
+  - Not changed: steps and lines are written as stored, because the tables refuse blank ones (`CK_RecipeSteps_Text`,
+    `CK_RecipeIngredients_OriginalText`).
+- **Two-site test:** not owed. The code is pure and adds no site data path (all three reviewers agree).
+- **Hand-offs.**
+  - **PP7.11:**
+    - Reach the generator through a Recipes contract that answers a contract record (JSON plus issues).
+    - Build only from published revisions (PP-D04); the generator cannot tell them from drafts.
+    - Fill the context from the post, its media (16x9, 4x3, 1x1), and the site.
+    - Owes a two-site test that every address in the JSON-LD is on the site being built.
+  - **PP7.10:** Rich Results validation (RND-005), the `@id` and graph decision, and a test that every card style gives the
+    same JSON-LD (THM-009).
+  - **PP12.8:** add `aggregateRating` through a typed context input, from approved ratings only.
+  - **PP4.15 and POST-006:** word the issues in plain language, and rank them by severity.
+- **Not verified or left.**
+  - **Restore failure:** NuGet now reports a high-severity advisory against `Aspire.Hosting` 13.6.4
+    (GHSA-f7vh-h5g3-7jrh). With warnings as errors, restore fails. Every build and test here ran with
+    `-p:WarningsNotAsErrors=NU1903`, a command-line switch only; nothing committed changes it. Upgrading Aspire is a
+    separate decision.
+  - **Four whole-system hosting tests failed:** `AdminAppTests`, `DataResourceTests`, `ProjectHealthTests`, and
+    `AccountEmailEndToEndTests`. Each timed out waiting for the Angular `admin` resource to start. Nothing here touches a
+    resource, a host, or the front end.
+  - **Rich Results Test:** not run. It is RND-005's, at page level (PP7.10).
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 errors. The only warnings are the 8 NU1903 advisories.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`: 3,727 passed, and 4 failed (the hosting tests above).
+    - The SQL container tests ran and passed.
+    - The 141 JSON-LD tests all pass: 18 golden cases, unit tests, five cultures, and seven CsCheck properties at 5,000
+      cases each.
+  - Reviewers: `architecture-reviewer`, `public-site-reviewer`, and `test-gap-analyzer`, as above.
 
 ### PP4.11 Recipe CRUD endpoints
 

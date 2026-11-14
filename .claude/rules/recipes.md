@@ -295,10 +295,43 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   sets them, never inferred (RCP-006). The allergens are the US FDA's nine and the EU's fourteen together.
 - Only the Recipes module and the migrations name the vocabulary's tables (`DomainBoundaryTests`).
 
-## JSON-LD
+## JSON-LD (PP4.10)
 
-- One deterministic generator for schema.org `Recipe` with a missing-required-fields report (RCP-008).
-- `AggregateRating` only from real ratings. JSON-LD is identical across recipe card styles.
+- `RecipeJsonLd.Write(snapshot, context)` in `Business/` is the one generator of schema.org `Recipe` JSON-LD (RCP-008), from
+  a published revision's snapshot. It is pure and deterministic, like the scaler, and the recipe card's style never changes
+  it (THM-009). It answers the JSON and a missing-fields report (`RecipeJsonLdIssue`, kebab-case, pinned).
+  - Each issue is `Required` (no rich result without it: `image-missing`, `yield-missing-for-nutrition`) or `Recommended`.
+  - The report names facts, never fixes. The preview (PP4.15) and the readiness check (POST-006) word them.
+- What a revision does not hold is the page's: its address, images, author, and publish date (`RecipeJsonLdContext`), from
+  the post, its media, and the site (PP7.11). None is guessed. One left out is reported. Addresses are absolute HTTPS and
+  the date is UTC, written to the second.
+- Every fact is the blogger's (RCP-002, RCP-006):
+  - name, summary, ingredient lines (`OriginalText`, no group headings), and steps exactly as stored;
+  - times as entered, zero included (`PT0M`; owner decision), and their sum as `totalTime`. A missing prep or cook time is
+    reported by name;
+  - the yield as the card writes it at 1× (`8 servings`, `2–3 loaves`);
+  - courses and cuisines as their names, and diets as their `RestrictedDiet` member, left out where there is none;
+  - nutrition only as entered, as schema.org's text (`270 calories`, `14.5 grams`, `75 milligrams`), never the card's
+    `kcal`. A serving size alone is no nutrition. Nutrition is written only beside a yield, because Google requires one
+    with it and would otherwise refuse the whole recipe; until then it is withheld and `yield-missing-for-nutrition` asks.
+  - A blank title is a bug (the table refuses one) and throws. Steps and lines are written as stored; the tables refuse
+    blank ones.
+- A keyword that repeats the recipe's own course or cuisine is left out, compared with ASCII letters folded and its ends'
+  white space ignored; the rest stay as written (owner decision).
+- Never written:
+  - a rating or review: `aggregateRating` belongs inside the Recipe, and PP12.8 adds it here from approved ratings only,
+    through a typed input on the context (RND-005);
+  - a video, since an address alone cannot meet Google's title, thumbnail, and upload date; it is reported
+    (`video-not-described`; owner decision);
+  - allergens, equipment, notes, and a step's `url` or `name`.
+- Every character outside ASCII and every HTML-sensitive one is escaped by a named `JavaScriptEncoder.Default`, never a
+  relaxed one, so the output is ASCII and safe inside a `<script type="application/ld+json">` element. Context addresses are
+  lower-case `https://`, RFC 3986 characters only, with no user name or password.
+- Checked against schema.org V30.1 and Google's recipe and video guidance on 2026-11-14. A vocabulary change is a code
+  change with its golden files.
+- The golden files are `PantryPress.Tests/Recipes/Corpus/json-ld/<case>.approved.txt`, from `RecipeJsonLdCases`. Each is
+  the report and then the JSON-LD indented to be read; the compact bytes are the same with the layout removed. They are
+  approved by reading, with nothing that rewrites them.
 
 ## Tests
 

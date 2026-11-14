@@ -1,0 +1,32 @@
+# issues
+recommended description-missing
+recommended times-missing
+recommended yield-missing
+recommended ingredients-missing
+recommended instructions-missing
+recommended category-missing
+recommended cuisine-missing
+recommended keywords-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Lentil soup",
+  "url": "https://apple-pie.pantrypress.app/posts/brown-butter-apple-pie",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pie-16x9.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-4x3.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-1x1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "June Baker",
+    "url": "https://apple-pie.pantrypress.app/about"
+  },
+  "datePublished": "2026-11-02T14:30:05Z",
+  "suitableForDiet": [
+    "https://schema.org/VeganDiet",
+    "https://schema.org/GlutenFreeDiet"
+  ]
+}

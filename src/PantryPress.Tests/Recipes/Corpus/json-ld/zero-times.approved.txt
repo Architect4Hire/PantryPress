@@ -1,0 +1,38 @@
+# issues
+recommended description-missing
+recommended yield-missing
+recommended category-missing
+recommended cuisine-missing
+recommended keywords-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Overnight oats",
+  "url": "https://apple-pie.pantrypress.app/posts/brown-butter-apple-pie",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pie-16x9.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-4x3.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-1x1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "June Baker",
+    "url": "https://apple-pie.pantrypress.app/about"
+  },
+  "datePublished": "2026-11-02T14:30:05Z",
+  "prepTime": "PT5M",
+  "cookTime": "PT0M",
+  "totalTime": "PT8H5M",
+  "recipeIngredient": [
+    "1/2 cup oats",
+    "1/2 cup milk"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Stir and chill overnight."
+    }
+  ]
+}

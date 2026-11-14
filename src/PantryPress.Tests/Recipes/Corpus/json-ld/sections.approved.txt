@@ -1,0 +1,69 @@
+# issues
+recommended yield-missing
+recommended category-missing
+recommended cuisine-missing
+recommended keywords-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Layer cake",
+  "description": "Two layers, one frosting.",
+  "url": "https://apple-pie.pantrypress.app/posts/brown-butter-apple-pie",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pie-16x9.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-4x3.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-1x1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "June Baker",
+    "url": "https://apple-pie.pantrypress.app/about"
+  },
+  "datePublished": "2026-11-02T14:30:05Z",
+  "prepTime": "PT30M",
+  "cookTime": "PT35M",
+  "totalTime": "PT1H5M",
+  "recipeIngredient": [
+    "2 1/4 cups cake flour",
+    "1 1/2 cups sugar",
+    "3 eggs",
+    "1 cup butter, softened",
+    "3 cups powdered sugar"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Heat the oven to 350\u00B0F."
+    },
+    {
+      "@type": "HowToSection",
+      "name": "Cake",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "text": "Whisk the dry ingredients."
+        },
+        {
+          "@type": "HowToStep",
+          "text": "Beat in the eggs."
+        }
+      ]
+    },
+    {
+      "@type": "HowToSection",
+      "name": "Frosting",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "text": "Beat the butter until pale."
+        },
+        {
+          "@type": "HowToStep",
+          "text": "Add the sugar a cup at a time."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+# issues
+recommended times-missing
+recommended yield-missing
+recommended category-missing
+recommended cuisine-missing
+recommended calories-missing
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Cr\u00E8me br\u00FBl\u00E9e \u003C/script\u003E\u003Cscript\u003Ealert(1)\u003C/script\u003E \u0026 \u0022friends\u0022 \u0027too\u0027",
+  "description": "Line\u2028separator, paragraph\u2029separator, a tab\there, and a \uD83C\uDF6E.",
+  "url": "https://apple-pie.pantrypress.app/posts/brown-butter-apple-pie",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pie-16x9.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-4x3.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-1x1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "June Baker",
+    "url": "https://apple-pie.pantrypress.app/about"
+  },
+  "datePublished": "2026-11-02T14:30:05Z",
+  "keywords": "caf\u00E9, \u003Cb\u003Ebold\u003C/b\u003E",
+  "recipeIngredient": [
+    "2 cups cr\u00E8me fra\u00EEche \u003Cb\u003E",
+    "1 pinch sel de Gu\u00E9rande \u0026 pepper"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToSection",
+      "name": "Bake \u003Cnow\u003E",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "text": "Heat to 150\u00B0C \u2192 bake 40 min."
+        }
+      ]
+    }
+  ]
+}
