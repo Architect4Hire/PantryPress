@@ -272,6 +272,48 @@ public sealed class RecipesFacadeTests(MigratedDatabase database) : IAsyncLifeti
         Assert.Equal([true, false, true, false, true], made.Select(m => seen.Single(s => s.Id == m.Id).CanEdit));
     }
 
+    // PP4.12a: a search finds words anywhere in the title, ignoring case and accents, and a wildcard only as itself; each
+    // code narrows by its own list; filters combine; the archived tab is searched alone; and a filtered list pages whole.
+    [Fact]
+    public async Task The_library_is_searched_and_filtered_on_the_server()
+    {
+        var world = await _harness.SeedAsync("rcf-search");
+        var creme = await CreateAsync(world.A, world.A.Owner, RecipeEditorTests.Content("Crème brûlée") with { Courses = ["dessert"], Cuisines = ["french"], Diets = [] });
+        var percent = await CreateAsync(world.A, world.A.Owner, RecipeEditorTests.Content("100% rye bread") with { Courses = ["bread"], Cuisines = [], Diets = ["vegan"] });
+        var under = await CreateAsync(world.A, world.A.Owner, RecipeEditorTests.Content("Pie_crust") with { Courses = ["dessert"], Cuisines = ["american"], Diets = ["vegetarian"] });
+        var plain = await CreateAsync(world.A, world.A.Owner, RecipeEditorTests.Content("Pie crust") with { Courses = ["dessert"], Cuisines = ["american"], Diets = ["vegetarian"] });
+        var archived = await CreateAsync(world.A, world.A.Owner, RecipeEditorTests.Content("Crème caramel"));
+        Assert.True((await CallAsync(world.A, world.A.Owner, f => f.ArchiveAsync(world.A.Owner, world.A.Slug, new RecipeId(archived.Id), default))).IsSuccess);
+
+        async Task<Guid[]> Ids(ListRecipesQuery query) => [.. (await ListAsync(world.A, world.A.Owner, query)).Select(r => r.Id).Order()];
+        Guid[] Of(params RecipeDetail[] recipes) => [.. recipes.Select(r => r.Id).Order()];
+
+        Assert.Equal(Of(creme), await Ids(new(null, null, null, "creme")));
+        Assert.Equal(Of(creme), await Ids(new(null, null, null, "  BRULEE ")));
+        Assert.Equal(Of(archived), await Ids(new(null, null, true, "creme")));
+        Assert.Equal(Of(percent), await Ids(new(null, null, null, "0%")));
+        Assert.Equal(Of(under), await Ids(new(null, null, null, "e_c")));
+        Assert.Equal(Of(under, plain), await Ids(new(null, null, null, "crust")));
+        Assert.Equal(Of(creme, under, plain), await Ids(new(null, null, null, null, "dessert")));
+        Assert.Equal(Of(creme), await Ids(new(null, null, null, null, "dessert", "french")));
+        Assert.Equal(Of(percent), await Ids(new(null, null, null, null, null, null, "vegan")));
+        Assert.Equal(Of(plain), await Ids(new(null, null, null, "pie crust", "dessert", "american", "vegetarian")));
+        Assert.Empty(await Ids(new(null, null, null, "pie", "bread")));
+        Assert.Equal(Of(creme, percent, under, plain), await Ids(new(null, null, null, " ")));
+
+        var seen = new List<Guid>();
+        string? cursor = null;
+        do
+        {
+            var page = Succeeded(await CallAsync(world.A, world.A.Owner, f => f.ListAsync(world.A.Owner, world.A.Slug, new ListRecipesQuery(1, cursor, null, null, "dessert"), default)));
+            seen.AddRange(page.Items.Select(i => i.Id));
+            cursor = page.NextCursor;
+        }
+        while (cursor is not null);
+
+        Assert.Equal(Of(creme, under, plain), seen.Order().ToArray());
+    }
+
     // Unknown and missing are one answer, and nothing is entered or written for them.
     [Fact]
     public async Task An_unknown_recipe_is_not_found_on_every_call()
@@ -575,8 +617,8 @@ public sealed class RecipesFacadeTests(MigratedDatabase database) : IAsyncLifeti
 
     private static Guid? Named(Guid? id, Guid? named) => named is not null && id == named ? id : null;
 
-    private async Task<RecipeDetail> CreateAsync(SeededSite site, AccountId account) =>
-        Succeeded(await CallAsync(site, account, f => f.CreateAsync(account, site.Slug, RecipeEditorTests.Content(), default)));
+    private async Task<RecipeDetail> CreateAsync(SeededSite site, AccountId account, RecipeContent? content = null) =>
+        Succeeded(await CallAsync(site, account, f => f.CreateAsync(account, site.Slug, content ?? RecipeEditorTests.Content(), default)));
 
     private Task<Result<RecipeDetail>> UpdateAsync(SeededSite site, AccountId account, RecipeDetail read, RecipeContent content) =>
         CallAsync(site, account, f => f.UpdateAsync(account, site.Slug, new RecipeId(read.Id), new UpdateRecipeRequest(read.Version, content), default));

@@ -138,6 +138,7 @@ public sealed class ApiServiceHostTests
                 "/api/v1/sites/{siteSlug}/recipes",
                 "/api/v1/sites/{siteSlug}/recipes/paste/ingredients",
                 "/api/v1/sites/{siteSlug}/recipes/paste/steps",
+                "/api/v1/sites/{siteSlug}/recipes/vocabulary",
                 "/api/v1/sites/{siteSlug}/recipes/{recipeId}",
                 "/api/v1/sites/{siteSlug}/recipes/{recipeId}/archive",
                 "/api/v1/sites/{siteSlug}/recipes/{recipeId}/duplicate",

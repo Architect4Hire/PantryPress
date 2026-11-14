@@ -302,16 +302,63 @@ public sealed class RecipeEditorTests
     public void A_list_cursor_reads_back_only_in_its_own_spelling()
     {
         var position = new RecipeListPosition(new DateTimeOffset(2026, 11, 14, 12, 0, 0, 1, TimeSpan.Zero).AddTicks(7), new RecipeId(Guid.NewGuid()));
-        var cursor = RecipeListCursor.After(position);
+        var library = RecipeListFilter.Library;
+        var cursor = RecipeListCursor.After(position, library);
 
-        Assert.True(RecipeListCursor.TryRead(cursor, out var read));
+        Assert.True(RecipeListCursor.TryRead(cursor, library, out var read));
         Assert.Equal(position, read);
-        Assert.False(RecipeListCursor.TryRead(cursor + "=", out _));
-        Assert.False(RecipeListCursor.TryRead(cursor[..^1], out _));
-        Assert.False(RecipeListCursor.TryRead(string.Empty, out _));
-        Assert.False(RecipeListCursor.TryRead(null, out _));
-        Assert.False(RecipeListCursor.TryRead(new string('A', 65), out _));
+        Assert.False(RecipeListCursor.TryRead(cursor + "=", library, out _));
+        Assert.False(RecipeListCursor.TryRead(cursor[..^1], library, out _));
+        Assert.False(RecipeListCursor.TryRead(string.Empty, library, out _));
+        Assert.False(RecipeListCursor.TryRead(null, library, out _));
+        Assert.False(RecipeListCursor.TryRead(new string('A', 65), library, out _));
     }
+
+    // PP4.12a: a cursor continues only the list it came from. Each change of tab, search, or filter is another list, and the
+    // same list asked again - its search with other white space at its ends - is the same one.
+    [Fact]
+    public void A_list_cursor_is_read_only_under_its_own_filter()
+    {
+        var position = new RecipeListPosition(new DateTimeOffset(2026, 11, 14, 12, 0, 0, TimeSpan.Zero), new RecipeId(Guid.NewGuid()));
+        var filter = RecipeListFilter.From(new ListRecipesQuery(null, null, null, "pie", "dessert", "american", "vegetarian"));
+        var cursor = RecipeListCursor.After(position, filter);
+
+        Assert.True(RecipeListCursor.TryRead(cursor, RecipeListFilter.From(new ListRecipesQuery(5, "x", false, "  pie\t", "dessert", "american", "vegetarian")), out var read));
+        Assert.Equal(position, read);
+        ListRecipesQuery[] others =
+        [
+            new(null, null, null),
+            new(null, null, true, "pie", "dessert", "american", "vegetarian"),
+            new(null, null, null, "Pie", "dessert", "american", "vegetarian"),
+            new(null, null, null, "pie", "bread", "american", "vegetarian"),
+            new(null, null, null, "pie", "dessert", "italian", "vegetarian"),
+            new(null, null, null, "pie", "dessert", "american", "vegan"),
+            new(null, null, null, "pie", null, "american", "vegetarian"),
+            new(null, null, null, "pie", "american", "dessert", "vegetarian"),
+        ];
+        Assert.All(others, q => Assert.False(RecipeListCursor.TryRead(cursor, RecipeListFilter.From(q), out _)));
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData(" \t ", null)]
+    [InlineData("  apple pie ", "apple pie")]
+    public void A_search_is_trimmed_and_blank_is_none(string? search, string? expected)
+    {
+        var filter = RecipeListFilter.From(new ListRecipesQuery(null, null, null, search, string.Empty, string.Empty, string.Empty));
+        Assert.Equal(expected, filter.Search);
+        Assert.Equal((null, null, null), (filter.Course, filter.Cuisine, filter.Diet));
+    }
+
+    [Theory]
+    [InlineData("pie", "%pie%")]
+    [InlineData("50%", @"%50\%%")]
+    [InlineData("a_b", @"%a\_b%")]
+    [InlineData("[new]", @"%\[new]%")]
+    [InlineData(@"back\slash", @"%back\\slash%")]
+    public void A_search_finds_its_own_characters_never_a_wildcard(string search, string pattern) =>
+        Assert.Equal(pattern, Domain.Modules.Recipes.Repositories.RecipeRepository.ContainsPattern(search));
 
     // ---- The validators ----
 
@@ -529,6 +576,38 @@ public sealed class RecipeEditorTests
     [InlineData(100, "nonsense", false)]
     public void A_page_asks_for_1_to_100_from_a_cursor_the_list_gave(int? limit, string? cursor, bool valid) =>
         Assert.Equal(valid, new ListRecipesQueryValidator().Validate(new ListRecipesQuery(limit, cursor, null)).IsValid);
+
+    // PP4.12a: a search is up to 100 characters once trimmed, on one line, well formed; a code is the vocabulary's own,
+    // exactly, in its own list; an empty code is none; and a cursor is read under the query's own filter.
+    public static TheoryData<ListRecipesQuery, string[]> ListChecks
+    {
+        get
+        {
+            var libraryCursor = RecipeListCursor.After(new RecipeListPosition(Now, new RecipeId(Guid.NewGuid())), RecipeListFilter.Library);
+            return new()
+            {
+                { new ListRecipesQuery(null, null, null, new string('a', RecipeListFilter.MaxSearchLength) + "  "), [] },
+                { new ListRecipesQuery(null, null, null, new string('a', RecipeListFilter.MaxSearchLength + 1)), ["Search"] },
+                { new ListRecipesQuery(null, null, null, "apple\npie"), ["Search"] },
+                { new ListRecipesQuery(null, null, null, "apple" + (char)0xD83C), ["Search"] },
+                { new ListRecipesQuery(null, null, null, "apple\tpie"), [] },
+                { new ListRecipesQuery(null, null, null, null, "dessert", "american", "vegetarian"), [] },
+                { new ListRecipesQuery(null, null, null, null, string.Empty, string.Empty, string.Empty), [] },
+                { new ListRecipesQuery(null, null, null, null, "Dessert", "nowhere", "vegetarian "), ["Course", "Cuisine", "Diet"] },
+                { new ListRecipesQuery(null, null, null, null, "american", "dessert", "milk"), ["Course", "Cuisine", "Diet"] },
+                { new ListRecipesQuery(null, libraryCursor, true), ["Cursor"] },
+                { new ListRecipesQuery(null, libraryCursor, false, "pie"), ["Cursor"] },
+                { new ListRecipesQuery(null, libraryCursor, false, " "), [] },
+            };
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(ListChecks))]
+    public void A_list_search_and_filters_are_checked_before_anything_is_read(ListRecipesQuery query, string[] fields) =>
+        Assert.Equal(
+            fields,
+            new ListRecipesQueryValidator().Validate(query).Errors.Select(e => e.PropertyName).Distinct().Order(StringComparer.Ordinal));
 
     private static Dictionary<string, string[]> Failures(RecipeContent content) =>
         new RecipeContentValidator().Validate(content).Errors

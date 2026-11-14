@@ -34,7 +34,8 @@ public interface IRecipesFacade
     Task<Result<RecipeDetail>> GetAsync(AccountId account, string siteSlug, RecipeId recipe, CancellationToken cancellationToken);
 
     /// <summary>
-    /// The site's recipes, most recently edited first, a page at a time: those in the library, or the archived ones.
+    /// The site's recipes, most recently edited first, a page at a time: those in the library, or the archived ones, narrowed
+    /// by words in the title and by a course, a cuisine, and a diet, all at once (PP4.12a).
     /// </summary>
     Task<Result<RecipeSummaryPage>> ListAsync(
         AccountId account,
@@ -75,6 +76,12 @@ public interface IRecipesFacade
         string siteSlug,
         RecipeId recipe,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The words a recipe is filed under (PP4.1, PP4.12a): every course, cuisine, diet, and allergen, by code and name, in
+    /// the vocabulary's own order. Platform reference data: the same for every site, and nothing of any site's.
+    /// </summary>
+    RecipeVocabulary GetVocabulary();
 }
 
 /// <summary>An exact amount, never floating point (PP-D05): a fraction with both terms from 1 to 1,000,000.</summary>
@@ -195,9 +202,25 @@ public sealed record UpdateRecipeRequest(string? Version, RecipeContent? Content
 
 /// <summary>Which recipes to list, and where the page starts.</summary>
 /// <param name="Limit">How many at most, 1 to 100; none means 50.</param>
-/// <param name="Cursor">The <c>nextCursor</c> of the page before, as given; none for the first page.</param>
+/// <param name="Cursor">
+/// The <c>nextCursor</c> of the page before, as given, with the same search and filters; none for the first page.
+/// </param>
 /// <param name="Archived">True for the archived recipes; none or false for the library.</param>
-public sealed record ListRecipesQuery(int? Limit, string? Cursor, bool? Archived);
+/// <param name="Search">
+/// Text the title contains, as typed, ignoring case and accents, up to 100 characters on one line once the white space at its ends is
+/// left off; none, or only white space, for any title.
+/// </param>
+/// <param name="CourseCode">Only recipes filed under this course code; none for any.</param>
+/// <param name="CuisineCode">Only recipes filed under this cuisine code; none for any.</param>
+/// <param name="DietCode">Only recipes labeled with this diet code; none for any.</param>
+public sealed record ListRecipesQuery(
+    int? Limit,
+    string? Cursor,
+    bool? Archived,
+    string? Search = null,
+    string? CourseCode = null,
+    string? CuisineCode = null,
+    string? DietCode = null);
 
 /// <summary>A page of recipes.</summary>
 /// <param name="Items">The recipes, most recently edited first.</param>
@@ -304,3 +327,19 @@ public sealed record RecipeStepGroupDetail(Guid Id, string? Heading, IReadOnlyLi
 /// <param name="Id">The step's id, to send back to keep it.</param>
 /// <param name="Text">The step in the blogger's words.</param>
 public sealed record RecipeStepDetail(Guid Id, string Text);
+
+/// <summary>One word of the recipe vocabulary.</summary>
+/// <param name="Code">Its stable code, which a recipe stores and the API sends; it never changes.</param>
+/// <param name="Name">What it is called, for display.</param>
+public sealed record RecipeVocabularyWord(string Code, string Name);
+
+/// <summary>The words a recipe is filed under, each list in the vocabulary's own order (PP4.1).</summary>
+/// <param name="Courses">Every course.</param>
+/// <param name="Cuisines">Every cuisine.</param>
+/// <param name="Diets">Every diet, which a blogger sets and PantryPress never infers (RCP-006).</param>
+/// <param name="Allergens">Every allergen, which a blogger sets and PantryPress never infers (RCP-006).</param>
+public sealed record RecipeVocabulary(
+    IReadOnlyList<RecipeVocabularyWord> Courses,
+    IReadOnlyList<RecipeVocabularyWord> Cuisines,
+    IReadOnlyList<RecipeVocabularyWord> Diets,
+    IReadOnlyList<RecipeVocabularyWord> Allergens);

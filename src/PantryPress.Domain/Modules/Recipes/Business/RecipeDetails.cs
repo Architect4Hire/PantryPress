@@ -10,6 +10,16 @@ namespace PantryPress.Domain.Modules.Recipes.Business;
 internal static class RecipeDetails
 {
     /// <summary>
+    /// The recipe vocabulary as the API answers it (PP4.12a): platform reference data held as code (PP4.1), the same lists the
+    /// tables are seeded from, so it reads no database and no site, and every member of every site gets the same answer.
+    /// </summary>
+    public static RecipeVocabulary Vocabulary { get; } = new(
+        [.. Courses.All.Select(w => new RecipeVocabularyWord(w.Code, w.Name))],
+        [.. Cuisines.All.Select(w => new RecipeVocabularyWord(w.Code, w.Name))],
+        [.. Diets.All.Select(d => new RecipeVocabularyWord(d.Code, d.Name))],
+        [.. Allergens.All.Select(w => new RecipeVocabularyWord(w.Code, w.Name))]);
+
+    /// <summary>
     /// The recipe whole. An unparsed line is read again for its reason, which is not stored (PP4.5): the parser is
     /// deterministic, so the reason is the one it had when the line was saved, unless the parser has changed since.
     /// </summary>

@@ -20,7 +20,28 @@ public sealed class RecipesApiContractTests
         { One + "/archive", "post", ["204", "400", "401", "403", "404", "409", "413", "422", "429", "500", "502", "504"] },
         { One + "/restore", "post", ["204", "400", "401", "403", "404", "409", "413", "422", "429", "500", "502", "504"] },
         { One + "/duplicate", "post", ["201", "400", "401", "403", "404", "409", "413", "422", "429", "500", "502", "504"] },
+        { List + "/vocabulary", "get", ["200", "401", "404", "413", "429", "500", "502", "504"] },
     };
+
+    // PP4.12a: the list's search and filters are query parameters the admin client is written from, and its 400 says what
+    // each refusal means, the cursor's binding to them included.
+    [Fact]
+    public async Task The_list_declares_its_search_and_filters()
+    {
+        using var document = await AdminDocumentAsync();
+        var get = document.RootElement.GetProperty("paths").GetProperty(List).GetProperty("get");
+
+        Assert.Equal(
+            ["siteSlug", "limit", "cursor", "archived", "search", "course", "cuisine", "diet"],
+            get.GetProperty("parameters").EnumerateArray().Select(p => p.GetProperty("name").GetString()));
+        var invalid = Description(get, "400");
+        foreach (var said in new[] { "same search, filters, and archived", "longer than 100 characters", "code in the vocabulary" })
+        {
+            Assert.Contains(said, invalid, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("same search, filters, and archived", get.GetProperty("description").GetString(), StringComparison.Ordinal);
+    }
 
     [Theory]
     [MemberData(nameof(Answers))]
@@ -102,6 +123,8 @@ public sealed class RecipesApiContractTests
         Assert.Equal(["numerator", "denominator"], Properties(schemas, "RecipeFraction"));
         Assert.Equal(["items", "nextCursor"], Properties(schemas, "RecipeSummaryPage"));
         Assert.Equal(["id", "title", "updatedAt", "archivedAt", "canEdit"], Properties(schemas, "RecipeSummary"));
+        Assert.Equal(["courses", "cuisines", "diets", "allergens"], Properties(schemas, "RecipeVocabulary"));
+        Assert.Equal(["code", "name"], Properties(schemas, "RecipeVocabularyWord"));
         Assert.Equal(
             [
                 "servingSize", "calories", "fatGrams", "saturatedFatGrams", "transFatGrams", "unsaturatedFatGrams",

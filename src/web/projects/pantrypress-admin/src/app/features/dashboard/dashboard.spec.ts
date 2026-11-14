@@ -267,6 +267,7 @@ describe('the dashboard shell (PP3.9)', () => {
     expect(page.links('nav')).toEqual([
       { text: 'Your sites', href: '/dashboard', current: null },
       { text: 'Overview', href: '/dashboard/sites/apple-pie', current: 'page' },
+      { text: 'Recipes', href: '/dashboard/sites/apple-pie/recipes', current: null },
     ]);
   });
 

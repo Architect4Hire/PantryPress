@@ -49,9 +49,18 @@ export class DashboardShell {
   constructor() {
     void this.sites.refreshMine();
     const router = inject(Router);
+    let path: string | null = null;
     const subscription = router.events.subscribe((event) => {
+      if (!(event instanceof NavigationEnd)) {
+        return;
+      }
+      // A move that changes only the query - a search, a filter, a tab (PP4.12b) - stays on the same screen, so focus
+      // stays on the control the reader used; moving it would break the tabs pattern and make a select navigate (3.2.2).
+      const bare = event.urlAfterRedirects.split(/[?#]/)[0];
+      const samePath = path === bare;
+      path = bare;
       // Navigation 1 is the document's own first; every later one is a move the reader made.
-      if (event instanceof NavigationEnd && event.id > 1) {
+      if (event.id > 1 && !samePath) {
         afterNextRender(() => this.focusScreen(), { injector: this.injector });
       }
     });

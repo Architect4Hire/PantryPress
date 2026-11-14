@@ -13,6 +13,37 @@ namespace PantryPress.Domain.Modules.Recipes.Repositories;
 internal sealed class RecipeRepository(PantryPressDbContext db, ISiteContext siteContext)
 {
     /// <summary>
+    /// How a library search compares a title (PP4.12a): ignoring case and accents, so "creme" finds "Crème", and the same in
+    /// every database whatever its default collation.
+    /// </summary>
+    public const string SearchCollation = "Latin1_General_100_CI_AI";
+
+    /// <summary>The escape character of <see cref="ContainsPattern"/>.</summary>
+    public const string LikeEscape = @"\";
+
+    /// <summary>
+    /// A LIKE pattern that finds <paramref name="text"/> anywhere, as typed: every LIKE wildcard in it (<c>%</c>, <c>_</c>,
+    /// <c>[</c>) and the escape itself are escaped with <see cref="LikeEscape"/>, so a search for <c>50%</c> or <c>[new]</c>
+    /// finds exactly those characters.
+    /// </summary>
+    public static string ContainsPattern(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var escaped = new System.Text.StringBuilder(text.Length + 8).Append('%');
+        foreach (var c in text)
+        {
+            if (c is '\\' or '%' or '_' or '[')
+            {
+                escaped.Append('\\');
+            }
+
+            escaped.Append(c);
+        }
+
+        return escaped.Append('%').ToString();
+    }
+
+    /// <summary>
     /// The recipe, untracked, with its row held under an update lock until the transaction ends, or null. Every change to
     /// a recipe or any part of it moves this row in the same transaction (PP4.11), so while the lock is held no edit can
     /// commit, and what is read after it is one whole recipe, never half of an edit. The raw query names the request's
@@ -62,17 +93,25 @@ internal sealed class RecipeRepository(PantryPressDbContext db, ISiteContext sit
     }
 
     /// <summary>
-    /// Up to <paramref name="take"/> of the site's recipes, archived or in the library, most recently edited first, after
-    /// <paramref name="after"/> (PP4.11). The keyset comparison is SQL Server's own uniqueidentifier order, the same order
-    /// the list is sorted in, so a page after a cursor never repeats a recipe that has not been edited since. The raw query
-    /// names the site as well, and the filter applies over it as usual.
+    /// Up to <paramref name="take"/> of the site's recipes that <paramref name="filter"/> holds, most recently edited first,
+    /// after <paramref name="after"/> (PP4.11, PP4.12a). The keyset comparison is SQL Server's own uniqueidentifier order, the
+    /// same order the list is sorted in, so a page after a cursor never repeats a recipe that has not been edited since. The
+    /// raw query names the site as well, and the filter applies over it as usual.
+    /// <para>
+    /// The search is a LIKE over the title under an explicit case- and accent-insensitive collation, so what it finds never
+    /// depends on the database's default; its wildcards are escaped. Each code is an <c>EXISTS</c> on its join table, keyed
+    /// by the site filter and correlated on the recipe's own site and id, so it is a seek on the join table's key
+    /// <c>(SiteId, RecipeId, Code)</c>; the <c>(SiteId, Code)</c> index serves the optimizer if it drives from the join.
+    /// </para>
     /// </summary>
     public Task<List<Recipe>> ListPageAsync(
-        bool archived,
+        RecipeListFilter filter,
         RecipeListPosition? after,
         int take,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(filter);
+        var archived = filter.Archived;
         var site = siteContext.Required.Value;
         var recipes = after is { } position
             ? db.Set<Recipe>().FromSql($"""
@@ -82,9 +121,31 @@ internal sealed class RecipeRepository(PantryPressDbContext db, ISiteContext sit
                     OR ([UpdatedAt] = {position.UpdatedAt} AND [Id] < {position.Recipe.Value}))
                 """)
             : db.Set<Recipe>();
-        return recipes
+        var query = recipes
             .AsNoTracking()
-            .Where(r => archived ? r.ArchivedAt != null : r.ArchivedAt == null)
+            .Where(r => archived ? r.ArchivedAt != null : r.ArchivedAt == null);
+        if (filter.Search is { } search)
+        {
+            var pattern = ContainsPattern(search);
+            query = query.Where(r => EF.Functions.Like(EF.Functions.Collate(r.Title, SearchCollation), pattern, LikeEscape));
+        }
+
+        if (filter.Course is { } course)
+        {
+            query = query.Where(r => db.Set<RecipeCourse>().Any(c => c.SiteId == r.SiteId && c.RecipeId == r.Id && c.CourseCode == course));
+        }
+
+        if (filter.Cuisine is { } cuisine)
+        {
+            query = query.Where(r => db.Set<RecipeCuisine>().Any(c => c.SiteId == r.SiteId && c.RecipeId == r.Id && c.CuisineCode == cuisine));
+        }
+
+        if (filter.Diet is { } diet)
+        {
+            query = query.Where(r => db.Set<RecipeDiet>().Any(d => d.SiteId == r.SiteId && d.RecipeId == r.Id && d.DietCode == diet));
+        }
+
+        return query
             .OrderByDescending(r => r.UpdatedAt)
             .ThenByDescending(r => r.Id)
             .Take(take)

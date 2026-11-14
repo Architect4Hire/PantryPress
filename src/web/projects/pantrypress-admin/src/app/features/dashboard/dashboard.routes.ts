@@ -36,6 +36,12 @@ const routes: Routes = [
             loadComponent: () => import('./site-home').then((m) => m.SiteHome),
           },
           {
+            // No route title: the router would put it back on every search, filter, or tab change, dropping the site's
+            // name; the screen sets its own (PP4.12b).
+            path: 'recipes',
+            loadComponent: () => import('../recipes/recipe-library').then((m) => m.RecipeLibrary),
+          },
+          {
             path: '**',
             title: 'Page not found - PantryPress',
             loadComponent: () => import('./dashboard-not-found').then((m) => m.DashboardNotFound),

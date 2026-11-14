@@ -5090,13 +5090,119 @@ BEHAVIOR: Plan, wait for approval, implement with two-site tests.
       tests passed when run again.
   - Reviewers: `api-contract-checker`, `site-isolation-auditor`, `test-gap-analyzer`, and `architecture-reviewer`, as above.
 
-### PP4.12 Recipe API service and library screen
+### PP4.12 Recipe API service and library screen - done
+
+Split at planning (owner decision, one seam per prompt): the list had no search or filters and no route named the
+vocabulary, so the server work is PP4.12a and the client and screen PP4.12b.
+
+#### PP4.12a Recipe library search, filters, and vocabulary - done
 
 ```text
-SCOPE: Add the typed recipes API service and a recipe library screen with search and filters.
+SCOPE: Add title search and course, cuisine, and diet filters to the recipe list, with a cursor bound to its
+filters, and a read-only route for the recipe vocabulary.
+CONSTRAINT: RCP-001; Template B; api-contract.md, tenancy.md.
+UTILIZATION: add-endpoint; api-contract-checker, site-isolation-auditor, architecture-reviewer.
+BEHAVIOR: Implement with two-site read-path tests (the PP4.11 hand-off on the (SiteId, Code) indexes).
+```
+
+*PP4.12a delivery note (done 2026-11-14):*
+
+- **What shipped.** No migration: the `(SiteId, Code)` indexes and keys were already there (PP4.3).
+  - `GET …/recipes` takes `search`, `course`, `cuisine`, and `diet`, combined (`RecipeListFilter` in Business).
+    - The search is text the title contains, as typed, under `Latin1_General_100_CI_AI` whatever the database default,
+      with LIKE's wildcards escaped (`RecipeRepository.ContainsPattern`). It is at most 100 characters once trimmed;
+      blank is none.
+    - Each code is one vocabulary code, exactly, as an `EXISTS` on its join table, correlated on the site and the recipe.
+  - The cursor carries an eight-byte fingerprint of the filter, so one used under another list is `validation-failed`
+    at `cursor`. Cursors issued before this read as invalid too (decision log; admin v1 is pre-release).
+  - `GET …/recipes/vocabulary` (`SiteAuthor`, the read limit) answers every course, cuisine, diet, and allergen as
+    `{code, name}` from the code lists (`RecipeDetails.Vocabulary`).
+  - `ListRecipesQuery` names its codes `CourseCode`, `CuisineCode`, and `DietCode`, because `ModuleBoundaryTests` reads
+    `Course` in a contract as the root entity; the wire names stay `course`, `cuisine`, and `diet`.
+- **Reviews, all resolved:**
+  - `architecture-reviewer`: LIKE syntax moved from Business to the repository; the vocabulary mapping moved from the
+    facade to `RecipeDetails`; the facade now throws on a cursor the validator should have refused.
+  - `site-isolation-auditor`: added a twin test (B holds A's very recipe id filed under other codes; as A each of B's
+    codes finds nothing), and the refusal loop now sends a foreign cursor and a 101-character search as a stranger, a
+    member suspended on A, A's suspended member, and B's Owner. The index comment was corrected: the `EXISTS` seeks the
+    join table's key.
+  - `api-contract-checker`: the search is described as text as typed, not words; the decision-log row and `recipes.md`
+    were added.
+- **Left, as reviewed.**
+  - The cursor binds the search as sent, so changing only its case between pages restarts the list. That is safe and
+    matches the description.
+  - The vocabulary carries no cache headers.
+  - Search is one run of text; full-text search is later work.
+- **Hand-offs.**
+  - **PP4.13 and PP4.14:** the vocabulary route names the words the editor's course, cuisine, diet, and allergen pickers
+    offer.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 errors. Restore still needs `-p:WarningsNotAsErrors=NU1903` (the PP4.10 note).
+  - `dotnet format --verify-no-changes --no-restore`: clean.
+  - `dotnet test PantryPress.slnx`: 3,966 passed and 2 failed, of 3,968.
+    - `ApiServiceHostTests`' pinned path list lacked the vocabulary route. It was added, and that class then passed (9
+      of 9).
+    - The other failure is the known `AdminAppTests` timeout (the PP4.10 note).
+  - The focused recipe, contract, and boundary suites were run again after the review fixes and passed (399).
+
+#### PP4.12b Recipe API client and library screen - done
+
+```text
+SCOPE: Add the typed recipes API client and a recipe library screen with search, filters, archive, and restore.
 CONSTRAINT: Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
+
+*PP4.12b delivery note (done 2026-11-14):*
+
+- **What shipped.**
+  - `core/recipes/recipes-client.ts`: one typed method per recipe route (list, vocabulary, get, create, update, archive,
+    restore, duplicate). Every answer is checked field by field, the parse-problem codes and timestamps included. Every
+    write takes the caller's `Idempotency-Key`. The list sends its seven named parameters only.
+  - `features/recipes/recipe-library.ts` at `/dashboard/sites/{siteSlug}/recipes`, and "Recipes" in `SITE_SECTIONS`.
+    - Library and Archived tabs, a title search, and course, cuisine, and diet selects. All of them live in the address
+      (`?q=&course=&cuisine=&diet=&archived=true`); the page does not.
+    - Each row shows its title and "Edited" date in the site's locale and time zone. A row the caller may change has an
+      Archive or Restore button (quiet); one they may only read says "View only".
+    - Archiving offers Undo, and each press gets its own key.
+    - States: loading, three empty states, error with Try again, filters unavailable (search still works), and a refused
+      search or filter shown in the API's words with Clear.
+    - A refused cursor restarts at page one, and a 401 goes to sign in with `next`.
+  - `dashboard-shell.ts`: a navigation that changes only the query no longer moves focus to the `h1`.
+- **Reviews.**
+  - `design-review`. One blocker, B1: focus jumped to the `h1` on every search, filter, or tab change, which broke the
+    tabs pattern and made a select navigate (2.4.3, 3.2.2). It is fixed in the shell, and both specs and Playwright now
+    check that focus stays put. Also fixed:
+    - M1: the reload after an archive says no count, so it never talks over the toast and its Undo.
+    - M2 and M3: Try again on the filters notice, and Clear, now move focus to the list first.
+    - M4: a later page that empties steps back a page.
+    - m1: the route has no static title, so the title keeps the site's name.
+    - m2: rows use `--line-subtle`.
+    - m3: the row actions are quiet buttons.
+    - m6: the search hint now says "Searches recipe titles."
+  - `api-contract-checker`. No blockers. Fixed: the list's parameters are allow-listed, `IngredientParseProblem` is a closed
+    union, timestamps are checked, and the `get` comment now says a non-GUID id is the plain 404 `not-found`.
+- **Not done, as reviewed.**
+  - No "New recipe" action, and titles are plain text, until the editor exists (PP4.13, design m4).
+  - A refused filter's message is not tied to its control (m5), because the search field has no error slot.
+  - "View only" says no reason (m6).
+  - Switching tabs does not announce the new count (m7).
+  - The readers do not check that a line's status and parsed parts agree, that a range rises, or that amounts are in
+    bounds (contract minors 2 to 4): the server guarantees each.
+- **Hand-offs.**
+  - **PP4.13:** add "New recipe" to the page header and the empty library, link each title to the editor, and treat
+    `recipe-not-found` and `not-found` alike when an address names a recipe.
+- **Verification.**
+  - `npm run lint`: clean.
+  - `npm test`: ui 176, admin 308 (after the review fixes), site 1, all passed.
+  - `ng build pantrypress-admin` and `check:admin-build`: 7 documents, no inline script.
+  - `npx playwright test`:
+    - Before the review fixes, all 192 passed.
+    - After them, 189 passed and 3 failed: this flow's toast locator also matched the announcer once M1 stopped the count
+      from replacing it. With the locator scoped to the Notifications region, this flow passed 12 of 12 in Chromium,
+      Firefox, and WebKit. The other suites were not run again after that one-line change.
+  - The local `node_modules` was damaged (`@angular-devkit/core` had lost its `.js` files) and was restored with `npm ci`.
+    Playwright's browsers were installed for this version.
 
 ### PP4.13 Recipe editor: details, times, and yield
 

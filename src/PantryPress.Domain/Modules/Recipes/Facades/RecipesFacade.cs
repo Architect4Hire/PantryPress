@@ -112,12 +112,18 @@ internal sealed class RecipesFacade(
             return role.Error;
         }
 
-        RecipeListPosition? after = RecipeListCursor.TryRead(query.Cursor, out var position) ? position : null;
+        var filter = RecipeListFilter.From(query);
+        // The validator refused any cursor this list did not give, so one that does not read here is a bug, never a page one.
+        RecipeListPosition? after = query.Cursor is null
+            ? null
+            : RecipeListCursor.TryRead(query.Cursor, filter, out var position)
+                ? position
+                : throw new InvalidOperationException("The list's cursor was not checked against its filter.");
         var limit = query.Limit ?? RecipeListCursor.DefaultLimit;
-        var rows = await data.ListPageAsync(query.Archived ?? false, after, limit + 1, cancellationToken);
+        var rows = await data.ListPageAsync(filter, after, limit + 1, cancellationToken);
         var more = rows.Count > limit;
         var page = rows.Take(limit).ToList();
-        var next = more ? RecipeListCursor.After(new RecipeListPosition(page[^1].UpdatedAt, page[^1].Id)) : null;
+        var next = more ? RecipeListCursor.After(new RecipeListPosition(page[^1].UpdatedAt, page[^1].Id), filter) : null;
         return new RecipeSummaryPage(
             [.. page.Select(r => RecipeDetails.Summary(r, RecipeEditor.CanChange(role.Value, account, r.CreatedByAccountId)))],
             next);
@@ -240,6 +246,8 @@ internal sealed class RecipesFacade(
 
         return copied.IsSuccess ? Detail(copied.Value, canEdit: true) : copied.Error;
     }
+
+    public RecipeVocabulary GetVocabulary() => RecipeDetails.Vocabulary;
 
     private async Task<Result> SetArchivedAsync(
         AccountId account,

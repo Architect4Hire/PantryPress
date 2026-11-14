@@ -8,6 +8,7 @@ using PantryPress.ApiService.Hosting;
 using PantryPress.Domain.Managers.Persistence;
 using PantryPress.Domain.Managers.Tenancy;
 using PantryPress.Domain.Modules.Recipes;
+using PantryPress.Domain.Modules.Recipes.Business;
 using PantryPress.Domain.Modules.Recipes.Contracts;
 using PantryPress.Domain.Modules.Sites.Contracts;
 using PantryPress.Tests.Persistence;
@@ -301,12 +302,174 @@ public sealed class RecipesApiTwoSiteTests(MigratedDatabase database) : IAsyncLi
             async services =>
             {
                 var repository = services.GetRequiredService<Domain.Modules.Recipes.Repositories.RecipeRepository>();
-                Domain.Modules.Recipes.Business.RecipeListPosition? after = withCursor
+                RecipeListPosition? after = withCursor
                     ? new(RecipeRows.Created.AddDays(1), new RecipeId(Guid.Empty))
                     : null;
-                var page = await repository.ListPageAsync(archived, after, 1_000, CancellationToken.None);
+                var filter = RecipeListFilter.From(new ListRecipesQuery(null, null, archived));
+                var page = await repository.ListPageAsync(filter, after, 1_000, CancellationToken.None);
                 return [.. page.Select(r => new object?[] { r.SiteId, r.Id })];
             });
+    }
+
+    // PP4.12a (the PP4.11 hand-off): each library filter is its own read path - a LIKE under a collation, and an EXISTS on
+    // each join table over its (SiteId, Code) index. B holds a look-alike recipe with the same title and the same words, so
+    // each filter, alone and together, with a cursor and without, finds A's recipe and never B's.
+    [Theory]
+    [InlineData("apple", null, null, null, false)]
+    [InlineData("APPLE PIE", null, null, null, true)]
+    [InlineData(null, "dessert", null, null, false)]
+    [InlineData(null, null, "american", null, true)]
+    [InlineData(null, null, null, "vegetarian", false)]
+    [InlineData("pie", "dessert", "american", "vegetarian", true)]
+    public async Task Each_library_filter_sees_only_the_entered_sites_recipes(string? search, string? course, string? cuisine, string? diet, bool withCursor)
+    {
+        var world = await _harness.SeedAsync("rca-filter");
+        await TwoSiteChecks.AssertReadPathIsolatedAsync<Recipe>(
+            _harness.Services,
+            world.A.Id,
+            world.B.Id,
+            db => Task.FromResult(RecipeRows.Add(db).Recipe),
+            async services =>
+            {
+                var repository = services.GetRequiredService<Domain.Modules.Recipes.Repositories.RecipeRepository>();
+                RecipeListPosition? after = withCursor ? new(RecipeRows.Created.AddDays(1), new RecipeId(Guid.Empty)) : null;
+                var filter = RecipeListFilter.From(new ListRecipesQuery(null, null, null, search, course, cuisine, diet));
+                var page = await repository.ListPageAsync(filter, after, 1_000, CancellationToken.None);
+                return [.. page.Select(r => new object?[] { r.SiteId, r.Id })];
+            });
+    }
+
+    // PP4.12a over the route: the shared account searches and filters A's list and B's with the very same words, and each
+    // holds only that site's own recipe, though both are titled and filed alike.
+    [Fact]
+    public async Task A_search_or_filter_holds_only_the_sites_own_recipes()
+    {
+        var world = await _harness.SeedAsync("rca-search");
+        var onA = await CreateAsync(world.A, world.A.Owner);
+        var onB = await CreateAsync(world.B, world.B.Owner);
+        using var shared = _harness.ClientFor(world.Shared);
+
+        foreach (var query in new[] { "search=apple", "search=PIE", "course=dessert", "cuisine=american", "diet=vegetarian", "search=apple&course=dessert&cuisine=american&diet=vegetarian" })
+        {
+            Assert.Equal([onA.Id], await ListIdsAsync(shared, world.A.Slug, query));
+            Assert.Equal([onB.Id], await ListIdsAsync(shared, world.B.Slug, query));
+        }
+
+        Assert.Empty(await ListIdsAsync(shared, world.A.Slug, "course=bread"));
+        Assert.Empty(await ListIdsAsync(shared, world.A.Slug, "search=plum"));
+    }
+
+    // PP4.12a: the search's own errors and a cursor from another list are field errors, and a stranger is answered on a
+    // filtered list exactly as for no site at all - the filter never tells a real site from none.
+    [Fact]
+    public async Task A_filtered_list_refuses_like_any_list()
+    {
+        var world = await _harness.SeedAsync("rca-filter-refused");
+        await CreateAsync(world.A, world.A.Owner);
+        await CreateAsync(world.A, world.A.Owner);
+        using var owner = _harness.ClientFor(world.A.Owner);
+        using var first = await owner.GetAsync($"{Recipes(world.A.Slug)}?limit=1&course=dessert");
+        var cursor = Uri.EscapeDataString((await first.Content.ReadFromJsonAsync<RecipeSummaryPage>(Web))!.NextCursor!);
+
+        using var same = await owner.GetAsync($"{Recipes(world.A.Slug)}?limit=1&course=dessert&cursor={cursor}");
+        using var other = await owner.GetAsync($"{Recipes(world.A.Slug)}?limit=1&course=bread&cursor={cursor}");
+        using var codes = await owner.GetAsync($"{Recipes(world.A.Slug)}?course=Dessert&cuisine=dessert&diet=x&search={new string('a', 101)}");
+
+        Assert.Equal(HttpStatusCode.OK, same.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, other.StatusCode);
+        using (var problem = JsonDocument.Parse(await other.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(["cursor"], problem.RootElement.GetProperty("errors").EnumerateObject().Select(e => e.Name));
+        }
+
+        Assert.Equal(HttpStatusCode.BadRequest, codes.StatusCode);
+        using (var problem = JsonDocument.Parse(await codes.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(
+                ["course", "cuisine", "diet", "search"],
+                problem.RootElement.GetProperty("errors").EnumerateObject().Select(e => e.Name).Order(StringComparer.Ordinal));
+        }
+
+        // From review: what the new validator refuses - a cursor from another list, an over-long search, a code not in the
+        // vocabulary - never reaches it for anyone A does not admit, so not even that refusal tells a real site from none.
+        var missing = $"none-{Guid.NewGuid():N}"[..30];
+        foreach (var account in new[] { world.Stranger, world.SuspendedOnA, world.A.Suspended, world.B.Owner })
+        {
+            using var refused = _harness.ClientFor(account);
+            foreach (var query in new[] { "search=apple&course=dessert", "course=Dessert", $"course=bread&cursor={cursor}", $"search={new string('a', 101)}" })
+            {
+                using var onReal = await refused.GetAsync($"{Recipes(world.A.Slug)}?{query}");
+                using var onNone = await refused.GetAsync($"{Recipes(missing)}?{query}");
+                await TwoSiteChecks.AssertIndistinguishableAsync(onReal, onNone, HttpStatusCode.NotFound, SiteErrors.SiteNotFound.Code);
+            }
+        }
+    }
+
+    // From review: B holds a twin of A's recipe - the very same id - filed under a course, cuisine, and diet A's is not. Each
+    // filter's EXISTS is keyed by the site as well as the recipe, so as A each of B's codes finds nothing, and A's own find
+    // only A's. A correlation on the recipe's id alone would list A's recipe under B's filing.
+    [Fact]
+    public async Task A_filter_never_reads_the_other_sites_twin_filing()
+    {
+        var world = await _harness.SeedAsync("rca-filter-twin");
+        var id = new RecipeId(Guid.NewGuid());
+        await _harness.ChangeAsync(world.A.Id, db => RecipeRows.Add(db, recipeId: id));
+        await _harness.ChangeAsync(world.B.Id, db =>
+        {
+            RecipeRows.Add(db, recipeId: id);
+            db.Add(new RecipeCourse { RecipeId = id, CourseCode = "bread", Position = 1 });
+            db.Add(new RecipeCuisine { RecipeId = id, CuisineCode = "french", Position = 1 });
+            db.Add(new RecipeDiet { RecipeId = id, DietCode = "vegan", Position = 1 });
+        });
+
+        await using var scope = _harness.In(world.A.Id);
+        var repository = scope.ServiceProvider.GetRequiredService<Domain.Modules.Recipes.Repositories.RecipeRepository>();
+        async Task<List<Recipe>> List(string? course, string? cuisine, string? diet) =>
+            await repository.ListPageAsync(RecipeListFilter.From(new ListRecipesQuery(null, null, null, null, course, cuisine, diet)), null, 1_000, CancellationToken.None);
+
+        Assert.DoesNotContain(await List("bread", null, null), r => r.Id == id);
+        Assert.DoesNotContain(await List(null, "french", null), r => r.Id == id);
+        Assert.DoesNotContain(await List(null, null, "vegan"), r => r.Id == id);
+        Assert.Equal(world.A.Id, Assert.Single(await List("dessert", "american", "vegetarian"), r => r.Id == id).SiteId);
+    }
+
+    // PP4.12a: the vocabulary is platform reference data - the very lists the tables are seeded from, in order - answered alike
+    // to a member of either site and on either site's route, and to anyone else exactly as for no site.
+    [Fact]
+    public async Task The_vocabulary_is_the_same_on_every_site_and_names_none()
+    {
+        var world = await _harness.SeedAsync("rca-vocabulary");
+        using var shared = _harness.ClientFor(world.Shared);
+        using var ownerA = _harness.ClientFor(world.A.Owner);
+
+        using var onA = await shared.GetAsync($"{Recipes(world.A.Slug)}/vocabulary");
+        using var onB = await shared.GetAsync($"{Recipes(world.B.Slug)}/vocabulary");
+        using var asOwner = await ownerA.GetAsync($"{Recipes(world.A.Slug)}/vocabulary");
+
+        Assert.Equal(HttpStatusCode.OK, onA.StatusCode);
+        var body = await onA.Content.ReadAsStringAsync();
+        Assert.Equal(body, await onB.Content.ReadAsStringAsync());
+        Assert.Equal(body, await asOwner.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(world.A.Slug, body, StringComparison.Ordinal);
+        var vocabulary = JsonSerializer.Deserialize<RecipeVocabulary>(body, Web)!;
+        Assert.Equal(Courses.All.Select(w => (w.Code, w.Name)), vocabulary.Courses.Select(w => (w.Code, w.Name)));
+        Assert.Equal(Cuisines.All.Select(w => (w.Code, w.Name)), vocabulary.Cuisines.Select(w => (w.Code, w.Name)));
+        Assert.Equal(Diets.All.Select(w => (w.Code, w.Name)), vocabulary.Diets.Select(w => (w.Code, w.Name)));
+        Assert.Equal(Allergens.All.Select(w => (w.Code, w.Name)), vocabulary.Allergens.Select(w => (w.Code, w.Name)));
+        using (var json = JsonDocument.Parse(body))
+        {
+            Assert.Equal(["courses", "cuisines", "diets", "allergens"], json.RootElement.EnumerateObject().Select(p => p.Name));
+            Assert.Equal(["code", "name"], json.RootElement.GetProperty("courses")[0].EnumerateObject().Select(p => p.Name));
+        }
+
+        var missing = $"none-{Guid.NewGuid():N}"[..30];
+        foreach (var account in new[] { world.Stranger, world.A.Suspended, world.B.Owner })
+        {
+            using var client = _harness.ClientFor(account);
+            using var onReal = await client.GetAsync($"{Recipes(world.A.Slug)}/vocabulary");
+            using var onNone = await client.GetAsync($"{Recipes(missing)}/vocabulary");
+            await TwoSiteChecks.AssertIndistinguishableAsync(onReal, onNone, HttpStatusCode.NotFound, SiteErrors.SiteNotFound.Code);
+        }
     }
 
     // From review: B holds a recipe with the very id and edit time of A's, so a cursor just past A's position sits right on
@@ -321,8 +484,8 @@ public sealed class RecipesApiTwoSiteTests(MigratedDatabase database) : IAsyncLi
 
         await using var scope = _harness.In(world.A.Id);
         var repository = scope.ServiceProvider.GetRequiredService<Domain.Modules.Recipes.Repositories.RecipeRepository>();
-        var after = await repository.ListPageAsync(false, new(RecipeRows.Created, id), 1_000, CancellationToken.None);
-        var before = await repository.ListPageAsync(false, new(RecipeRows.Created.AddTicks(1), id), 1_000, CancellationToken.None);
+        var after = await repository.ListPageAsync(RecipeListFilter.Library, new(RecipeRows.Created, id), 1_000, CancellationToken.None);
+        var before = await repository.ListPageAsync(RecipeListFilter.Library, new(RecipeRows.Created.AddTicks(1), id), 1_000, CancellationToken.None);
 
         Assert.DoesNotContain(after, r => r.Id == id);
         Assert.Equal(world.A.Id, Assert.Single(before, r => r.Id == id).SiteId);
@@ -437,9 +600,12 @@ public sealed class RecipesApiTwoSiteTests(MigratedDatabase database) : IAsyncLi
         return (await response.Content.ReadFromJsonAsync<RecipeDetail>(Web))!;
     }
 
-    private static async Task<List<Guid>> ListIdsAsync(HttpClient client, string slug, bool archived)
+    private static Task<List<Guid>> ListIdsAsync(HttpClient client, string slug, bool archived) =>
+        ListIdsAsync(client, slug, $"archived={archived.ToString().ToLowerInvariant()}");
+
+    private static async Task<List<Guid>> ListIdsAsync(HttpClient client, string slug, string query)
     {
-        var page = await client.GetFromJsonAsync<RecipeSummaryPage>($"{Recipes(slug)}?archived={archived.ToString().ToLowerInvariant()}", Web);
+        var page = await client.GetFromJsonAsync<RecipeSummaryPage>($"{Recipes(slug)}?{query}", Web);
         return [.. page!.Items.Select(i => i.Id)];
     }
 

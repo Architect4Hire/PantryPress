@@ -1,0 +1,159 @@
+<pp-page-header
+  heading="Recipes"
+  description="Every recipe on this site, most recently edited first."
+/>
+
+@if (vocabulary().kind === 'failed') {
+  <pp-notice tone="info" class="degraded" announce>
+    <p class="text">Filters aren't available right now. You can still search by title.</p>
+    <button pp-button size="sm" (click)="retryVocabulary()">Try again</button>
+  </pp-notice>
+}
+
+<pp-tabs label="Which recipes" [selected]="filters().tab" (selectedChange)="chooseTab($event)">
+  <pp-tab key="library" label="Library">
+    @if (filters().tab === 'library') {
+      <ng-container *ngTemplateOutlet="list" />
+    }
+  </pp-tab>
+  <pp-tab key="archived" label="Archived">
+    @if (filters().tab === 'archived') {
+      <ng-container *ngTemplateOutlet="list" />
+    }
+  </pp-tab>
+</pp-tabs>
+
+<ng-template #list>
+  <pp-list
+    [label]="filters().tab === 'archived' ? 'Archived recipes' : 'Recipes'"
+    [status]="status()"
+    [empty]="items().length === 0 && status() === 'ready' && refusal() === null"
+    [resultsText]="resultsText()"
+    loadingText="Loading recipes"
+    errorText="Your recipes couldn't be loaded. Check your connection and try again."
+    [page]="page()"
+    [hasPrevious]="page() > 1"
+    [hasNext]="nextCursor() !== null"
+    (pageChange)="turn($event)"
+    (retry)="reload()"
+  >
+    <pp-search-field
+      ppListSearch
+      label="Search recipes"
+      hint="Searches recipe titles."
+      [query]="searchText()"
+      (queryChange)="searchText.set($event)"
+      (searched)="search($event)"
+    />
+    @if (vocabulary(); as words) {
+      @if (words.kind === 'ready') {
+        <div ppListFilters class="filters">
+          <pp-field label="Course">
+            <select pp-select (change)="choose('course', $event)">
+              <option value="" [selected]="filters().course === ''">Any course</option>
+              @for (word of words.value.courses; track word.code) {
+                <option [value]="word.code" [selected]="filters().course === word.code">
+                  {{ word.name }}
+                </option>
+              }
+            </select>
+          </pp-field>
+          <pp-field label="Cuisine">
+            <select pp-select (change)="choose('cuisine', $event)">
+              <option value="" [selected]="filters().cuisine === ''">Any cuisine</option>
+              @for (word of words.value.cuisines; track word.code) {
+                <option [value]="word.code" [selected]="filters().cuisine === word.code">
+                  {{ word.name }}
+                </option>
+              }
+            </select>
+          </pp-field>
+          <pp-field label="Diet">
+            <select pp-select (change)="choose('diet', $event)">
+              <option value="" [selected]="filters().diet === ''">Any diet</option>
+              @for (word of words.value.diets; track word.code) {
+                <option [value]="word.code" [selected]="filters().diet === word.code">
+                  {{ word.name }}
+                </option>
+              }
+            </select>
+          </pp-field>
+        </div>
+      }
+    }
+
+    @if (refusal(); as refusal) {
+      <pp-notice tone="warning" announce>
+        @for (message of refusal; track $index) {
+          <p class="text">{{ message }}</p>
+        }
+        <button pp-button size="sm" (click)="clear()">Clear search and filters</button>
+      </pp-notice>
+    }
+
+    <ul class="rows">
+      @for (recipe of items(); track recipe.id) {
+        <li class="recipe">
+          <div class="about">
+            <span class="title">{{ recipe.title }}</span>
+            <span class="meta">
+              Edited <time [attr.datetime]="recipe.updatedAt">{{ edited(recipe.updatedAt) }}</time>
+            </span>
+          </div>
+          @if (!recipe.canEdit) {
+            <pp-status-pill>View only</pp-status-pill>
+          } @else if (recipe.archivedAt === null) {
+            <button
+              pp-button
+              size="sm"
+              variant="quiet"
+              [busy]="working() === recipe.id"
+              [disabled]="working() !== null"
+              [attr.aria-label]="'Archive ' + recipe.title"
+              (click)="archive(recipe)"
+            >
+              Archive
+            </button>
+          } @else {
+            <button
+              pp-button
+              size="sm"
+              variant="quiet"
+              [busy]="working() === recipe.id"
+              [disabled]="working() !== null"
+              [attr.aria-label]="'Restore ' + recipe.title"
+              (click)="restore(recipe)"
+            >
+              Restore
+            </button>
+          }
+        </li>
+      }
+    </ul>
+
+    @if (narrowed()) {
+      <pp-empty-state
+        ppListEmpty
+        heading="No recipes match"
+        description="Try other words, or clear the search and filters."
+        [level]="2"
+      >
+        <button pp-button (click)="clear()">Clear search and filters</button>
+      </pp-empty-state>
+    } @else if (filters().tab === 'archived') {
+      <pp-empty-state
+        ppListEmpty
+        heading="Nothing archived"
+        description="Recipes you archive wait here, and you can put them back any time."
+        [level]="2"
+      />
+    } @else {
+      <pp-empty-state
+        ppListEmpty
+        heading="No recipes yet"
+        description="Recipes on this site will show up here."
+        [level]="2"
+      />
+    }
+  </pp-list>
+</ng-template>

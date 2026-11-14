@@ -38,8 +38,33 @@ internal sealed class ListRecipesQueryValidator : AbstractValidator<ListRecipesQ
             .InclusiveBetween(1, RecipeListCursor.MaxLimit)
             .When(q => q.Limit is not null)
             .WithMessage($"Ask for 1 to {RecipeListCursor.MaxLimit} recipes at a time.");
+        RuleFor(q => q.Search)
+            .Cascade(CascadeMode.Stop)
+            .Must(search => RecipeText.IsWellFormed(search!, multiline: false))
+            .WithMessage("This search has a character we can't use. Retype it and try again.")
+            .Must(search => (RecipeListFilter.NormalizeSearch(search)?.Length ?? 0) <= RecipeListFilter.MaxSearchLength)
+            .WithMessage($"Search for up to {RecipeListFilter.MaxSearchLength} characters.")
+            .When(q => q.Search is not null);
+        RuleFor(q => q.CourseCode)
+            .Must(code => RecipeContentRules.IsCourse(code!))
+            .When(q => !string.IsNullOrEmpty(q.CourseCode))
+            .OverridePropertyName("Course")
+            .WithMessage("Choose a course from the list.");
+        RuleFor(q => q.CuisineCode)
+            .Must(code => RecipeContentRules.IsCuisine(code!))
+            .When(q => !string.IsNullOrEmpty(q.CuisineCode))
+            .OverridePropertyName("Cuisine")
+            .WithMessage("Choose a cuisine from the list.");
+        RuleFor(q => q.DietCode)
+            .Must(code => RecipeContentRules.IsDiet(code!))
+            .When(q => !string.IsNullOrEmpty(q.DietCode))
+            .OverridePropertyName("Diet")
+            .WithMessage("Choose a diet from the list.");
+
+        // A cursor is bound to the list it came from (PP4.12a): one made under another search, filter, or tab is refused
+        // here rather than continuing a different list.
         RuleFor(q => q.Cursor)
-            .Must(cursor => RecipeListCursor.TryRead(cursor, out _))
+            .Must((query, cursor) => RecipeListCursor.TryRead(cursor, RecipeListFilter.From(query), out _))
             .When(q => q.Cursor is not null)
             .WithMessage("Start again from the first page.");
     }
@@ -62,6 +87,12 @@ internal static class RecipeContentRules
     private static readonly HashSet<string> CuisineCodes = [.. Cuisines.All.Select(c => c.Code)];
     private static readonly HashSet<string> DietCodes = [.. Diets.All.Select(d => d.Code)];
     private static readonly HashSet<string> AllergenCodes = [.. Allergens.All.Select(a => a.Code)];
+
+    public static bool IsCourse(string code) => CourseCodes.Contains(code);
+
+    public static bool IsCuisine(string code) => CuisineCodes.Contains(code);
+
+    public static bool IsDiet(string code) => DietCodes.Contains(code);
 
     public static void Check(RecipeContent content, string prefix, Action<ValidationFailure> addFailure)
     {

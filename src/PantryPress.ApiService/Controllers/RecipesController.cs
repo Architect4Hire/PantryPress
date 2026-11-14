@@ -68,27 +68,51 @@ public sealed class RecipesController(IRecipesFacade recipes) : ApiControllerBas
             result => CreatedOr(result, recipe => $"/{ApiSurfaces.AdminV1Route}/sites/{siteSlug}/recipes/{recipe.Id:D}"));
 
     /// <summary>
-    /// The site's recipes, most recently edited first, a page at a time: those in the library, or the archived ones.
+    /// The site's recipes, most recently edited first, a page at a time: those in the library, or the archived ones, narrowed
+    /// by words in the title and by a course, a cuisine, and a diet, all at once.
     /// </summary>
     [HttpGet(List)]
     [Authorize(Policy = SitePolicies.SiteAuthor)]
     [EnableRateLimiting(ApiRateLimits.RecipeRead)]
     [EndpointDescription(
         "A recipe edited while the list is being paged moves to the top of it, so it may be missed or shown twice; "
-        + "nothing else moves.")]
+        + "nothing else moves. A cursor continues only the list it came from: send the same search, filters, and archived "
+        + "with it.")]
     [ProducesResponseType<RecipeSummaryPage>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(
         StatusCodes.Status400BadRequest,
         ApiProblems.ContentType,
-        Description = "validation-failed: limit is not a whole number from 1 to 100, cursor is not one this list gave, or "
-            + "archived is not true or false; errors names which.")]
+        Description = "validation-failed: limit is not a whole number from 1 to 100; cursor is not one this list gave under "
+            + "the same search, filters, and archived; archived is not true or false; search is longer than 100 characters "
+            + "once trimmed, or holds a control character or half of a surrogate pair; or course, cuisine, or diet is not a "
+            + "code in the vocabulary. errors names which.")]
     public Task<IActionResult> ListRecipes(
         string siteSlug,
         [FromQuery, Description("How many recipes at most, 1 to 100. Missing means 50.")] int? limit,
-        [FromQuery, Description("The nextCursor of the page before, as given; missing for the first page.")] string? cursor,
+        [FromQuery, Description("The nextCursor of the page before, as given, with the same search and filters; missing for the first page.")] string? cursor,
         [FromQuery, Description("True for the archived recipes; missing or false for the library.")] bool? archived,
+        [FromQuery, Description("Text the title contains, as typed, ignoring case and accents; up to 100 characters. Missing or blank for any title.")] string? search,
+        [FromQuery, Description("Only recipes filed under this course code, from the vocabulary; missing for any.")] string? course,
+        [FromQuery, Description("Only recipes filed under this cuisine code, from the vocabulary; missing for any.")] string? cuisine,
+        [FromQuery, Description("Only recipes labeled with this diet code, from the vocabulary; missing for any.")] string? diet,
         CancellationToken cancellationToken) =>
-        ForAccount(account => recipes.ListAsync(account, siteSlug, new ListRecipesQuery(limit, cursor, archived), cancellationToken), OkOr);
+        ForAccount(
+            account => recipes.ListAsync(
+                account,
+                siteSlug,
+                new ListRecipesQuery(limit, cursor, archived, search, course, cuisine, diet),
+                cancellationToken),
+            OkOr);
+
+    /// <summary>
+    /// The words a recipe is filed under: every course, cuisine, diet, and allergen, by code and name, in order. The same for
+    /// every site; nothing of the site's is in it.
+    /// </summary>
+    [HttpGet(List + "/vocabulary")]
+    [Authorize(Policy = SitePolicies.SiteAuthor)]
+    [EnableRateLimiting(ApiRateLimits.RecipeRead)]
+    [ProducesResponseType<RecipeVocabulary>(StatusCodes.Status200OK)]
+    public IActionResult Vocabulary() => Ok(recipes.GetVocabulary());
 
     /// <summary>The recipe's working copy, whole, archived or not, with the version to send back with the next save.</summary>
     [HttpGet(One)]

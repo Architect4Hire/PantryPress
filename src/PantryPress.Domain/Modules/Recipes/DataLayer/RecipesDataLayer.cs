@@ -24,8 +24,8 @@ internal sealed class RecipesDataLayer(RecipeRepository recipes, RecipesUnitOfWo
         recipes.ReadWorkingCopyAsync(recipe, cancellationToken);
 
     /// <inheritdoc cref="RecipeRepository.ListPageAsync"/>
-    public Task<List<Recipe>> ListPageAsync(bool archived, RecipeListPosition? after, int take, CancellationToken cancellationToken) =>
-        recipes.ListPageAsync(archived, after, take, cancellationToken);
+    public Task<List<Recipe>> ListPageAsync(RecipeListFilter filter, RecipeListPosition? after, int take, CancellationToken cancellationToken) =>
+        recipes.ListPageAsync(filter, after, take, cancellationToken);
 
     /// <summary>Stages a new recipe's row.</summary>
     public void StageNewRecipe(Recipe recipe) => recipes.StageAdded(recipe);

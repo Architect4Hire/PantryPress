@@ -321,6 +321,16 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   library, its parts get new ids, its lines are read again, and its revisions are not copied.
 - The list is newest edited first by `(UpdatedAt, Id)` on `IX_Recipes_Library`, through `RecipeListCursor` (limit 1 to
   100, default 50), in the library or `archived=true`. A recipe edited during paging moves to the top.
+- Search and filters (PP4.12a), all on the server, combined:
+  - `search` is text the title contains, as typed (one run, not words in any order), under `Latin1_General_100_CI_AI`
+    whatever the database's default, with LIKE's wildcards escaped (`RecipeRepository.ContainsPattern`). It is at most
+    `RecipeListFilter.MaxSearchLength` (100) once trimmed, on one line and well formed; blank is none.
+  - `course`, `cuisine`, and `diet` take one vocabulary code each, exactly; an unknown one is a field error. Each is an
+    `EXISTS` on its join table, correlated on the recipe's site and id.
+  - The cursor carries a fingerprint of the list's filter (`archived`, the search as sent, the codes), so one used under
+    another list is `validation-failed` at `cursor`, never a page of a different list.
+- `GET …/recipes/vocabulary` (`SiteAuthor`) answers every course, cuisine, diet, and allergen as `{code, name}`, in the
+  lists' order (`RecipeDetails.Vocabulary`). It reads no database and no site, so every member of every site gets the same.
 - Limits (`RecipeLimits`): 20 ingredient groups and 200 lines, which equals `MaxPastedLines`; 20 step groups and 100
   steps, which is below a paste's 200, so the editor says so (PP4.14); 30 pieces of equipment, 20 notes, 20 keywords,
   5 courses, and 5 cuisines; diets and allergens each at most once.
