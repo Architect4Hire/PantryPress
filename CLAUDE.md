@@ -6,7 +6,9 @@ SEO-ready site at `{name}.pantrypress.app` or an opt-in custom domain.
 
 This file is the constitution. Detail lives in `.claude/rules/`, procedures in `.claude/skills/`, reviewers
 in `.claude/agents/`. The functional source of truth is `docs/requirements/pantrypress-requirements.md`;
-site design detail is in `docs/requirements/pantrypress-customization-spec.md`; the build plan is
+site design detail is in `docs/requirements/pantrypress-customization-spec.md`; the larger rule files keep only
+their invariants, with the detail in `docs/requirements/pantrypress-<rule>-spec.md` (recipes, tenancy, gateway, backend,
+public-endpoints, frontend, auth, api-contract), read before changing that area; the build plan is
 `docs/prompts/pantrypress-scrub-prompts.md`, with the platform's own landing page in
 `docs/prompts/pantrypress-landing-page-scrub-prompts.md` (PPL.*). Decisions are recorded in
 `docs/architecture-decisions/pantrypress.md` (created by PP0.1). If documents conflict, stop and reconcile
