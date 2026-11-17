@@ -1,0 +1,85 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000306",
+    "title": "Overnight oats",
+    "summary": "Oats that soak while you sleep.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 1,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "serving",
+    "prepMinutes": null,
+    "cookMinutes": null,
+    "additionalMinutes": 480,
+    "additionalTimeLabel": "Soak",
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000303",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000301",
+            "originalText": "½ cup rolled oats",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000302",
+            "originalText": "½ cup milk",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000304",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000305",
+            "text": "Stir the oats into the milk and refrigerate overnight."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [],
+    "courses": [],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

@@ -1,0 +1,48 @@
+required: image
+recommended: author, date-published, description, times, recipe-yield, courses, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Cinnamon rolls",
+  "recipeIngredient": [
+    "1 cup warm milk",
+    "1 packet yeast",
+    "½ cup brown sugar",
+    "1 tablespoon cinnamon"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Warm the milk."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Stir in the yeast."
+    },
+    {
+      "@type": "HowToSection",
+      "name": "For the filling",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "text": "Mix the sugar and cinnamon."
+        }
+      ]
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Roll, fill, and cut the dough."
+    },
+    {
+      "@type": "HowToSection",
+      "name": "For the glaze",
+      "itemListElement": [
+        {
+          "@type": "HowToStep",
+          "text": "Whisk the glaze."
+        }
+      ]
+    }
+  ]
+}

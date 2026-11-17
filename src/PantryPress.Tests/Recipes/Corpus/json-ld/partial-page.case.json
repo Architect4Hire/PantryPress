@@ -1,0 +1,103 @@
+{
+  "page": {
+    "url": "https://apple-pie.pantrypress.app/pantry-pasta",
+    "imageUrls": [
+      "https://apple-pie.pantrypress.app/media/pasta-16x9-9a8b7c.jpg"
+    ],
+    "authorName": null,
+    "datePublished": null
+  },
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000001107",
+    "title": "Pantry pasta",
+    "summary": "Dinner from what's on the shelf.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 2,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "servings",
+    "prepMinutes": 5,
+    "cookMinutes": 12,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001103",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000001101",
+            "originalText": "8 ounces spaghetti",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001102",
+            "originalText": "Salt and pepper",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001104",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000001105",
+            "text": "Boil the pasta."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001106",
+            "text": "Toss with oil, salt, and pepper."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [
+      "salt, pepper",
+      "weeknight"
+    ],
+    "courses": [
+      "main-course"
+    ],
+    "cuisines": [
+      "italian"
+    ],
+    "diets": [],
+    "allergens": []
+  }
+}

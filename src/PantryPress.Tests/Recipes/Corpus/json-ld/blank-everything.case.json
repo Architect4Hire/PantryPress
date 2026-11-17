@@ -1,0 +1,71 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000001205",
+    "title": "   ",
+    "summary": " ",
+    "yield": null,
+    "yieldUnit": "servings",
+    "prepMinutes": null,
+    "cookMinutes": null,
+    "additionalMinutes": null,
+    "additionalTimeLabel": "Rest",
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001202",
+        "heading": "For the dough",
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000001201",
+            "originalText": "  ",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001203",
+        "heading": "Shape",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000001204",
+            "text": "\t"
+          }
+        ]
+      }
+    ],
+    "equipment": [
+      " "
+    ],
+    "notes": [],
+    "keywords": [
+      ""
+    ],
+    "courses": [],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

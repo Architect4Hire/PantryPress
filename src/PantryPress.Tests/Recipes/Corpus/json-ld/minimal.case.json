@@ -1,0 +1,78 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000106",
+    "title": "Buttered toast",
+    "summary": null,
+    "yield": null,
+    "yieldUnit": null,
+    "prepMinutes": null,
+    "cookMinutes": null,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000101",
+            "originalText": "1 slice bread",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000102",
+            "originalText": "Butter",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000104",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000105",
+            "text": "Toast the bread and butter it while hot."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [],
+    "courses": [],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

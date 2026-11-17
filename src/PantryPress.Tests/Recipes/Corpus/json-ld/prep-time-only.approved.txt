@@ -1,0 +1,39 @@
+required: none
+recommended: prep-and-cook-time, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://apple-pie.pantrypress.app/guacamole#recipe",
+  "name": "Guacamole",
+  "description": "Chunky, limey, and ready in fifteen minutes.",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/guacamole-4x3-0b11fe.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Maya Brooks"
+  },
+  "datePublished": "2026-05-05",
+  "prepTime": "PT15M",
+  "totalTime": "PT15M",
+  "recipeYield": "4 servings",
+  "recipeCategory": "Appetizer",
+  "recipeCuisine": "Mexican",
+  "keywords": "game day",
+  "recipeIngredient": [
+    "3 ripe avocados",
+    "1 lime, juiced",
+    "Salt, to taste"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Mash the avocados with the lime juice."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Season with salt."
+    }
+  ]
+}

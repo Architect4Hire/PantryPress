@@ -1,0 +1,38 @@
+required: none
+recommended: cuisines, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://apple-pie.pantrypress.app/no-bake-lemon-bars#recipe",
+  "name": "No-bake lemon bars",
+  "description": "Bright, tart bars that set in the fridge.",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/lemon-bars-1x1-77e0d1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Maya Brooks"
+  },
+  "datePublished": "2026-06-14",
+  "prepTime": "PT20M",
+  "cookTime": "PT0M",
+  "totalTime": "PT4H20M",
+  "recipeYield": "16 bars",
+  "recipeCategory": "Dessert",
+  "keywords": "no-bake",
+  "recipeIngredient": [
+    "1½ cups graham cracker crumbs",
+    "6 tablespoons melted butter"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Press the crumbs and butter into the pan."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Chill until set."
+    }
+  ]
+}

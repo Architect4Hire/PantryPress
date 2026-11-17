@@ -1,0 +1,109 @@
+{
+  "page": {
+    "url": "https://apple-pie.pantrypress.app/creme-brulee",
+    "imageUrls": [
+      "https://apple-pie.pantrypress.app/media/creme-brulee-1x1-5d4c3b.jpg"
+    ],
+    "authorName": "Zoë O'Brien",
+    "datePublished": "2026-02-14"
+  },
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000907",
+    "title": "Mom's \"best\" crème brûlée </script>",
+    "summary": "Rich & creamy <b>not bold</b> + worth it",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 6,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "ramekins",
+    "prepMinutes": 15,
+    "cookMinutes": 40,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000904",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000901",
+            "originalText": "a splash of the good vanilla (you know the one) 🍦",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000902",
+            "originalText": "1 / 2 cup cream",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000903",
+            "originalText": "Sugar — to taste",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000905",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000906",
+            "text": "Bake at 150°C until set; don't let it <boil>."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [
+      "date night"
+    ],
+    "courses": [
+      "dessert"
+    ],
+    "cuisines": [
+      "french"
+    ],
+    "diets": [],
+    "allergens": []
+  }
+}

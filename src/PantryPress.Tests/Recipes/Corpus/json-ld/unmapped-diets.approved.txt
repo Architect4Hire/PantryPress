@@ -1,0 +1,28 @@
+required: image
+recommended: author, date-published, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Steak and eggs",
+  "description": "A big breakfast.",
+  "prepTime": "PT5M",
+  "cookTime": "PT15M",
+  "totalTime": "PT20M",
+  "recipeYield": "2 servings",
+  "recipeCategory": "Breakfast",
+  "recipeIngredient": [
+    "2 strip steaks",
+    "4 eggs"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Sear the steaks."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Fry the eggs in the pan."
+    }
+  ]
+}

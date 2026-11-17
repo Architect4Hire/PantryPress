@@ -1,0 +1,113 @@
+{
+  "page": {
+    "url": "https://apple-pie.pantrypress.app/guacamole",
+    "imageUrls": [
+      "https://apple-pie.pantrypress.app/media/guacamole-4x3-0b11fe.jpg"
+    ],
+    "authorName": "Maya Brooks",
+    "datePublished": "2026-05-05"
+  },
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000408",
+    "title": "Guacamole",
+    "summary": "Chunky, limey, and ready in fifteen minutes.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 4,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "servings",
+    "prepMinutes": 15,
+    "cookMinutes": null,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000404",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000401",
+            "originalText": "3 ripe avocados",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000402",
+            "originalText": "1 lime, juiced",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000403",
+            "originalText": "Salt, to taste",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000405",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000406",
+            "text": "Mash the avocados with the lime juice."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000407",
+            "text": "Season with salt."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [
+      "game day"
+    ],
+    "courses": [
+      "appetizer"
+    ],
+    "cuisines": [
+      "mexican"
+    ],
+    "diets": [],
+    "allergens": []
+  }
+}

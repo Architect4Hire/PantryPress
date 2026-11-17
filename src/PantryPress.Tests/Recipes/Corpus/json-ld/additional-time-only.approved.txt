@@ -1,0 +1,21 @@
+required: image
+recommended: author, date-published, courses, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Overnight oats",
+  "description": "Oats that soak while you sleep.",
+  "totalTime": "PT8H",
+  "recipeYield": "1 serving",
+  "recipeIngredient": [
+    "½ cup rolled oats",
+    "½ cup milk"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Stir the oats into the milk and refrigerate overnight."
+    }
+  ]
+}

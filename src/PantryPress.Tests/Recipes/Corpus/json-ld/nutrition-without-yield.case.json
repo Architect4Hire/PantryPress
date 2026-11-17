@@ -1,0 +1,78 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000706",
+    "title": "Green smoothie",
+    "summary": null,
+    "yield": null,
+    "yieldUnit": null,
+    "prepMinutes": null,
+    "cookMinutes": null,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": "1 glass",
+      "caloriesHundredths": null,
+      "fatGramsHundredths": 50,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": 300
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000703",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000701",
+            "originalText": "1 cup spinach",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000702",
+            "originalText": "1 banana",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000704",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000705",
+            "text": "Blend until smooth."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [],
+    "courses": [],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

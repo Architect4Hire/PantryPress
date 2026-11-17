@@ -1,0 +1,27 @@
+required: image
+recommended: author, date-published, courses, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Buttermilk pancakes",
+  "description": "Fluffy weekend pancakes.",
+  "prepTime": "PT10M",
+  "cookTime": "PT15M",
+  "totalTime": "PT25M",
+  "recipeYield": "12",
+  "recipeIngredient": [
+    "2 cups flour",
+    "2 cups buttermilk"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Whisk everything together."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Cook on a hot griddle."
+    }
+  ]
+}

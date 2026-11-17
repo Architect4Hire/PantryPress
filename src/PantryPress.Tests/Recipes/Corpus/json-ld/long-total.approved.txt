@@ -1,0 +1,35 @@
+required: image
+recommended: author, date-published, cuisines
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Sourdough loaf",
+  "description": "A slow, overnight loaf.",
+  "prepTime": "PT1H",
+  "cookTime": "PT26H",
+  "totalTime": "PT27H",
+  "recipeYield": "1 loaf",
+  "recipeCategory": "Bread",
+  "keywords": "sourdough",
+  "recipeIngredient": [
+    "500 g bread flour",
+    "100 g starter"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Mix and ferment overnight."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Bake in a hot Dutch oven."
+    }
+  ],
+  "nutrition": {
+    "@type": "NutritionInformation",
+    "servingSize": "1 slice",
+    "calories": "0 calories",
+    "sodiumContent": "310 mg"
+  }
+}

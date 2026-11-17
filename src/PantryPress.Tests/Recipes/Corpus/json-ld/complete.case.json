@@ -1,0 +1,260 @@
+{
+  "page": {
+    "url": "https://apple-pie.pantrypress.app/deep-dish-apple-pie",
+    "imageUrls": [
+      "https://apple-pie.pantrypress.app/media/pie-1x1-3f9a2c.jpg",
+      "https://apple-pie.pantrypress.app/media/pie-4x3-3f9a2c.jpg",
+      "https://apple-pie.pantrypress.app/media/pie-16x9-3f9a2c.jpg"
+    ],
+    "authorName": "Maya Brooks",
+    "datePublished": "2026-10-01"
+  },
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000015",
+    "title": "Deep-dish apple pie",
+    "summary": "A tall, flaky pie with a spiced apple filling.",
+    "yield": {
+      "kind": "range",
+      "low": {
+        "numerator": 6,
+        "denominator": 1
+      },
+      "high": {
+        "numerator": 8,
+        "denominator": 1
+      }
+    },
+    "yieldUnit": "servings",
+    "prepMinutes": 45,
+    "cookMinutes": 75,
+    "additionalMinutes": 180,
+    "additionalTimeLabel": "Cool",
+    "videoUrl": "https://www.youtube.com/watch?v=abc123",
+    "nutrition": {
+      "servingSize": "1 slice",
+      "caloriesHundredths": 41050,
+      "fatGramsHundredths": 1925,
+      "saturatedFatGramsHundredths": 1100,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": 23000,
+      "carbohydrateGramsHundredths": 5800,
+      "fiberGramsHundredths": 300,
+      "sugarGramsHundredths": 2900,
+      "proteinGramsHundredths": 450
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "heading": "For the crust",
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "originalText": "2½ cups all-purpose flour",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 5,
+                "denominator": 2
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 2
+            },
+            "unitCode": "cup",
+            "unitSpan": {
+              "start": 3,
+              "length": 4
+            },
+            "item": "all-purpose flour",
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "originalText": "1 teaspoon salt",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 1,
+                "denominator": 1
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 1
+            },
+            "unitCode": "tsp",
+            "unitSpan": {
+              "start": 2,
+              "length": 8
+            },
+            "item": "salt",
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "originalText": "1 cup cold unsalted butter, cubed",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 1,
+                "denominator": 1
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 1
+            },
+            "unitCode": "cup",
+            "unitSpan": {
+              "start": 2,
+              "length": 3
+            },
+            "item": "cold unsalted butter",
+            "note": "cubed"
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "heading": "For the filling",
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "originalText": "3 pounds apples, peeled and sliced",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 3,
+                "denominator": 1
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 1
+            },
+            "unitCode": "lb",
+            "unitSpan": {
+              "start": 2,
+              "length": 6
+            },
+            "item": "apples",
+            "note": "peeled and sliced"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "originalText": "¾ cup sugar",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 3,
+                "denominator": 4
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 1
+            },
+            "unitCode": "cup",
+            "unitSpan": {
+              "start": 2,
+              "length": 3
+            },
+            "item": "sugar",
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "originalText": "2 tablespoons lemon juice",
+            "parseStatus": "parsed",
+            "quantity": {
+              "kind": "amount",
+              "low": {
+                "numerator": 2,
+                "denominator": 1
+              },
+              "high": null
+            },
+            "quantitySpan": {
+              "start": 0,
+              "length": 1
+            },
+            "unitCode": "tbsp",
+            "unitSpan": {
+              "start": 2,
+              "length": 11
+            },
+            "item": "lemon juice",
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "heading": "Make the crust",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "text": "Whisk the flour and salt, then cut in the butter."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "text": "Chill the dough for 1 hour."
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "heading": "Fill and bake",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "text": "Toss the apples with the sugar and lemon juice."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "text": "Bake at 375°F for 75 minutes."
+          }
+        ]
+      }
+    ],
+    "equipment": [
+      "9-inch deep-dish pie plate",
+      "Pastry blender"
+    ],
+    "notes": [
+      "Keeps two days at room temperature."
+    ],
+    "keywords": [
+      "fall baking",
+      "Thanksgiving"
+    ],
+    "courses": [
+      "dessert"
+    ],
+    "cuisines": [
+      "american"
+    ],
+    "diets": [
+      "vegetarian"
+    ],
+    "allergens": [
+      "milk",
+      "wheat"
+    ]
+  }
+}

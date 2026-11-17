@@ -1,0 +1,149 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000818",
+    "title": "Cinnamon rolls",
+    "summary": null,
+    "yield": null,
+    "yieldUnit": null,
+    "prepMinutes": null,
+    "cookMinutes": null,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000803",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000801",
+            "originalText": "1 cup warm milk",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000802",
+            "originalText": "1 packet yeast",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000806",
+        "heading": "For the filling",
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000804",
+            "originalText": "½ cup brown sugar",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000805",
+            "originalText": "1 tablespoon cinnamon",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000807",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000808",
+            "text": "Warm the milk."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000809",
+            "text": "Stir in the yeast."
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000810",
+        "heading": "For the filling",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000811",
+            "text": "Mix the sugar and cinnamon."
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000812",
+        "heading": "Nothing here yet",
+        "steps": []
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000813",
+        "heading": "   ",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000814",
+            "text": "Roll, fill, and cut the dough."
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000815",
+        "heading": "For the glaze",
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000816",
+            "text": "Whisk the glaze."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000817",
+            "text": "   "
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [],
+    "courses": [],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "page": {
+    "url": "https://apple-pie.pantrypress.app/no-bake-lemon-bars",
+    "imageUrls": [
+      "https://apple-pie.pantrypress.app/media/lemon-bars-1x1-77e0d1.jpg"
+    ],
+    "authorName": "Maya Brooks",
+    "datePublished": "2026-06-14"
+  },
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000000207",
+    "title": "No-bake lemon bars",
+    "summary": "Bright, tart bars that set in the fridge.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 16,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "bars",
+    "prepMinutes": 20,
+    "cookMinutes": 0,
+    "additionalMinutes": 240,
+    "additionalTimeLabel": "Chill",
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000203",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000000201",
+            "originalText": "1½ cups graham cracker crumbs",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000202",
+            "originalText": "6 tablespoons melted butter",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000000204",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000000205",
+            "text": "Press the crumbs and butter into the pan."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000206",
+            "text": "Chill until set."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [
+      "no-bake"
+    ],
+    "courses": [
+      "dessert"
+    ],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}

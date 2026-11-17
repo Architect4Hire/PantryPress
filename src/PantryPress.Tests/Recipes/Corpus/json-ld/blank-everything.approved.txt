@@ -1,0 +1,7 @@
+required: name, image
+recommended: author, date-published, description, times, recipe-yield, ingredients, instructions, courses, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe"
+}

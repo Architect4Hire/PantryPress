@@ -295,10 +295,61 @@ Requirements RCP-001 to RCP-010, PP-D05. Use `add-recipe-feature`.
   sets them, never inferred (RCP-006). The allergens are the US FDA's nine and the EU's fourteen together.
 - Only the Recipes module and the migrations name the vocabulary's tables (`DomainBoundaryTests`).
 
-## JSON-LD
+## JSON-LD (PP4.10)
 
-- One deterministic generator for schema.org `Recipe` with a missing-required-fields report (RCP-008).
-- `AggregateRating` only from real ratings. JSON-LD is identical across recipe card styles.
+- `RecipeJsonLd` in `Business/` is the one schema.org `Recipe` generator (RCP-008). It is pure and deterministic, like the
+  scaler: the same published snapshot and page give the same bytes on every machine, properties in one fixed order. It
+  writes a compact document with `@context` (`Write`), or a node without it for a page's `@graph` (`WriteNode`, PP7.10).
+  JSON-LD is identical across recipe card styles (THM-009).
+- A recipe holds no image, author, or publish date: they are the post's (POST-004). The caller passes them in
+  `RecipeJsonLdPage`: the page's absolute `https` address without a fragment (the node is `{url}#recipe`), the dish's
+  images as absolute `https` addresses, the author's name, and the publish day in the site's time zone. An address is
+  lower-case `https://`, has a host, carries no user name or password, and holds only printable ASCII with no quote, angle
+  bracket, backslash, or backtick; it is written exactly as given. A malformed page is a bug and throws. Every code and
+  text in the snapshot is checked before the first byte is written, so a refused node never leaves a caller's writer
+  half-written. `RecipeJsonLdPage.None` is the editor's case (PP4.15).
+- Only what the blogger entered, in their words exactly (RCP-002, RCP-006). A text holding nothing but white space is left
+  out, as if empty; any other text is written untrimmed.
+  - `name` and `description` are the title and summary. `recipeIngredient` is each line's original text, groups in order;
+    how a line parsed changes nothing.
+  - `recipeInstructions`: a step group with a heading is a `HowToSection` named by it, holding `HowToStep`s; a group without
+    one gives its steps in its place; a group with no step is left out. Steps carry `text` only, no `name` or `url`.
+  - `prepTime`, `cookTime`, and `totalTime` from `RecipeDuration.IsoDuration`. A time entered as zero is written
+    (`PT0M`), and the total is written whenever any time was entered, the additional time included (owner decision).
+  - `recipeYield` is the yield as a reader reads it: its amount in decimals where they end within three places and ASCII
+    fractions otherwise, then the blogger's word for it (`4–6 servings`, `1.5 loaves`, `1 1/3 loaves`), or the amount
+    alone. Which words mean "servings" is never guessed (owner decision).
+  - `recipeCategory` and `recipeCuisine` are the vocabulary names, and `keywords` the blogger's keywords, each joined by
+    `, `, as Google's examples write a list. A keyword holding a comma would read as two (PP4.11 owes refusing one).
+  - `suitableForDiet` is only the diets that map to a schema.org `RestrictedDiet` member, as `https://schema.org/<Member>`.
+  - `tool` is the equipment, as text.
+  - `nutrition` only when a nutrient was entered (a serving size alone is none): `servingSize` in the blogger's words, then
+    each nutrient entered under its `NutritionInformation` property, `calories` as `312.5 calories` and the rest as the
+    card writes them (`14.5 g`, `260 mg`). Nothing is estimated, derived, rounded, or scaled.
+- Never written: `aggregateRating` or `review` (real ratings only, PP12), allergens (schema.org has no property for them),
+  the notes, the additional time's label, and `video`, whose `VideoObject` needs a name, a thumbnail, and an upload date a
+  recipe does not hold (owner decision; it comes with the video embed's details).
+- The output escapes every character outside ASCII and every HTML-sensitive one (`<`, `>`, `&`, `'`, `"`, `+`), so it is
+  inert inside a `script` element, and it is compact, so the same recipe is always the same bytes (ARCH-005). `WriteNode`
+  refuses a writer that is indented or uses any encoder but the default, before writing anything. A JSON-LD block is a
+  data block, which a content-security policy's `script-src` never governs, so it needs no `sha256` source. Text that is
+  not well-formed UTF-16 is refused, as in the snapshot.
+- A later input - `aggregateRating` from real ratings (PP12), a `video` with its embed's details - is added to the
+  generator and its page record, and reaches readers through page data like every other fact, never spliced into the
+  output afterwards.
+- The missing-fields report is `RecipeJsonLdGap` (Contracts), each gap once, in the enum's order, with its need from
+  `RecipeJsonLdGaps.NeedOf`, measured against Google's Recipe rich result documentation (checked at PP4.10 against
+  schema.org 30.1):
+  - required: `name`, `image`, and `yield-for-nutrition` (nutrition entered, no yield, which Google requires);
+  - recommended: `author`, `date-published`, `description`, `times` (none entered), `prep-and-cook-time` (one of the two
+    entered without the other; the one entered is still written), `recipe-yield`, `ingredients`, `instructions`,
+    `courses` (no `recipeCategory`), `cuisines`, `keywords`, and `calories`. No member shares a name with a Recipes root
+    type, which `ModuleBoundaryTests` reads as a word.
+  - A gap is reported exactly when its property is not written, and nothing is ever written to close one. Its kebab-case
+    name is a wire contract once PP4.15 carries it; the wording a blogger reads is PP4.15's and POST-006's.
+- The golden corpus is `PantryPress.Tests/Recipes/Corpus/json-ld/`: stored snapshots and their pages, each with its approved
+  gaps and JSON-LD written readably, and two byte-exact production outputs, approved by reading, with nothing that
+  rewrites them. Rich Results validation in CI is RND-005's (PP7.10).
 
 ## Tests
 

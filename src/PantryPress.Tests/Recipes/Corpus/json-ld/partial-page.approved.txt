@@ -1,0 +1,34 @@
+required: none
+recommended: author, date-published, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://apple-pie.pantrypress.app/pantry-pasta#recipe",
+  "name": "Pantry pasta",
+  "description": "Dinner from what's on the shelf.",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pasta-16x9-9a8b7c.jpg"
+  ],
+  "prepTime": "PT5M",
+  "cookTime": "PT12M",
+  "totalTime": "PT17M",
+  "recipeYield": "2 servings",
+  "recipeCategory": "Main course",
+  "recipeCuisine": "Italian",
+  "keywords": "salt, pepper, weeknight",
+  "recipeIngredient": [
+    "8 ounces spaghetti",
+    "Salt and pepper"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Boil the pasta."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Toss with oil, salt, and pepper."
+    }
+  ]
+}

@@ -4842,6 +4842,97 @@ RESTRICTION: No inferred facts, ratings, or nutrition.
 BEHAVIOR: Verify the current schema vocabulary, plan, wait for approval, implement with golden tests.
 ```
 
+*PP4.10 delivery note (2026-11-17):*
+
+- **What shipped.** Pure code in Recipes' `Business/` (`RecipeJsonLd`, `RecipeJsonLdPage`, `RecipeJsonLdResult`) and the gap
+  contract in `Contracts/` (`RecipeJsonLdGap`, `RecipeJsonLdNeed`, `RecipeJsonLdGaps.NeedOf`). No endpoint, facade,
+  migration, or page data. The rules are in `recipes.md`, "JSON-LD (PP4.10)"; the decisions are in the decision log.
+- **Vocabulary verified (2026-11-17).** schema.org release 30.1 (2026-09-16): every property written exists on `Recipe`, its
+  `HowTo` parent, `HowToSection`, `HowToStep`, or `NutritionInformation`; `RestrictedDiet` still has the 11 members
+  `Diets.SchemaOrgMembers` lists; there is no allergen property. Google's Recipe documentation: required `image` and `name`;
+  `recipeYield` required once nutrition is given; `calories` written as `120 calories`; `totalTime`, or `prepTime` with
+  `cookTime`. Its page shows no "last updated" date in the text read. Google's Video documentation was not re-read; the
+  `VideoObject` fields named in the decision are from memory.
+- **Owner decisions (approved plan).** No `video`; a zero time is written (`PT0M`); prep without cook is written, with the
+  total, and reported; `recipeYield` is the amount and the blogger's word; `calories` is a recommended gap.
+- **What differs from the plan.**
+  - Gap names: `category` and `cuisine` became `courses` and `cuisines`, because `ModuleBoundaryTests` reads a Contracts
+    word that matches a Recipes root type (`Cuisine`, then `RecipeCuisine`) as naming it.
+  - The golden view is the production bytes re-written readably by the test, not a second writer in the generator.
+  - `WriteNode` refuses an indented writer or any encoder but the default; the page's addresses are refused unless they are
+    lower-case `https://` with a host, no credentials, and no quote, angle bracket, backslash, or backtick; and the whole
+    snapshot is checked before the first byte is written.
+  - `RecipeSnapshotJson.RequireWellFormed` became internal, with an owner word for its message, so the generator refuses
+    ill-formed text exactly as the snapshot does.
+- **Reviews.**
+  - **`architecture-reviewer`** (no blockers; one major, fixed; three minors, one fixed, two recorded):
+    - The major: `WriteNode` took the caller's encoder, so PP7.10's graph writer could have left `</script>` live. It is now
+      refused, with a test.
+    - The error message blamed the recipe for the page's text: fixed.
+    - Recorded: a bad author name throws (PP7.10 hand-off); a keyword holding a comma reads as two (PP4.11 hand-off).
+  - **`public-site-reviewer`** (no blockers; the same major, fixed; seven minors, one fixed, six recorded):
+    - The "`sha256` CSP source" claim was wrong: a JSON-LD data block is never governed by `script-src`. It was removed
+      from `recipes.md` and the decision log.
+    - Recorded as hand-offs below: a non-number yield beside nutrition, the author as a graph `@id`, later inputs (rating,
+      video) added to the generator, drafts kept out of page data, Rich Results checks of two shapes, and whether a node
+      with a required gap is published.
+  - **`test-gap-analyzer`** (no blockers; three majors, two fixed and one not verified; seven minors, all fixed):
+    - `Production_output_is_inert_in_html_for_any_recipe`, with HTML-hostile, control, and line-separator text in every
+      field.
+    - `Ill_formed_text_in_any_written_field_is_refused` over eleven fields, at a value's end included.
+    - Not verified: Google's Rich Results Test and the Schema Markup Validator (below).
+    - The minors: writing into an open `@graph` array; a refused node writes nothing; nine more refused addresses and four
+      accepted ones; new corpus cases `partial-page`, `blank-everything`, and `long-total` (`PT27H`, `0 calories`, a keyword
+      holding a comma); nutrition, tool, and keyword values as properties; diet order; and the additional-time label.
+- **Tests (in `PantryPress.Tests/Recipes/`).**
+  - `RecipeJsonLdCorpusTests`: 14 cases in `Corpus/json-ld/`, each a stored snapshot read through `RecipeSnapshotJson.Read`
+    with its page. The approved gaps and JSON-LD were written by hand and approved by reading. Two cases are byte-exact
+    production output. Production output is ASCII and inert in HTML, and the same in five cultures.
+  - `RecipeJsonLdTests`: each mapping and gap; the gap codes and needs pinned as kebab-case; only the listed properties
+    are ever written (never a rating, review, allergen, note, label, or video); the writer, page, and text refusals.
+  - `RecipeJsonLdPropertyTests` (CsCheck, 2,000 cases each): lines and steps exact; nutrition, tools, and keywords exactly
+    as entered; the same bytes each time; each gap exactly when its property is missing; inert in HTML.
+  - Mutations caught: calories written in `kcal`, an unescaped encoder, the prep-and-cook gap misjudged, nutrition not
+    requiring the yield, an empty step group written as a section, and a zero time dropped.
+  - Two-site test: not owed. The code is pure, takes no site, and reads no data (all three reviewers agree). Owed by its
+    consumers, below.
+- **Hand-offs.**
+  - **PP4.11:** refuse a keyword that holds a comma, since keywords are joined by `, `.
+  - **PP4.15:** show the gaps by `NeedOf`. The wording is PP4.15's and POST-006's. A preview reads only the route's site's
+    recipe (`Preview_json_ld_reads_only_the_routes_site_revision`).
+  - **PP7.11 / PP7.10:**
+    - Pass only Published revisions (`A_draft_revision_never_reaches_json_ld`).
+    - Build `Url` and the image addresses from the resolved canonical host, never the inbound Host
+      (`JsonLd_for_site_B_names_only_B_canonical_host_and_author`). A canonical host change rebuilds every post's page data.
+    - Reach the generator through a Recipes contract that returns the node's bytes, since Rendering may not name
+      `Business/`, and add them to the graph with `WriteRawValue`, or use `WriteNode(withContext: false)` with a compact,
+      default-encoder writer.
+    - Write every other node with the default encoder too.
+    - Carry the JSON-LD in page data as a string, and write it unchanged as a server-created script element's text.
+      Never `JSON.parse` and `JSON.stringify` it in Node, which would unescape `<`.
+    - It needs no CSP hash.
+    - Guarantee the author name is well-formed text, or the build throws. Consider an author `@id` pointing at the graph's
+      Person.
+    - Keep `datePublished` in step with the Article's.
+    - Decide with POST-006 whether a node with a required gap is published or left out.
+    - Run Google's Rich Results Test and the Schema Markup Validator over the corpus. Include the mixed `HowToStep` and
+      `HowToSection` list, `cookTime: PT0M`, and a range yield beside nutrition.
+  - **Open for the owner:** Google asks for the servings as "just a number" when nutrition is given. A yield like
+    `6–8 servings` or `1 1/3 loaves` is written as the blogger wrote it, and reported as nothing. A recommended gap for
+    it would be a report, not a guess; it was not added, because it was not in the approved plan.
+  - **PP12:** `aggregateRating` from real ratings is an input to the generator, carried in page data, never spliced in.
+- **Not verified or left.**
+  - Google's Rich Results Test and the Schema Markup Validator were not run: they are web forms this session could not
+    drive. The corpus outputs are ready to paste in.
+  - NuGet's audit now refuses Aspire.Hosting 13.6.4 (NU1903, GHSA-f7vh-h5g3-7jrh), which fails restore with warnings as
+    errors. Every command here ran with `NuGetAudit=false`. Upgrading Aspire is its own change.
+  - `aspire run` was not restarted, because the user's own run is up; nothing here changes a resource or the schema.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
+  - `dotnet test PantryPress.slnx`, the SQL container included: 3,675 passed, 0 failed.
+  - Reviewers: `architecture-reviewer`, `public-site-reviewer`, and `test-gap-analyzer`, as above.
+
 ### PP4.11 Recipe CRUD endpoints
 
 ```text

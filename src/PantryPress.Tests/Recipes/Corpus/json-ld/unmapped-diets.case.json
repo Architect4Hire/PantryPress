@@ -1,0 +1,94 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000001007",
+    "title": "Steak and eggs",
+    "summary": "A big breakfast.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 2,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "servings",
+    "prepMinutes": 5,
+    "cookMinutes": 15,
+    "additionalMinutes": null,
+    "additionalTimeLabel": null,
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": null,
+      "caloriesHundredths": null,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": null,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001003",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000001001",
+            "originalText": "2 strip steaks",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001002",
+            "originalText": "4 eggs",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001004",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000001005",
+            "text": "Sear the steaks."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001006",
+            "text": "Fry the eggs in the pan."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [],
+    "courses": [
+      "breakfast"
+    ],
+    "cuisines": [],
+    "diets": [
+      "keto",
+      "paleo"
+    ],
+    "allergens": []
+  }
+}

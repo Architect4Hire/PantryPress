@@ -283,8 +283,9 @@ internal static class RecipeSnapshotJson
         }
     }
 
-    // A lone surrogate would be written as U+FFFD by the encoder and read back as something the blogger never wrote.
-    private static void RequireWellFormed(string value, string name)
+    // A lone surrogate would be written as U+FFFD by the encoder and read back as something the blogger never wrote. The
+    // JSON-LD generator (PP4.10) refuses it the same way.
+    internal static void RequireWellFormed(string value, string name, string owner = "recipe's")
     {
         for (var i = 0; i < value.Length; i++)
         {
@@ -295,7 +296,7 @@ internal static class RecipeSnapshotJson
             else if (char.IsSurrogate(value[i]))
             {
                 throw new ArgumentException(
-                    $"The recipe's {name} holds a lone surrogate at {i}, which is not text; it cannot be kept exactly, so it is not kept at all.",
+                    $"The {owner} {name} holds a lone surrogate at {i}, which is not text; it cannot be kept exactly, so it is not kept at all.",
                     nameof(value));
             }
         }

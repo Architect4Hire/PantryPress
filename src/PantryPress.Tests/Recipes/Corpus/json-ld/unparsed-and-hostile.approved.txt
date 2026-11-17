@@ -1,0 +1,36 @@
+required: none
+recommended: calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "@id": "https://apple-pie.pantrypress.app/creme-brulee#recipe",
+  "name": "Mom's \"best\" crème brûlée </script>",
+  "description": "Rich & creamy <b>not bold</b> + worth it",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/creme-brulee-1x1-5d4c3b.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Zoë O'Brien"
+  },
+  "datePublished": "2026-02-14",
+  "prepTime": "PT15M",
+  "cookTime": "PT40M",
+  "totalTime": "PT55M",
+  "recipeYield": "6 ramekins",
+  "recipeCategory": "Dessert",
+  "recipeCuisine": "French",
+  "keywords": "date night",
+  "recipeIngredient": [
+    "a splash of the good vanilla (you know the one) \uD83C\uDF66",
+    "1 / 2 cup cream",
+    "Sugar — to taste"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Bake at 150°C until set; don't let it <boil>."
+    }
+  ]
+}

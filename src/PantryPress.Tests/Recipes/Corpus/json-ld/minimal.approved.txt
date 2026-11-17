@@ -1,0 +1,18 @@
+required: image
+recommended: author, date-published, description, times, recipe-yield, courses, cuisines, keywords, calories
+---
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Buttered toast",
+  "recipeIngredient": [
+    "1 slice bread",
+    "Butter"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Toast the bread and butter it while hot."
+    }
+  ]
+}

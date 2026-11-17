@@ -1,0 +1,93 @@
+{
+  "page": null,
+  "snapshot": {
+    "id": "00000000-0000-4000-8000-000000001307",
+    "title": "Sourdough loaf",
+    "summary": "A slow, overnight loaf.",
+    "yield": {
+      "kind": "amount",
+      "low": {
+        "numerator": 1,
+        "denominator": 1
+      },
+      "high": null
+    },
+    "yieldUnit": "loaf",
+    "prepMinutes": 60,
+    "cookMinutes": 1560,
+    "additionalMinutes": 0,
+    "additionalTimeLabel": "Rest",
+    "videoUrl": null,
+    "nutrition": {
+      "servingSize": "1 slice",
+      "caloriesHundredths": 0,
+      "fatGramsHundredths": null,
+      "saturatedFatGramsHundredths": null,
+      "transFatGramsHundredths": null,
+      "unsaturatedFatGramsHundredths": null,
+      "cholesterolMilligramsHundredths": null,
+      "sodiumMilligramsHundredths": 31000,
+      "carbohydrateGramsHundredths": null,
+      "fiberGramsHundredths": null,
+      "sugarGramsHundredths": null,
+      "proteinGramsHundredths": null
+    },
+    "ingredientGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001303",
+        "heading": null,
+        "lines": [
+          {
+            "id": "00000000-0000-4000-8000-000000001301",
+            "originalText": "500 g bread flour",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001302",
+            "originalText": "100 g starter",
+            "parseStatus": "unparsed",
+            "quantity": null,
+            "quantitySpan": null,
+            "unitCode": null,
+            "unitSpan": null,
+            "item": null,
+            "note": null
+          }
+        ]
+      }
+    ],
+    "stepGroups": [
+      {
+        "id": "00000000-0000-4000-8000-000000001304",
+        "heading": null,
+        "steps": [
+          {
+            "id": "00000000-0000-4000-8000-000000001305",
+            "text": "Mix and ferment overnight."
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000001306",
+            "text": "Bake in a hot Dutch oven."
+          }
+        ]
+      }
+    ],
+    "equipment": [],
+    "notes": [],
+    "keywords": [
+      "sourdough"
+    ],
+    "courses": [
+      "bread"
+    ],
+    "cuisines": [],
+    "diets": [],
+    "allergens": []
+  }
+}
