@@ -25,7 +25,7 @@ public sealed class RecipeIngredient : ISiteOwned
     /// <summary>Stamped by the save from the request's site; never set in code (tenancy.md rule 3).</summary>
     public SiteId SiteId { get; private set; }
 
-    public RecipeIngredientGroupId GroupId { get; init; }
+    public RecipeIngredientGroupId GroupId { get; set; }
 
     /// <summary>Where the line comes in its group, from 0.</summary>
     public int Position { get; set; }

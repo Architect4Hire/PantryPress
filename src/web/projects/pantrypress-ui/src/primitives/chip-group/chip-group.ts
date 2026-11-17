@@ -13,6 +13,7 @@ import {
 import { NG_VALUE_ACCESSOR } from '@angular/forms';
 import { PpChoiceBase } from '../choice/choice-base';
 import { nextId } from '../field/field-context';
+import { PpFieldError } from '../field/field-error';
 
 export interface PpChipOption<T> {
   readonly value: T;
@@ -31,6 +32,7 @@ export interface PpChipOption<T> {
 @Component({
   selector: 'pp-chip-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [PpFieldError],
   providers: [
     { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => PpChipGroup), multi: true },
   ],
@@ -38,6 +40,8 @@ export interface PpChipOption<T> {
     <fieldset
       class="group"
       [attr.role]="multiple() ? null : 'radiogroup'"
+      [attr.aria-describedby]="error() ? errorId : null"
+      [attr.aria-invalid]="error() ? 'true' : null"
       (focusout)="left($event)"
     >
       <legend class="legend">{{ legend() }}</legend>
@@ -74,6 +78,9 @@ export interface PpChipOption<T> {
           </label>
         }
       </div>
+      @if (error(); as error) {
+        <pp-field-error class="error" [errorId]="errorId" [message]="error" />
+      }
     </fieldset>
   `,
   styleUrls: ['../shared/visually-hidden.css', './chip-group.css'],
@@ -83,7 +90,11 @@ export class PpChipGroup<T> extends PpChoiceBase<readonly T[] | T | null> {
   readonly options = input.required<readonly PpChipOption<T>[]>();
   readonly multiple = input(true, { transform: booleanAttribute });
 
+  /** Why the choice was refused, in plain words: it describes the group and marks it invalid (PP4.13). */
+  readonly error = input<string>();
+
   protected readonly name = nextId('chips');
+  protected readonly errorId = `${this.name}-error`;
   private readonly value = signal<readonly T[] | T | null>(null);
   /** The chosen values, read as the group is now, so a form's value never depends on when `multiple` was set. */
   private readonly selected = computed<readonly T[]>(() => {

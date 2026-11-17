@@ -74,7 +74,7 @@ public sealed class IdempotencyConventionTests
     {
         // The account routes either have no caller to scope a key to or answer with secrets that must not be stored
         // (IdempotentAttribute). The first real opt-in is creating a site (PP2.10), so a double-clicked "Create" makes
-        // one site; inviting and accepting follow (PP2.11), then PP2.11b's member changes and PP18's publishing API. This
+        // one site; inviting and accepting follow (PP2.11), then PP2.11b's member changes, PP4.11's recipe writes, and PP18's publishing API. This
         // pins the list so a change is deliberate.
         await using var api = ApiServiceFactory.WithoutDatabase(
             "Development",
@@ -95,7 +95,12 @@ public sealed class IdempotencyConventionTests
                 "POST /api/v1/site-invitations/accept",
                 "POST /api/v1/sites",
                 "POST /api/v1/sites/{siteSlug}/invitations",
+                "POST /api/v1/sites/{siteSlug}/recipes",
+                "POST /api/v1/sites/{siteSlug}/recipes/{recipeId}/archive",
+                "POST /api/v1/sites/{siteSlug}/recipes/{recipeId}/duplicate",
+                "POST /api/v1/sites/{siteSlug}/recipes/{recipeId}/restore",
                 "PUT /api/v1/sites/{siteSlug}/members/{memberId}/role",
+                "PUT /api/v1/sites/{siteSlug}/recipes/{recipeId}",
             ],
             optedIn.Order(StringComparer.Ordinal));
     }

@@ -1,0 +1,66 @@
+# issues
+# json-ld
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Brown butter apple pie",
+  "description": "A deep-dish apple pie with a brown butter crust.",
+  "url": "https://apple-pie.pantrypress.app/posts/brown-butter-apple-pie",
+  "image": [
+    "https://apple-pie.pantrypress.app/media/pie-16x9.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-4x3.jpg",
+    "https://apple-pie.pantrypress.app/media/pie-1x1.jpg"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "June Baker",
+    "url": "https://apple-pie.pantrypress.app/about"
+  },
+  "datePublished": "2026-11-02T14:30:05Z",
+  "prepTime": "PT45M",
+  "cookTime": "PT50M",
+  "totalTime": "PT5H35M",
+  "recipeYield": "8 servings",
+  "recipeCategory": "Dessert",
+  "recipeCuisine": "American",
+  "keywords": "apple pie, brown butter, thanksgiving",
+  "suitableForDiet": [
+    "https://schema.org/VegetarianDiet"
+  ],
+  "recipeIngredient": [
+    "2 1/2 cups all-purpose flour",
+    "1 cup butter, browned and chilled",
+    "6 to 8 tablespoons ice water",
+    "3 pounds apples, peeled and sliced",
+    "\u00BE cup brown sugar",
+    "1 tsp cinnamon",
+    "salt to taste"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "text": "Brown the butter and chill it."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Rub it into the flour, then add water until it holds."
+    },
+    {
+      "@type": "HowToStep",
+      "text": "Fill, top, and bake at 425\u00B0F for 50 minutes."
+    }
+  ],
+  "nutrition": {
+    "@type": "NutritionInformation",
+    "servingSize": "1 slice",
+    "calories": "412.5 calories",
+    "fatContent": "21.5 grams",
+    "saturatedFatContent": "13 grams",
+    "cholesterolContent": "55 milligrams",
+    "sodiumContent": "260 milligrams",
+    "carbohydrateContent": "54 grams",
+    "fiberContent": "4 grams",
+    "sugarContent": "31.5 grams",
+    "proteinContent": "4 grams"
+  }
+}

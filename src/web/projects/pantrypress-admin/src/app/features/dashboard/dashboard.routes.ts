@@ -36,6 +36,18 @@ const routes: Routes = [
             loadComponent: () => import('./site-home').then((m) => m.SiteHome),
           },
           {
+            // No route title: the router would put it back on every search, filter, or tab change, dropping the site's
+            // name; the screen sets its own (PP4.12b).
+            path: 'recipes',
+            loadComponent: () => import('../recipes/recipe-library').then((m) => m.RecipeLibrary),
+          },
+          {
+            // `new` for a recipe not made yet, or the recipe's id (PP4.13). One route for both, so the screen stays the
+            // same one when a new recipe is given its address. No route title: the screen sets its own, with the recipe's.
+            path: 'recipes/:recipeId',
+            loadComponent: () => import('../recipes/recipe-editor').then((m) => m.RecipeEditor),
+          },
+          {
             path: '**',
             title: 'Page not found - PantryPress',
             loadComponent: () => import('./dashboard-not-found').then((m) => m.DashboardNotFound),

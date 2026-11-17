@@ -389,9 +389,47 @@ public sealed class RecipeSchemaTests(MigratedDatabase database) : IAsyncLifetim
         await transaction.RollbackAsync();
     }
 
+    // PP4.11a: rolling the library migration back would forget which recipes are archived and who made each, so it refuses
+    // while any recipe holds either, and not while none does. Inside a transaction that is rolled back, as above.
+    [Theory]
+    [InlineData("[ArchivedAt] = [CreatedAt]", true)]
+    [InlineData("[CreatedByAccountId] = NEWID()", true)]
+    [InlineData("[ArchivedAt] = NULL, [CreatedByAccountId] = NULL", false)]
+    public async Task Rolling_the_library_back_refuses_while_a_recipe_is_archived_or_attributed(string set, bool refused)
+    {
+        var down = new PantryPress.MigrationService.Migrations.RecipeLibrary().DownOperations;
+        var guard = Assert.IsType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>(down[0]);
+
+        var (site, rows) = await SeedRecipeAsync("rcp-lib-rollback");
+        await using var scope = _harness.Scope();
+        var database = Db(scope).Database;
+        await using var transaction = await database.BeginTransactionAsync();
+
+        // Every other recipe in the shared database is set aside first, inside the transaction, so only this row decides.
+        await database.ExecuteSqlRawAsync("UPDATE [Recipes] SET [ArchivedAt] = NULL, [CreatedByAccountId] = NULL");
+        // The clause is the case's own constant; the row's key goes as parameters.
+        await database.ExecuteSqlRawAsync(
+            string.Concat("UPDATE [Recipes] SET ", set, " WHERE [SiteId] = @site AND [Id] = @id"),
+            new SqlParameter("@site", site.Value),
+            new SqlParameter("@id", rows.Recipe.Id.Value));
+
+        if (refused)
+        {
+            var error = await Assert.ThrowsAsync<SqlException>(() => database.ExecuteSqlRawAsync(guard.Sql));
+            Assert.Equal(51015, error.Number);
+        }
+        else
+        {
+            await database.ExecuteSqlRawAsync(guard.Sql);
+        }
+
+        await transaction.RollbackAsync();
+    }
+
     public static TheoryData<string, string[]> RecipeRefusals => new()
     {
         { "[Title] = N''", [RecipeConfiguration.TitleConstraintName] },
+        { "[ArchivedAt] = DATEADD(second, -1, [CreatedAt])", [RecipeConfiguration.ArchivedAtConstraintName] },
         { "[Title] = N'   '", [RecipeConfiguration.TitleConstraintName] },
         { "[Summary] = N''", [RecipeConfiguration.TextConstraintName] },
         { "[ServingSize] = N' '", [RecipeConfiguration.TextConstraintName] },

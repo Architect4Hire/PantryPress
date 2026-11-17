@@ -11,4 +11,7 @@ export interface SiteSection {
  * prompt that adds a screen adds its entry here (posts, recipes, media, design, settings). The API decides who may use
  * each one; the navigation hides nothing by role.
  */
-export const SITE_SECTIONS: readonly SiteSection[] = [{ label: 'Overview', path: [] }];
+export const SITE_SECTIONS: readonly SiteSection[] = [
+  { label: 'Overview', path: [] },
+  { label: 'Recipes', path: ['recipes'] },
+];

@@ -22,4 +22,25 @@ public static class RecipeErrors
         ErrorKind.Conflict,
         "recipe-changed",
         "This recipe was changed just now, maybe in another tab. Reload it and try again.");
+
+    /// <summary>
+    /// An Author asked to change a recipe someone else made (SITE-010; PP4.11). Answered only once the recipe is found on
+    /// the caller's own site, so it says nothing another member could not already read.
+    /// </summary>
+    public static readonly Error RecipeNotYours = new(
+        ErrorKind.Forbidden,
+        "recipe-not-yours",
+        "Only an editor or owner can change a recipe someone else made.");
+
+    /// <summary>The recipe is archived: restore it before changing it (PP4.11). Nothing was saved.</summary>
+    public static readonly Error RecipeArchived = new(
+        ErrorKind.Conflict,
+        "recipe-archived",
+        "This recipe is archived. Restore it to make changes.");
+
+    /// <summary>
+    /// The message on a part id that is not one of this recipe's parts - unknown, another recipe's, or another site's, one
+    /// answer (tenancy.md) - given as a field error at the part's id.
+    /// </summary>
+    public const string PartNotFoundMessage = "This part isn't in the recipe any more. Reload the recipe and try again.";
 }

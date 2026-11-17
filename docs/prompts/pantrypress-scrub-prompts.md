@@ -4832,7 +4832,7 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
   - `dotnet test` over every test that runs without a container: passing.
   - Reviewers: `architecture-reviewer` and `test-gap-analyzer`, as above.
 
-### PP4.10 Recipe JSON-LD generator
+### PP4.10 Recipe JSON-LD generator - done
 
 ```text
 SCOPE: Implement deterministic schema.org Recipe JSON-LD from a published recipe revision, with a
@@ -4842,98 +4842,139 @@ RESTRICTION: No inferred facts, ratings, or nutrition.
 BEHAVIOR: Verify the current schema vocabulary, plan, wait for approval, implement with golden tests.
 ```
 
-*PP4.10 delivery note (2026-11-17):*
+*PP4.10 delivery note (2026-11-14):*
 
-- **What shipped.** Pure code in Recipes' `Business/` (`RecipeJsonLd`, `RecipeJsonLdPage`, `RecipeJsonLdResult`) and the gap
-  contract in `Contracts/` (`RecipeJsonLdGap`, `RecipeJsonLdNeed`, `RecipeJsonLdGaps.NeedOf`). No endpoint, facade,
-  migration, or page data. The rules are in `recipes.md`, "JSON-LD (PP4.10)"; the decisions are in the decision log.
-- **Vocabulary verified (2026-11-17).** schema.org release 30.1 (2026-09-16): every property written exists on `Recipe`, its
-  `HowTo` parent, `HowToSection`, `HowToStep`, or `NutritionInformation`; `RestrictedDiet` still has the 11 members
-  `Diets.SchemaOrgMembers` lists; there is no allergen property. Google's Recipe documentation: required `image` and `name`;
-  `recipeYield` required once nutrition is given; `calories` written as `120 calories`; `totalTime`, or `prepTime` with
-  `cookTime`. Its page shows no "last updated" date in the text read. Google's Video documentation was not re-read; the
-  `VideoObject` fields named in the decision are from memory.
-- **Owner decisions (approved plan).** No `video`; a zero time is written (`PT0M`); prep without cook is written, with the
-  total, and reported; `recipeYield` is the amount and the blogger's word; `calories` is a recommended gap.
+- **Vocabulary verified (2026-11-14).**
+  - schema.org V30.1 (2026-09-16): every `Recipe` property used is current, and `recipeIngredient` supersedes
+    `ingredients`. `NutritionInformation`'s names match `Nutrient`. `RestrictedDiet` still has exactly the 11 members
+    `Diets` maps to.
+  - Google's recipe guidance: required `name` and `image`; nutrition needs `recipeYield`; `totalTime` or both `prepTime`
+    and `cookTime`; no keyword repeating a category or cuisine.
+  - Google's video guidance: a `VideoObject` requires `name`, `thumbnailUrl`, and `uploadDate`.
+- **What shipped.** Pure code in Recipes' `Business/` and one contract. No endpoint, facade, migration, or page data. The
+  rules are in `recipes.md`, "JSON-LD (PP4.10)".
+  - `RecipeJsonLd.Write(snapshot, context)` gives the compact JSON-LD and the issues, in enum order.
+  - `RecipeJsonLdContext` and `RecipeJsonLdAuthor` carry what a revision does not hold: page address, images, author,
+    and publish date. Each address must be lower-case `https://` with RFC 3986 characters only and no user-info. The
+    date must be UTC.
+  - `Contracts/RecipeJsonLdIssue.cs`: 16 issues with pinned kebab-case names, and `RecipeJsonLdSeverity`
+    (`Required`, `Recommended`) through `RecipeJsonLdIssues.SeverityOf`. Severity is part of the contract, because the
+    preview and the readiness check outside this module will rank by it.
+- **Owner-approved choices** (decision log, 2026-11-14):
+  - A time entered as zero is written (`PT0M`).
+  - A video address alone is left out and reported (`video-not-described`).
+  - A keyword repeating the recipe's course or cuisine is left out (ASCII letters folded, white space at the ends
+    ignored).
+  - No step `url` or `name`.
 - **What differs from the plan.**
-  - Gap names: `category` and `cuisine` became `courses` and `cuisines`, because `ModuleBoundaryTests` reads a Contracts
-    word that matches a Recipes root type (`Cuisine`, then `RecipeCuisine`) as naming it.
-  - The golden view is the production bytes re-written readably by the test, not a second writer in the generator.
-  - `WriteNode` refuses an indented writer or any encoder but the default; the page's addresses are refused unless they are
-    lower-case `https://` with a host, no credentials, and no quote, angle bracket, backslash, or backtick; and the whole
-    snapshot is checked before the first byte is written.
-  - `RecipeSnapshotJson.RequireWellFormed` became internal, with an owner word for its message, so the generator refuses
-    ill-formed text exactly as the snapshot does.
-- **Reviews.**
-  - **`architecture-reviewer`** (no blockers; one major, fixed; three minors, one fixed, two recorded):
-    - The major: `WriteNode` took the caller's encoder, so PP7.10's graph writer could have left `</script>` live. It is now
-      refused, with a test.
-    - The error message blamed the recipe for the page's text: fixed.
-    - Recorded: a bad author name throws (PP7.10 hand-off); a keyword holding a comma reads as two (PP4.11 hand-off).
-  - **`public-site-reviewer`** (no blockers; the same major, fixed; seven minors, one fixed, six recorded):
-    - The "`sha256` CSP source" claim was wrong: a JSON-LD data block is never governed by `script-src`. It was removed
-      from `recipes.md` and the decision log.
-    - Recorded as hand-offs below: a non-number yield beside nutrition, the author as a graph `@id`, later inputs (rating,
-      video) added to the generator, drafts kept out of page data, Rich Results checks of two shapes, and whether a node
-      with a required gap is published.
-  - **`test-gap-analyzer`** (no blockers; three majors, two fixed and one not verified; seven minors, all fixed):
-    - `Production_output_is_inert_in_html_for_any_recipe`, with HTML-hostile, control, and line-separator text in every
-      field.
-    - `Ill_formed_text_in_any_written_field_is_refused` over eleven fields, at a value's end included.
-    - Not verified: Google's Rich Results Test and the Schema Markup Validator (below).
-    - The minors: writing into an open `@graph` array; a refused node writes nothing; nine more refused addresses and four
-      accepted ones; new corpus cases `partial-page`, `blank-everything`, and `long-total` (`PT27H`, `0 calories`, a keyword
-      holding a comma); nutrition, tool, and keyword values as properties; diet order; and the additional-time label.
-- **Tests (in `PantryPress.Tests/Recipes/`).**
-  - `RecipeJsonLdCorpusTests`: 14 cases in `Corpus/json-ld/`, each a stored snapshot read through `RecipeSnapshotJson.Read`
-    with its page. The approved gaps and JSON-LD were written by hand and approved by reading. Two cases are byte-exact
-    production output. Production output is ASCII and inert in HTML, and the same in five cultures.
-  - `RecipeJsonLdTests`: each mapping and gap; the gap codes and needs pinned as kebab-case; only the listed properties
-    are ever written (never a rating, review, allergen, note, label, or video); the writer, page, and text refusals.
-  - `RecipeJsonLdPropertyTests` (CsCheck, 2,000 cases each): lines and steps exact; nutrition, tools, and keywords exactly
-    as entered; the same bytes each time; each gap exactly when its property is missing; inert in HTML.
-  - Mutations caught: calories written in `kcal`, an unescaped encoder, the prep-and-cook gap misjudged, nutrition not
-    requiring the yield, an empty step group written as a section, and a zero time dropped.
-  - Two-site test: not owed. The code is pure, takes no site, and reads no data (all three reviewers agree). Owed by its
-    consumers, below.
+  - Golden inputs are C# cases (`RecipeJsonLdCases`) whose lines go through the real parser, not hand-written snapshot
+    JSON. The generator reads only a line's text.
+  - A property test instead runs every generated recipe through `RecipeSnapshotJson` write and read, and requires
+    identical bytes.
+  - Each case is one `<case>.approved.txt`: the report, then the JSON-LD indented to be read. A test proves the compact
+    bytes are that JSON with its layout removed.
+  - The planned `prep-or-cook-time-missing` is two issues, `prep-time-missing` and `cook-time-missing`, so the report
+    says which is missing (the PP4.9 hand-off).
+  - The keyword comparison also ignores white space at the ends, after `"Italian "` slipped past it.
+- **From `public-site-reviewer`** (no blockers):
+  - One major, fixed: nutrition with no yield was written. Google requires the yield beside nutrition, so the whole
+    recipe would lose its rich result. Nutrition is now withheld until a yield exists, and
+    `yield-missing-for-nutrition` asks for one. The `nutrition-without-yield` golden was edited by hand.
+  - Minors fixed:
+    - the encoder is named (`JavaScriptEncoder.Default`);
+    - a blank title throws, since the table refuses one;
+    - the address check refuses user-info and non-RFC 3986 characters, replacing a check that did nothing;
+    - the ratings wording now matches PP12.8, which adds `aggregateRating` inside the Recipe.
+  - Minors recorded:
+    - The yield is the card's fraction text (`1½`, `2–3 loaves`), not a bare number. Whether Google reads it is for
+      RND-005's Rich Results test.
+    - A comma inside a keyword reads as two keywords, and repeats are kept. Both are written exactly, and both are pinned
+      by a test.
+    - There is no `@id` for PP7.10's graph. PP7.10 decides whether to add `{url}#recipe` or a graph-member form.
+    - Mixed `HowToStep` and `HowToSection` lists are valid schema.org. RND-005's Rich Results test should confirm Google
+      reads them.
+- **From `architecture-reviewer`** (no blockers or majors):
+  - Fixed: the weak determinism property (it compared shared lists) is replaced by the stored-revision round trip.
+  - Recorded: severity stays in `Contracts/`, as above.
+  - Recorded: the yield text and the recipe card (PP7.7) must share one formatter, with a test pinning them.
+  - Recorded: wire names are pinned with the tests' kebab helper. PP7.11 pins them through the API's serializer when
+    page data carries them.
+- **From `test-gap-analyzer`** (no blockers): four majors fixed.
+  - Every issue is now a property law, and so is issue order.
+  - Zero calories is written and not reported.
+  - The context is generated too: an author named in any words, and every part optional. `>` is asserted absent.
+  - A stored-revision round trip.
+  - Minors fixed:
+    - address edge cases;
+    - a null image;
+    - the images list is copied;
+    - groups with no lines;
+    - headings appear nowhere;
+    - no internal id is written (property);
+    - out-of-range enums;
+    - diet members unique;
+    - keyword commas, repeats, and Unicode white space.
+  - Not changed: steps and lines are written as stored, because the tables refuse blank ones (`CK_RecipeSteps_Text`,
+    `CK_RecipeIngredients_OriginalText`).
+- **Two-site test:** not owed. The code is pure and adds no site data path (all three reviewers agree).
 - **Hand-offs.**
-  - **PP4.11:** refuse a keyword that holds a comma, since keywords are joined by `, `.
-  - **PP4.15:** show the gaps by `NeedOf`. The wording is PP4.15's and POST-006's. A preview reads only the route's site's
-    recipe (`Preview_json_ld_reads_only_the_routes_site_revision`).
-  - **PP7.11 / PP7.10:**
-    - Pass only Published revisions (`A_draft_revision_never_reaches_json_ld`).
-    - Build `Url` and the image addresses from the resolved canonical host, never the inbound Host
-      (`JsonLd_for_site_B_names_only_B_canonical_host_and_author`). A canonical host change rebuilds every post's page data.
-    - Reach the generator through a Recipes contract that returns the node's bytes, since Rendering may not name
-      `Business/`, and add them to the graph with `WriteRawValue`, or use `WriteNode(withContext: false)` with a compact,
-      default-encoder writer.
-    - Write every other node with the default encoder too.
-    - Carry the JSON-LD in page data as a string, and write it unchanged as a server-created script element's text.
-      Never `JSON.parse` and `JSON.stringify` it in Node, which would unescape `<`.
-    - It needs no CSP hash.
-    - Guarantee the author name is well-formed text, or the build throws. Consider an author `@id` pointing at the graph's
-      Person.
-    - Keep `datePublished` in step with the Article's.
-    - Decide with POST-006 whether a node with a required gap is published or left out.
-    - Run Google's Rich Results Test and the Schema Markup Validator over the corpus. Include the mixed `HowToStep` and
-      `HowToSection` list, `cookTime: PT0M`, and a range yield beside nutrition.
-  - **Open for the owner:** Google asks for the servings as "just a number" when nutrition is given. A yield like
-    `6–8 servings` or `1 1/3 loaves` is written as the blogger wrote it, and reported as nothing. A recommended gap for
-    it would be a report, not a guess; it was not added, because it was not in the approved plan.
-  - **PP12:** `aggregateRating` from real ratings is an input to the generator, carried in page data, never spliced in.
+  - **PP7.11:**
+    - Reach the generator through a Recipes contract that answers a contract record (JSON plus issues).
+    - Build only from published revisions (PP-D04); the generator cannot tell them from drafts.
+    - Fill the context from the post, its media (16x9, 4x3, 1x1), and the site.
+    - Owes a two-site test that every address in the JSON-LD is on the site being built.
+  - **PP7.10:** Rich Results validation (RND-005), the `@id` and graph decision, and a test that every card style gives the
+    same JSON-LD (THM-009).
+  - **PP12.8:** add `aggregateRating` through a typed context input, from approved ratings only.
+  - **PP4.15 and POST-006:** word the issues in plain language, and rank them by severity.
 - **Not verified or left.**
-  - Google's Rich Results Test and the Schema Markup Validator were not run: they are web forms this session could not
-    drive. The corpus outputs are ready to paste in.
-  - NuGet's audit now refuses Aspire.Hosting 13.6.4 (NU1903, GHSA-f7vh-h5g3-7jrh), which fails restore with warnings as
-    errors. Every command here ran with `NuGetAudit=false`. Upgrading Aspire is its own change.
-  - `aspire run` was not restarted, because the user's own run is up; nothing here changes a resource or the schema.
+  - **Restore failure:** NuGet now reports a high-severity advisory against `Aspire.Hosting` 13.6.4
+    (GHSA-f7vh-h5g3-7jrh). With warnings as errors, restore fails. Every build and test here ran with
+    `-p:WarningsNotAsErrors=NU1903`, a command-line switch only; nothing committed changes it. Upgrading Aspire is a
+    separate decision.
+  - **Four whole-system hosting tests failed:** `AdminAppTests`, `DataResourceTests`, `ProjectHealthTests`, and
+    `AccountEmailEndToEndTests`. Each timed out waiting for the Angular `admin` resource to start. Nothing here touches a
+    resource, a host, or the front end.
+  - **Rich Results Test:** not run. It is RND-005's, at page level (PP7.10).
 - **Verification.**
-  - `dotnet build PantryPress.slnx`: 0 warnings, 0 errors.
+  - `dotnet build PantryPress.slnx`: 0 errors. The only warnings are the 8 NU1903 advisories.
   - `dotnet format PantryPress.slnx --verify-no-changes`: clean.
-  - `dotnet test PantryPress.slnx`, the SQL container included: 3,675 passed, 0 failed.
+  - `dotnet test PantryPress.slnx`: 3,727 passed, and 4 failed (the hosting tests above).
+    - The SQL container tests ran and passed.
+    - The 141 JSON-LD tests all pass: 18 golden cases, unit tests, five cultures, and seven CsCheck properties at 5,000
+      cases each.
   - Reviewers: `architecture-reviewer`, `public-site-reviewer`, and `test-gap-analyzer`, as above.
 
-### PP4.11 Recipe CRUD endpoints
+### PP4.11a Recipe library columns - done
+
+```text
+SCOPE: Add the archived state and the recipe's maker to Recipes, and the library's index, for PP4.11.
+CONSTRAINT: RCP-001, RCP-007, SITE-010; Templates C and K.
+BEHAVIOR: Split from PP4.11 (owner-approved, 2026-11-14): archive had no state to hold, and one seam per prompt.
+```
+
+*PP4.11a delivery note (done 2026-11-14):*
+
+- **What shipped.** Migration `RecipeLibrary` (`20261114110414`). It is additive only and fills in nothing.
+  - `Recipes.ArchivedAt`: a nullable `datetimeoffset`. A recipe with a revision is never deleted (PP4.4), so archiving is
+    how one leaves the library. A check keeps it no earlier than `CreatedAt`.
+  - `Recipes.CreatedByAccountId`: a nullable `uniqueidentifier`, with no foreign key, since a module never names another
+    module's entities. Null means no person made the recipe (the publishing API, an import).
+  - `IX_Recipes_Library (SiteId, UpdatedAt, Id)`.
+  - Neither column is frozen into a revision. The snapshot's not-frozen list says so.
+  - The rollback refuses (51015, under `TABLOCKX, HOLDLOCK`) while any recipe is archived or has a maker.
+  - Module edge Recipes → Accounts, Sites (`ModuleBoundaryTests`), with its reason.
+- **Tests.** Model tests for the index and the two columns. Schema tests for the check and for each of the rollback
+  guard's three cases. The migration list.
+- **From Template K review** (`architecture-reviewer`; no blockers):
+  - The major is fixed: account erasure now owes clearing `CreatedByAccountId`, a hand-off written under PP19.11a.
+  - Recorded rather than changed:
+    - No `INCLUDE` on the library index, because Domain does not reference the SQL Server provider.
+    - "Set once" for the maker is enforced by the facade, and PP4.11's tests pin it; no trigger.
+    - Archiving does not move `UpdatedAt` (PP4.11), so there is no `ArchivedAt <= UpdatedAt` check.
+- **Verification.** Build clean; 288 focused tests passed, SQL included. The full suite ran with PP4.11, below.
+
+### PP4.11 Recipe CRUD endpoints - done
 
 ```text
 SCOPE: Add create, read, update draft, list, archive, and duplicate recipe endpoints.
@@ -4941,21 +4982,327 @@ CONSTRAINT: RCP-001, RCP-007; Template B.
 BEHAVIOR: Plan, wait for approval, implement with two-site tests.
 ```
 
-### PP4.12 Recipe API service and library screen
+*PP4.11 delivery note (done 2026-11-14):*
+
+- **What shipped.** Seven routes under `/api/v1/sites/{siteSlug}/recipes`, all `SiteAuthor`. The rules are in
+  `recipes.md`, "Recipe routes (PP4.11)".
+  - The routes:
+    - create (`POST`, 201) and list (`GET`);
+    - `/{recipeId:guid}`: read, save the working copy (`PUT`), archive, restore, and duplicate (201);
+    - every write is `[Idempotent]`.
+  - The seam: Controller → `IRecipesFacade` → `RecipeEditor` and `RecipeDetails` (Business) → `RecipesDataLayer` →
+    `RecipeRepository`.
+  - New in Business: `RecipeText`, `RecipeVideoHosts`, `RecipeListCursor`, `RecipeVersion`.
+  - New codes: `recipe-not-yours` (403) and `recipe-archived` (409).
+  - Rate limits per account: recipe reads 120, saves 120, and creates 30 a minute. `SiteLookupsPerAccountPerMinute` went
+    from 300 to 600.
+- **Owner-approved choices** (2026-11-14):
+  - The split into PP4.11a.
+  - An Author changes only recipes they made; any member reads, lists, and duplicates.
+  - The video hosts: YouTube and Vimeo.
+  - Restore as well as archive.
+  - Empty groups are stored (the PP4.6 hand-off).
+  - The caps: 20 groups and 200 lines; 20 groups and 100 steps; 30, 20, and 20 for equipment, notes, and keywords;
+    5 courses and 5 cuisines.
+- **Hand-offs closed:**
+  - PP4.3:
+    - two-site tests;
+    - `UpdatedAt` moves on every change to a part;
+    - validators for counts, video hosts, text that is only tabs or line breaks, and a third decimal place.
+  - PP4.4:
+    - every write takes `FindLockedAsync`;
+    - ill-formed UTF-16 is a field error;
+    - indistinguishable answers, the cross accounts, and the site-id binding check (no route binds one).
+  - PP4.5: lines stored as the parser reads them.
+  - PP4.6:
+    - lines read again on the server;
+    - the empty-group decision;
+    - the paste versus cap note (to PP4.14);
+    - `{recipeId:guid}`.
+- **What differs from the plan.**
+  - The save body is `{version, content}`. A field named `recipe` read as the root type to the boundary scan.
+  - `RecipeIngredient.GroupId` and `RecipeStep.GroupId` became settable, so a line or step keeps its id when it moves
+    between groups of the same recipe.
+  - Nutrition is answered in its shortest form (`410.5`, never the column's `410.50`). The tests found that a save and a
+    read disagreed.
+  - The nutrition mapping moved to `Repositories/RecipeNutritionColumns`. It is the written exception: no EF Core, but it
+    is about the columns.
+  - **From review** (no blockers from any reviewer):
+    - All four reviewers found the same bug: create took part ids from its caller as keys. Posting back a recipe read on
+      the site gave a 500, and another site's ids gave twin ids. Create now refuses any part id at its path.
+    - `api-contract-checker`:
+      - The PUT description promised retries were safe without a key, but a save that added a part is not. It now says
+        to send a key; a test pins the replay and the 409.
+      - A huge nutrition amount overflowed into a 500. The range is now checked first.
+      - Minors fixed:
+        - `auth.md` now says 600;
+        - the rate-limit sum comment;
+        - the list's and the PUT's 400 descriptions.
+    - `site-isolation-auditor` and `architecture-reviewer`:
+      - The read-path check for the list's raw query was missing. It is added, with and without a cursor, library and
+        archived, and with a same-id twin on the other site.
+      - Staging is closed to the working copy's rows, so a revision is never staged past its own repository.
+      - The version's encoding and decoding are now one Business type.
+      - The rule that Business mutates untracked rows only is written down.
+    - `test-gap-analyzer`, all added:
+      - a commit that landed but lost its answer (create, duplicate, save);
+      - keyset ties under a fixed clock;
+      - a 22-case theory showing that each field alone moves the version, is kept, and refuses a stale freeze;
+      - duplicate fidelity;
+      - each nutrient in its own column;
+      - empty groups;
+      - the order of the checks;
+      - an Author archiving and restoring their own recipe;
+      - the archived list across sites;
+      - one rate-limit bucket per account across sites;
+      - broken text at every field;
+      - acceptance at every limit;
+      - the remaining caps.
+- **Not verified or left.**
+  - A read takes the recipe's update lock, so two reads of one recipe wait for each other. A lock-free consistent read
+    needs `ALLOW_SNAPSHOT_ISOLATION`, a MigrationService change, if it ever matters.
+  - The convention's 422 `idempotency-key-reused` has no description on any route. This predates PP4.11, so it is left
+    for the contract work.
+  - A recipe at every limit, in text that is all non-ASCII, can exceed the gateway's 1 MiB body cap. That save is
+    refused whole (413).
+  - Nothing checks whether a published post still uses a recipe before it is archived. That belongs with posts (PP5).
+  - `aspire run` was not restarted, because the user's own run is up. The migration job applies `RecipeLibrary` when it
+    next runs.
+- **Hand-offs.**
+  - **PP4.12 and PP4.13:**
+    - send an `Idempotency-Key` with every save, and renew it after a refusal the person can fix;
+    - send back `version` from each answer;
+    - show `canEdit`;
+    - library filters owe a read-path check on the `(SiteId, Code)` indexes (the PP4.3 hand-off).
+  - **PP4.14:** a pasted step list can propose up to 200 steps, but a recipe holds 100, so say so; a new part's id comes
+    from the answer.
+  - **PP5:** decide what archiving a recipe that a published post shows means (RCP-009).
+  - **PP19.11a:** clear `CreatedByAccountId` on erasure (written under that prompt).
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 errors.
+  - `dotnet format --verify-no-changes --no-restore`: clean. Restore still needs `-p:WarningsNotAsErrors=NU1903` (the
+    PP4.10 note).
+  - `dotnet test PantryPress.slnx`: 3,932 passed and 1 failed, of 3,933 (2,960 before PP4.7; 3,727 at PP4.10).
+    - The SQL container tests ran and passed.
+    - The one failure is `AdminAppTests`, the whole-system hosting test that times out waiting for the Angular `admin`
+      resource (the PP4.10 note). Nothing here touches a resource or the front end.
+    - One earlier run failed every SQL-backed test in 1 ms, because the shared database fixture did not start. Those
+      tests passed when run again.
+  - Reviewers: `api-contract-checker`, `site-isolation-auditor`, `test-gap-analyzer`, and `architecture-reviewer`, as above.
+
+### PP4.12 Recipe API service and library screen - done
+
+Split at planning (owner decision, one seam per prompt): the list had no search or filters and no route named the
+vocabulary, so the server work is PP4.12a and the client and screen PP4.12b.
+
+#### PP4.12a Recipe library search, filters, and vocabulary - done
 
 ```text
-SCOPE: Add the typed recipes API service and a recipe library screen with search and filters.
+SCOPE: Add title search and course, cuisine, and diet filters to the recipe list, with a cursor bound to its
+filters, and a read-only route for the recipe vocabulary.
+CONSTRAINT: RCP-001; Template B; api-contract.md, tenancy.md.
+UTILIZATION: add-endpoint; api-contract-checker, site-isolation-auditor, architecture-reviewer.
+BEHAVIOR: Implement with two-site read-path tests (the PP4.11 hand-off on the (SiteId, Code) indexes).
+```
+
+*PP4.12a delivery note (done 2026-11-14):*
+
+- **What shipped.** No migration: the `(SiteId, Code)` indexes and keys were already there (PP4.3).
+  - `GET …/recipes` takes `search`, `course`, `cuisine`, and `diet`, combined (`RecipeListFilter` in Business).
+    - The search is text the title contains, as typed, under `Latin1_General_100_CI_AI` whatever the database default,
+      with LIKE's wildcards escaped (`RecipeRepository.ContainsPattern`). It is at most 100 characters once trimmed;
+      blank is none.
+    - Each code is one vocabulary code, exactly, as an `EXISTS` on its join table, correlated on the site and the recipe.
+  - The cursor carries an eight-byte fingerprint of the filter, so one used under another list is `validation-failed`
+    at `cursor`. Cursors issued before this read as invalid too (decision log; admin v1 is pre-release).
+  - `GET …/recipes/vocabulary` (`SiteAuthor`, the read limit) answers every course, cuisine, diet, and allergen as
+    `{code, name}` from the code lists (`RecipeDetails.Vocabulary`).
+  - `ListRecipesQuery` names its codes `CourseCode`, `CuisineCode`, and `DietCode`, because `ModuleBoundaryTests` reads
+    `Course` in a contract as the root entity; the wire names stay `course`, `cuisine`, and `diet`.
+- **Reviews, all resolved:**
+  - `architecture-reviewer`: LIKE syntax moved from Business to the repository; the vocabulary mapping moved from the
+    facade to `RecipeDetails`; the facade now throws on a cursor the validator should have refused.
+  - `site-isolation-auditor`: added a twin test (B holds A's very recipe id filed under other codes; as A each of B's
+    codes finds nothing), and the refusal loop now sends a foreign cursor and a 101-character search as a stranger, a
+    member suspended on A, A's suspended member, and B's Owner. The index comment was corrected: the `EXISTS` seeks the
+    join table's key.
+  - `api-contract-checker`: the search is described as text as typed, not words; the decision-log row and `recipes.md`
+    were added.
+- **Left, as reviewed.**
+  - The cursor binds the search as sent, so changing only its case between pages restarts the list. That is safe and
+    matches the description.
+  - The vocabulary carries no cache headers.
+  - Search is one run of text; full-text search is later work.
+- **Hand-offs.**
+  - **PP4.13 and PP4.14:** the vocabulary route names the words the editor's course, cuisine, diet, and allergen pickers
+    offer.
+- **Verification.**
+  - `dotnet build PantryPress.slnx`: 0 errors. Restore still needs `-p:WarningsNotAsErrors=NU1903` (the PP4.10 note).
+  - `dotnet format --verify-no-changes --no-restore`: clean.
+  - `dotnet test PantryPress.slnx`: 3,966 passed and 2 failed, of 3,968.
+    - `ApiServiceHostTests`' pinned path list lacked the vocabulary route. It was added, and that class then passed (9
+      of 9).
+    - The other failure is the known `AdminAppTests` timeout (the PP4.10 note).
+  - The focused recipe, contract, and boundary suites were run again after the review fixes and passed (399).
+
+#### PP4.12b Recipe API client and library screen - done
+
+```text
+SCOPE: Add the typed recipes API client and a recipe library screen with search, filters, archive, and restore.
 CONSTRAINT: Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
 
-### PP4.13 Recipe editor: details, times, and yield
+*PP4.12b delivery note (done 2026-11-14):*
+
+- **What shipped.**
+  - `core/recipes/recipes-client.ts`: one typed method per recipe route (list, vocabulary, get, create, update, archive,
+    restore, duplicate). Every answer is checked field by field, the parse-problem codes and timestamps included. Every
+    write takes the caller's `Idempotency-Key`. The list sends its seven named parameters only.
+  - `features/recipes/recipe-library.ts` at `/dashboard/sites/{siteSlug}/recipes`, and "Recipes" in `SITE_SECTIONS`.
+    - Library and Archived tabs, a title search, and course, cuisine, and diet selects. All of them live in the address
+      (`?q=&course=&cuisine=&diet=&archived=true`); the page does not.
+    - Each row shows its title and "Edited" date in the site's locale and time zone. A row the caller may change has an
+      Archive or Restore button (quiet); one they may only read says "View only".
+    - Archiving offers Undo, and each press gets its own key.
+    - States: loading, three empty states, error with Try again, filters unavailable (search still works), and a refused
+      search or filter shown in the API's words with Clear.
+    - A refused cursor restarts at page one, and a 401 goes to sign in with `next`.
+  - `dashboard-shell.ts`: a navigation that changes only the query no longer moves focus to the `h1`.
+- **Reviews.**
+  - `design-review`. One blocker, B1: focus jumped to the `h1` on every search, filter, or tab change, which broke the
+    tabs pattern and made a select navigate (2.4.3, 3.2.2). It is fixed in the shell, and both specs and Playwright now
+    check that focus stays put. Also fixed:
+    - M1: the reload after an archive says no count, so it never talks over the toast and its Undo.
+    - M2 and M3: Try again on the filters notice, and Clear, now move focus to the list first.
+    - M4: a later page that empties steps back a page.
+    - m1: the route has no static title, so the title keeps the site's name.
+    - m2: rows use `--line-subtle`.
+    - m3: the row actions are quiet buttons.
+    - m6: the search hint now says "Searches recipe titles."
+  - `api-contract-checker`. No blockers. Fixed: the list's parameters are allow-listed, `IngredientParseProblem` is a closed
+    union, timestamps are checked, and the `get` comment now says a non-GUID id is the plain 404 `not-found`.
+- **Not done, as reviewed.**
+  - No "New recipe" action, and titles are plain text, until the editor exists (PP4.13, design m4).
+  - A refused filter's message is not tied to its control (m5), because the search field has no error slot.
+  - "View only" says no reason (m6).
+  - Switching tabs does not announce the new count (m7).
+  - The readers do not check that a line's status and parsed parts agree, that a range rises, or that amounts are in
+    bounds (contract minors 2 to 4): the server guarantees each.
+- **Hand-offs.**
+  - **PP4.13:** add "New recipe" to the page header and the empty library, link each title to the editor, and treat
+    `recipe-not-found` and `not-found` alike when an address names a recipe.
+- **Verification.**
+  - `npm run lint`: clean.
+  - `npm test`: ui 176, admin 308 (after the review fixes), site 1, all passed.
+  - `ng build pantrypress-admin` and `check:admin-build`: 7 documents, no inline script.
+  - `npx playwright test`:
+    - Before the review fixes, all 192 passed.
+    - After them, 189 passed and 3 failed: this flow's toast locator also matched the announcer once M1 stopped the count
+      from replacing it. With the locator scoped to the Notifications region, this flow passed 12 of 12 in Chromium,
+      Firefox, and WebKit. The other suites were not run again after that one-line change.
+  - The local `node_modules` was damaged (`@angular-devkit/core` had lost its `.js` files) and was restored with `npm ci`.
+    Playwright's browsers were installed for this version.
+
+### PP4.13 Recipe editor: details, times, and yield - done
 
 ```text
 SCOPE: Add the recipe editor shell with autosave and the details, times, and yield sections.
 CONSTRAINT: RCP-001, PNFR-007; Template H.
 BEHAVIOR: Plan, wait for approval, implement.
 ```
+
+*PP4.13 delivery note (done 2026-11-14):*
+
+- **Owner-approved choices** (2026-11-14):
+  - **Details** holds title, summary, and the course, cuisine, and diet chips. Allergens, keywords (separated by commas),
+    and video are behind a "More details" disclosure.
+  - Equipment, notes, and nutrition wait for a later slice, called PP4.13a here.
+  - Unsaved text is kept in local storage, and signing out clears it.
+  - A read-only "Total time" line is shown.
+- **What shipped.** There are no server changes; the routes and contracts are PP4.11's.
+  - **The screen.** `features/recipes/recipe-editor.*` serves `/dashboard/sites/{siteSlug}/recipes/{id}`, and `…/new` too.
+    - Both use one route, so the screen stays the same when a new recipe gets its id.
+    - The sections are Details, Times, and Yield, each a card with an `h2`.
+  - **Saving.** There is no Save button; the header's `pp-save-status` says where saving stands.
+  - **Times.** Each time is hours and minutes inside a `pp-fieldset`, with one error for both boxes. A box left empty is
+    "not entered"; `0` counts as entered.
+  - **Yield.** "Makes", "Up to", and "Of what".
+    - `recipe-amount.ts` reads `8`, `1.5`, `1 1/2`, `1½`, and `½` into exact fractions. It is a format only: ranges and
+      bounds are the server's to judge.
+  - **Autosave (PNFR-007), `recipe-autosave.ts`.**
+    - It saves 1.5 s after a pause, with one save in flight at a time.
+    - Every edit goes to `RecipeDrafts` at once. A draft is filed by account, site slug, and recipe (or `new`), and is
+      cleared when the server has it.
+    - A save that got no answer is sent again exactly (key, version, and body) before anything newer. "No answer" means
+      status 0, 408, 5xx, 429 with `Retry-After`, or `idempotency-key-in-use`. The backoff is 2, 4, 8, 15, then 30 s,
+      and the save goes at once when the browser comes back online.
+    - A save that still has no answer survives a reload. One older than 23 hours is let go, and the person is told,
+      because the server's memory of its key is 24 hours.
+    - Every other answer ends that key; the next save gets a new one.
+    - `recipe-changed`, and a 400 naming only parts the recipe no longer has, stop saving. The person then chooses "Keep
+      my changes" (their edited groups over the newer copy) or "Use the newer copy", which can be undone.
+    - `recipe-archived` offers Restore.
+    - `recipe-not-yours` makes the screen read-only. The text is kept on screen so the person can copy it, and "Show the
+      recipe as it is" sets it aside (also undoable).
+    - A new recipe is created by its first save that has a title, under a key kept in its draft. Its address then
+      changes with `SAME_SCREEN_STATE`, so focus stays where the person is typing. "Start a blank recipe" drops the
+      answer to any create already on its way, and can be undone.
+  - **Library (the PP4.12b hand-off).** "New recipe" is in the header and in the empty library, and every title links to
+    the editor. `recipe-not-found`, `not-found`, and `site-not-found` are one "We couldn't find that recipe".
+  - **`@pantrypress/ui`.**
+    - New: `PpSaveStatus`. It is not a live region; it speaks through the announcer only when trouble starts and when it
+      ends.
+    - New: `PpFieldset`.
+    - `PpChipGroup` takes an `error` (the `PpRadioGroup` pattern).
+    - All three are in the showcase.
+  - **Shell and account menu.** The shell leaves focus alone on a `SAME_SCREEN_STATE` navigation. Signing out clears
+    every draft, and no draft is written after that.
+  - **Rule.** `frontend.md` has a new "Autosave" paragraph.
+- **Reviews.** There were no blockers; everything below was fixed.
+  - `design-review`:
+    - M1: "More details" no longer closes when its error clears.
+    - M2: read-only and "gone" now say the text can't be saved and keep it on screen to copy. M3: they use `readonly`,
+      not `disabled`; only the chips are disabled.
+    - M4: one error per time, linked to both boxes. m4: each box is named "Prep time, hours" and so on.
+    - M5: chip errors now sit inside their group.
+    - M6: every discard can be undone.
+    - M7: Start over during a create.
+    - m1: no draft is written after sign-out. m2: the two lines are spoken as separate sentences. m3: the "We kept…"
+      offer appears only when nothing sends by itself.
+    - m5: wording for errors this screen can't fix. m6: "Changes not saved yet". m7: no account means no editor.
+    - m8: axe now checks the error, retrying, conflict, and read-only states.
+  - `api-contract-checker`:
+    - Major 1: same as M7.
+    - Major 2: what counts as edited is now measured against the server's answer, not the form at sending time.
+    - Minors 1–7: stale saves, a late create after leaving, a missing part treated as a change, 408, keywords that
+      contain commas kept as one, Start over status, and `site-not-found` on load.
+- **Not done, as reviewed.**
+  - Signing out with a save still waiting asks nothing. The draft is cleared as approved; a warning would need the menu
+    to know about the editor.
+  - A replayed answer after another tab moved the recipe shows the older copy until the next save gets 409. The
+    `Idempotent-Replayed` header is not read.
+  - A draft for a recipe that is gone at load is removed, since it can never be shown or saved.
+  - Equipment, notes, and nutrition belong to PP4.13a. Until PP4.14, an error about a part this screen doesn't show can
+    only be fixed by reloading.
+- **Hand-offs.**
+  - **PP4.14:** add the ingredient and step sections to this page and this autosave. Add their groups to
+    `RecipeFieldGroup`, and their error paths to `placeErrors`.
+  - **PP4.13a:** equipment, notes, and nutrition, the same way.
+  - **PP5 and PP10:** reuse `RecipeAutosave`'s shape for posts and the studio.
+- **Verification.**
+  - `npm run lint`: clean.
+  - `npm test`: ui 184 and admin 442 passed. The site suite was not run, because nothing in it changed.
+  - `ng build pantrypress-ui`, `ng build pantrypress-admin`, `check:admin-build` (7 documents, no inline script), and
+    `ng build pantrypress-site` all succeeded.
+  - `npx playwright test`:
+    - First run, before the review fixes: 213 of 213 passed.
+    - After the fixes: the editor flow passed 27 of 27 in Chromium, Firefox, and WebKit.
+    - First full run after the fixes: 218 passed and 1 failed. The failure was the showcase's axe pass over "the list's
+      other states", dark panel, in Chromium; the reason was not captured. It passed 6 of 6 run alone. The showcase
+      suite then passed 81 of 81, and a second full run passed 219 of 219. It is recorded as a flake under full
+      parallel load, likely its time limit, since the showcase gained two specimens.
+  - There was no .NET change, so `dotnet build` and `dotnet test` were not run.
 
 ### PP4.14 Recipe editor: ingredients and steps
 
@@ -6944,6 +7291,12 @@ BEHAVIOR: Plan, wait for approval, implement with tests.
 
 *Added at PP1.12 (owner-approved "fix all", 2026-10-24):* the audit found ACCT-004 listed for PP1 and PP19 but built by
 no prompt. PP19.12 extends the export this prompt creates.
+
+*Hand-off from PP4.11a (2026-11-14):* erasing an account clears `Recipes.CreatedByAccountId` for that account across
+sites. Nothing does it for you: the column has no foreign key, by design, and no index led by the account (indexes lead
+with the site), so it is operator code (`Modules/Platform/`, `// Cross-site:`) or a reviewed raw statement over a table
+scan. A cleared recipe is then changed only by Editors and Owners, like one from the publishing API or an import. The
+column is not frozen into revisions, so no append-only row holds the account.
 
 ### PP19.12 Reader data requests
 

@@ -2,7 +2,7 @@ namespace PantryPress.Domain.Modules.Recipes.Contracts;
 
 /// <summary>
 /// The sizes a recipe's fields are stored at (RCP-001, RCP-002, RCP-006; PP4.3), shared by the schema and the validators
-/// that come with its routes (PP4.11). How many groups, lines, and steps a recipe may have is the validators' to say.
+/// that come with its routes (PP4.11), and how many parts one recipe may hold.
 /// </summary>
 public static class RecipeLimits
 {
@@ -66,4 +66,32 @@ public static class RecipeLimits
     public const int NutritionPrecision = 9;
 
     public const int NutritionScale = 2;
+
+    /// <summary>The largest nutrition amount its <c>decimal(9,2)</c> column holds, in hundredths (9,999,999.99).</summary>
+    public const long MaxNutritionHundredths = 999_999_999;
+
+    // How much one recipe may hold (PP4.11). Lines and steps leave room for the longest real recipes, and lines match what
+    // one paste may propose (MaxPastedLines), so a pasted ingredient list always fits; a pasted step list longer than
+    // MaxSteps does not, which the editor says (PP4.14). A recipe at every limit in text that is all non-ASCII can pass the
+    // gateway's 1 MiB body cap; that save is refused whole, before anything reads it (413), so nothing is half saved.
+
+    public const int MaxIngredientGroups = 20;
+
+    /// <summary>Ingredient lines across every group.</summary>
+    public const int MaxIngredientLines = 200;
+
+    public const int MaxStepGroups = 20;
+
+    /// <summary>Steps across every group.</summary>
+    public const int MaxSteps = 100;
+
+    public const int MaxEquipment = 30;
+
+    public const int MaxNotes = 20;
+
+    public const int MaxKeywords = 20;
+
+    public const int MaxCourses = 5;
+
+    public const int MaxCuisines = 5;
 }

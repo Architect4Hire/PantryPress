@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Recipes.Contracts;
 
 namespace PantryPress.Domain.Modules.Recipes;
@@ -21,6 +22,10 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
     public const string VideoUrlConstraintName = "CK_Recipes_VideoUrl";
     public const string NutritionConstraintName = "CK_Recipes_Nutrition";
     public const string UpdatedAtConstraintName = "CK_Recipes_UpdatedAt";
+    public const string ArchivedAtConstraintName = "CK_Recipes_ArchivedAt";
+
+    /// <summary>The library's order, most recently edited first, a page at a time by key (PP4.11a, PP4.11).</summary>
+    public const string LibraryIndexName = "IX_Recipes_Library";
 
     private const string Https = "https://";
 
@@ -85,6 +90,9 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
             table.HasCheckConstraint(
                 UpdatedAtConstraintName,
                 $"[{nameof(Recipe.UpdatedAt)}] >= [{nameof(Recipe.CreatedAt)}]");
+            table.HasCheckConstraint(
+                ArchivedAtConstraintName,
+                $"[{nameof(Recipe.ArchivedAt)}] IS NULL OR [{nameof(Recipe.ArchivedAt)}] >= [{nameof(Recipe.CreatedAt)}]");
         });
 
         builder.HasKey(r => new { r.SiteId, r.Id });
@@ -104,5 +112,11 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
         }
 
         builder.Property(r => r.Version).IsRowVersion();
+
+        builder.Property(r => r.CreatedByAccountId)
+            .HasConversion(id => id!.Value.Value, value => new AccountId(value));
+
+        // Led by the site like every recipe index: a library page is one seek and a short range read in key order.
+        builder.HasIndex(r => new { r.SiteId, r.UpdatedAt, r.Id }).HasDatabaseName(LibraryIndexName);
     }
 }

@@ -1,0 +1,106 @@
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.back {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.notices {
+  display: grid;
+  gap: var(--space-4);
+  margin-block-end: var(--space-4);
+}
+
+.notices:empty {
+  display: none;
+}
+
+.text {
+  margin: 0 0 var(--space-3);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.sections {
+  display: grid;
+  gap: var(--space-5);
+  max-inline-size: 48rem;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.section-heading {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--f-display);
+  font-size: var(--text-4);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
+  line-height: var(--leading-1);
+}
+
+.section-hint {
+  margin: calc(var(--space-3) * -1) 0 0;
+  color: var(--muted);
+}
+
+.more {
+  border-block-start: 1px solid var(--line-subtle);
+  padding-block-start: var(--space-4);
+}
+
+.more-summary {
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.more-summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.more-body {
+  display: grid;
+  gap: var(--space-5);
+  margin-block-start: var(--space-4);
+}
+
+.time {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.time pp-fieldset pp-field {
+  flex: 0 1 8rem;
+  min-inline-size: 0;
+}
+
+.yield {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.yield pp-field {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+}
+
+.total {
+  margin: 0;
+  color: var(--ink);
+}

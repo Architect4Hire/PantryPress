@@ -5,7 +5,9 @@ description: Change recipe models, parsing, scaling, conversion, nutrition, or J
 
 # Add a recipe feature
 
-Read first: `.claude/rules/recipes.md`, `content.md`.
+Read first: `.claude/rules/recipes.md`, `content.md`, and the sections of
+`docs/requirements/pantrypress-recipes-spec.md` the change touches (the rule's spec map says which).
+A behavior change updates its spec section in the same commit.
 
 ## Steps
 

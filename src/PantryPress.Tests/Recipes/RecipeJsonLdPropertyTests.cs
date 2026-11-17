@@ -1,183 +1,252 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using CsCheck;
 using PantryPress.Domain.Modules.Recipes.Business;
 using PantryPress.Domain.Modules.Recipes.Contracts;
+using static PantryPress.Tests.Recipes.RecipeJsonLdCases;
 
 namespace PantryPress.Tests.Recipes;
 
-// PP4.10: the laws the JSON-LD generator keeps over any recipe (RCP-008, RCP-002, RCP-006): it always writes JSON; the
-// blogger's ingredient lines and steps come out exactly, in order, none added; nutrition only as entered; the same recipe
-// always makes the same bytes; and the gaps say exactly what is missing.
+// PP4.10: the laws the JSON-LD keeps over any recipe a revision can hold (RCP-008, RCP-002, RCP-006): the same recipe is
+// the same bytes; the bytes parse, are ASCII, and are safe in a script element; the blogger's words come back exactly; and
+// nothing appears that was not entered.
 public sealed class RecipeJsonLdPropertyTests
 {
-    private const long Iterations = 2_000;
+    private const long Iterations = 5_000;
 
-    // Any well-formed text, from anywhere in Unicode, white space alone included.
+    // The line and paragraph separators, an astral character, and a combining accent, built from code points so no literal
+    // separator sits in this file and ends a C# string.
+    private static readonly string[] Separators =
+        [char.ConvertFromUtf32(0x2028), char.ConvertFromUtf32(0x2029), char.ConvertFromUtf32(0x1F36E), char.ConvertFromUtf32(0x0301)];
+
+    // Any text: ASCII, HTML-sensitive characters, non-ASCII, separators, and surrogate pairs, but never a lone surrogate,
+    // which a snapshot refuses before it is stored.
     private static readonly Gen<string> Text = Gen.Frequency(
-        (1, Gen.OneOfConst(
-            "", " ", "\t\n", "</script>", "</SCRIPT >", "<!--", "-->", "]]>", "a & b", "\"quoted\"", "it's", "a+b", "back\\slash",
-            "nul" + (char)0x0000, "del" + (char)0x007F, "line" + (char)0x2028, "para" + (char)0x2029, "rtl" + (char)0x202E)),
-        (3, Gen.Char['\0', '\x7F'].Array[1, 20].Select(c => new string(c))),
-        (3, Gen.Int[0, 0x10FFFF].Where(c => c is < 0xD800 or > 0xDFFF).Select(char.ConvertFromUtf32).Array[1, 12]
-            .Select(parts => string.Concat(parts))));
+        (3, Gen.String),
+        (2, Gen.OneOfConst("<", ">", "&", "\"", "'", "</script>", Separators[0], Separators[1], Separators[2], "e" + Separators[3], "\\", " ", "")
+            .Array[0, 6].Select(parts => string.Concat(parts))))
+        .Where(s => !HasLoneSurrogate(s));
 
-    private static readonly Gen<long?> Hundredths = Gen.Frequency(
-        (2, Gen.Const((long?)null)), (1, Gen.Long[0, NutritionFacts.MaxHundredths].Select(v => (long?)v)));
+    private static readonly Gen<string?> OptionalText = Gen.Frequency((1, Gen.Const((string?)null)), (3, Text.Select(s => (string?)s)));
 
     private static readonly Gen<int?> Minutes = Gen.Frequency(
-        (1, Gen.Const((int?)null)), (1, Gen.Int[0, RecipeLimits.MaxMinutes].Select(v => (int?)v)));
+        (2, Gen.Const((int?)null)),
+        (1, Gen.Const((int?)0)),
+        (3, Gen.Int[0, RecipeLimits.MaxMinutes].Select(m => (int?)m)));
+
+    private static readonly Gen<long?> Hundredths = Gen.Frequency(
+        (3, Gen.Const((long?)null)),
+        (2, Gen.Long[0, NutritionFacts.MaxHundredths].Select(v => (long?)v)));
+
+    private static readonly Gen<RecipeSnapshotNutrition> NutritionGen = Gen.Select(
+        OptionalText, Hundredths.Array[11],
+        (serving, v) => new RecipeSnapshotNutrition(serving, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10]));
+
+    private static readonly Gen<(string? Heading, string[] Items)[]> Groups =
+        Gen.Select(OptionalText, Text.Where(t => t.Length > 0).Array[0, 5], (h, items) => (h, items)).Array[0, 4];
 
     private static readonly Gen<Quantity?> Yield = Gen.Frequency(
         (1, Gen.Const((Quantity?)null)),
-        (2, Gen.Long[1, 100].Select(Gen.Long[1, 12], (n, d) => (Quantity?)Quantity.Amount(Rational.Create(n, d)))),
-        (1, Gen.Long[1, 50].Select(Gen.Long[1, 50], (a, b) => (Quantity?)Quantity.Range(a, a + b))));
+        (3, Gen.Long[1, 1000].Select(n => (Quantity?)Quantity.Amount(n))),
+        (1, Gen.Select(Gen.Long[1, 50], Gen.Long[1, 50], (a, b) => (Quantity?)Quantity.Range(a, a + b))));
 
-    private static Gen<string[]> Codes(IReadOnlyList<string> codes) =>
-        Gen.Int[0, codes.Count].SelectMany(n => Gen.Shuffle(codes.ToArray(), n)).Select(c => c.Order(StringComparer.Ordinal).ToArray());
-
-    private static readonly Gen<RecipeSnapshot> Recipe =
+    private static readonly Gen<RecipeSnapshot> Snapshot =
         Gen.Select(
-            Gen.Select(Text, Gen.Frequency((1, Gen.Const((string?)null)), (2, Text.Select(t => (string?)t))), Yield, Text, Minutes.Array[3]),
-            Gen.Select(Gen.Frequency((1, Gen.Const((string?)null)), (1, Text.Select(t => (string?)t))), Hundredths.Array[11]),
-            Gen.Select(Text.Array[0, 6].Array[0, 3], Gen.Frequency((1, Gen.Const((string?)null)), (1, Text.Select(t => (string?)t))).Array[3]),
-            Gen.Select(Text.Array[0, 6].Array[0, 3], Text.Array[0, 4], Text.Array[0, 4]),
+            Gen.Select(Text.Where(t => !string.IsNullOrWhiteSpace(t)), OptionalText, Yield, OptionalText),
+            Gen.Select(Minutes, Minutes, Minutes, OptionalText),
+            Gen.Select(Groups, Groups, NutritionGen),
             Gen.Select(
-                Codes([.. Courses.All.Select(c => c.Code)]), Codes([.. Cuisines.All.Select(c => c.Code)]),
-                Codes([.. Diets.All.Select(c => c.Code)])),
-            (head, nutrition, ingredients, rest, vocab) =>
-            {
-                var (title, summary, yield, yieldUnit, minutes) = head;
-                var (serving, values) = nutrition;
-                var (lineGroups, headings) = ingredients;
-                var (stepGroups, equipment, keywords) = rest;
-                var (courses, cuisines, diets) = vocab;
-                return RecipeJsonLdTests.Snapshot(
-                    title, summary, yield, yieldUnit, minutes[0], minutes[1], minutes[2],
-                    new RecipeSnapshotNutrition(serving, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10]),
-                    ingredients: [.. lineGroups.Select((lines, i) => RecipeJsonLdTests.Lines(headings[i], lines))],
-                    steps: [.. stepGroups.Select((steps, i) => RecipeJsonLdTests.Steps(headings[i], steps))],
-                    equipment: equipment, keywords: keywords, courses: courses, cuisines: cuisines, diets: diets,
-                    allergens: ["milk"], notes: ["A note."]);
-            });
+                Gen.OneOfConst([.. Courses.All.Select(e => e.Code)]).Array[0, 3],
+                Gen.OneOfConst([.. Cuisines.All.Select(e => e.Code)]).Array[0, 3],
+                Gen.OneOfConst([.. Diets.All.Select(e => e.Code)]).Array[0, 4],
+                Text.Array[0, 5]),
+            (a, b, c, d) => Recipe(
+                a.Item1,
+                summary: a.Item2,
+                yield: a.Item3,
+                yieldUnit: a.Item4,
+                prep: b.Item1,
+                cook: b.Item2,
+                additional: b.Item3,
+                videoUrl: b.Item4 is null ? null : "https://video.example.com/v",
+                ingredients: c.Item1,
+                steps: c.Item2,
+                nutrition: c.Item3,
+                courses: [.. d.Item1.Distinct()],
+                cuisines: [.. d.Item2.Distinct()],
+                diets: [.. d.Item3.Distinct()],
+                keywords: d.Item4));
 
-    private static readonly Gen<RecipeJsonLdPage> Page = Gen.Frequency(
-        (1, Gen.Const(RecipeJsonLdPage.None)),
-        (2, Gen.Select(
-            Gen.Bool, Gen.Int[0, 3], Gen.Frequency((1, Gen.Const((string?)null)), (2, Text.Select(t => (string?)t))),
-            Gen.Frequency((1, Gen.Const((DateOnly?)null)), (2, Gen.Int[0, 20_000].Select(d => (DateOnly?)new DateOnly(2000, 1, 1).AddDays(d)))),
-            (hasUrl, images, author, date) => new RecipeJsonLdPage(
-                hasUrl ? "https://a.pantrypress.app/p" : null,
-                [.. Enumerable.Range(0, images).Select(i => $"https://a.pantrypress.app/media/{i}.jpg")],
-                author,
-                date))));
+    // Any context the page could give: an author named in any words, and each part present or not.
+    private static readonly Gen<RecipeJsonLdContext> Context = Gen.Select(
+        Gen.Bool,
+        Gen.Int[0, 3],
+        Gen.Frequency((1, Gen.Const((RecipeJsonLdAuthor?)null)), (3, Gen.Select(Text.Where(t => !string.IsNullOrWhiteSpace(t)), Gen.Bool, (name, hasUrl) => (RecipeJsonLdAuthor?)new RecipeJsonLdAuthor(name, hasUrl ? "https://a.example/about" : null)))),
+        Gen.Frequency((1, Gen.Const((DateTimeOffset?)null)), (3, Gen.Long[0, 4_000_000_000].Select(s => (DateTimeOffset?)DateTimeOffset.FromUnixTimeSeconds(s)))),
+        (hasUrl, images, author, date) => new RecipeJsonLdContext(
+            hasUrl ? "https://a.example/posts/p" : null,
+            [.. Enumerable.Range(0, images).Select(i => $"https://a.example/media/{i}.jpg")],
+            author,
+            date));
 
-    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
-
+    // The same recipe, read back from a stored revision with fresh lists, writes the same bytes: what page data builds
+    // from a revision is what these tests see (PP-D04).
     [Fact]
-    public void The_output_is_json_with_the_bloggers_lines_and_steps_exactly() =>
-        Gen.Select(Recipe, Page).Sample(iter: Iterations, assert: (snapshot, page) =>
+    public void A_stored_revision_writes_the_same_bytes() =>
+        Gen.Select(Snapshot, Context).Sample(iter: Iterations, assert: input =>
         {
-            var json = JsonNode.Parse(RecipeJsonLd.Write(snapshot, page).Json)!.AsObject();
-
-            var lines = snapshot.IngredientGroups.SelectMany(g => g.Lines).Select(l => l.OriginalText).Where(HasText).ToList();
-            Assert.Equal(lines, json["recipeIngredient"]?.AsArray().Select(n => (string)n!) ?? []);
-
-            var steps = snapshot.StepGroups.SelectMany(g => g.Steps).Select(s => s.Text).Where(HasText).ToList();
-            var written = json["recipeInstructions"]?.AsArray()
-                .Select(n => n!)
-                .SelectMany(n => (string)n["@type"]! == "HowToSection" ? n["itemListElement"]!.AsArray().Select(s => s!) : [n])
-                .Select(n => (string)n!["text"]!)
-                .ToList() ?? [];
-            Assert.Equal(steps, written);
-
-            Assert.Equal(HasText(snapshot.Title) ? snapshot.Title : null, (string?)json["name"]);
-            Assert.False(json.ContainsKey("aggregateRating") || json.ContainsKey("review") || json.ContainsKey("video"));
+            var stored = RecipeSnapshotJson.Read(RecipeSnapshotJson.CurrentVersion, RecipeSnapshotJson.Write(input.Item1).Json);
+            var first = RecipeJsonLd.Write(input.Item1, input.Item2);
+            var second = RecipeJsonLd.Write(stored, input.Item2);
+            Assert.Equal(first.Json, second.Json);
+            Assert.Equal(first.Issues, second.Issues);
         });
 
-    // RCP-006: a nutrient appears exactly when it was entered, and nutrition at all only when one was.
     [Fact]
-    public void Nutrition_is_exactly_what_was_entered() =>
-        Recipe.Sample(iter: Iterations, assert: snapshot =>
+    public void No_internal_id_is_ever_written() =>
+        Gen.Select(Snapshot, Context).Sample(iter: Iterations, assert: input =>
         {
-            var json = JsonNode.Parse(RecipeJsonLd.Write(snapshot, RecipeJsonLdPage.None).Json)!.AsObject();
+            var json = RecipeJsonLd.Write(input.Item1, input.Item2).Json;
+            var snapshot = input.Item1;
+            IEnumerable<Guid> ids =
+            [
+                snapshot.Id.Value,
+                .. snapshot.IngredientGroups.Select(g => g.Id.Value),
+                .. snapshot.IngredientGroups.SelectMany(g => g.Lines).Select(l => l.Id.Value),
+                .. snapshot.StepGroups.Select(g => g.Id.Value),
+                .. snapshot.StepGroups.SelectMany(g => g.Steps).Select(s => s.Id.Value),
+            ];
+            Assert.All(ids, id => Assert.DoesNotContain(id.ToString("D"), json, StringComparison.OrdinalIgnoreCase));
+        });
+
+    [Fact]
+    public void Issues_come_in_the_enum_order_without_repeats() =>
+        Gen.Select(Snapshot, Context).Sample(iter: Iterations, assert: input =>
+        {
+            var issues = RecipeJsonLd.Write(input.Item1, input.Item2).Issues;
+            Assert.Equal(issues.Distinct().Order(), issues);
+        });
+
+    [Fact]
+    public void The_output_parses_is_ASCII_and_is_safe_in_a_script_element() =>
+        Gen.Select(Snapshot, Context).Sample(iter: Iterations, assert: input =>
+        {
+            var json = RecipeJsonLd.Write(input.Item1, input.Item2).Json;
+            Assert.All(json, c => Assert.InRange(c, ' ', '~'));
+            Assert.DoesNotContain('<', json);
+            Assert.DoesNotContain('>', json);
+            Assert.DoesNotContain('&', json);
+            using var parsed = JsonDocument.Parse(json);
+            Assert.Equal(JsonValueKind.Object, parsed.RootElement.ValueKind);
+        });
+
+    [Fact]
+    public void The_blogger_s_words_come_back_exactly() =>
+        Snapshot.Sample(iter: Iterations, assert: snapshot =>
+        {
+            using var parsed = JsonDocument.Parse(RecipeJsonLd.Write(snapshot, FullContext).Json);
+            var root = parsed.RootElement;
+
+            Assert.Equal(snapshot.Title, root.GetProperty("name").GetString());
+            var lines = snapshot.IngredientGroups.SelectMany(g => g.Lines).Select(l => l.OriginalText).ToList();
+            Assert.Equal(lines, root.TryGetProperty("recipeIngredient", out var ingredients) ? ingredients.EnumerateArray().Select(e => e.GetString()!) : []);
+
+            var steps = snapshot.StepGroups.SelectMany(g => g.Steps).Select(s => s.Text).ToList();
+            Assert.Equal(steps, root.TryGetProperty("recipeInstructions", out var instructions) ? Steps(instructions) : []);
+        });
+
+    [Fact]
+    public void Nothing_appears_that_was_not_entered() =>
+        Snapshot.Sample(iter: Iterations, assert: snapshot =>
+        {
+            using var parsed = JsonDocument.Parse(RecipeJsonLd.Write(snapshot, FullContext).Json);
+            var root = parsed.RootElement;
             var facts = NutritionFacts.From(snapshot.Nutrition);
 
-            if (!facts.HasNutrition)
+            // Nutrition only as entered, and only beside a yield.
+            var written = root.TryGetProperty("nutrition", out var nutrition)
+                ? nutrition.EnumerateObject().Select(p => p.Name).Where(n => n is not "@type" and not "servingSize").ToList()
+                : [];
+            Assert.Equal(snapshot.Yield is null ? [] : facts.Facts.Select(f => RecipeJsonLd.PropertyOf(f.Nutrient)), written);
+
+            Assert.Equal(snapshot.PrepMinutes is not null, root.TryGetProperty("prepTime", out _));
+            Assert.Equal(snapshot.CookMinutes is not null, root.TryGetProperty("cookTime", out _));
+            Assert.Equal(
+                snapshot.PrepMinutes is not null || snapshot.CookMinutes is not null || snapshot.AdditionalMinutes is not null,
+                root.TryGetProperty("totalTime", out _));
+            Assert.Equal(snapshot.Yield is not null, root.TryGetProperty("recipeYield", out _));
+            Assert.False(root.TryGetProperty("video", out _));
+            Assert.False(root.TryGetProperty("aggregateRating", out _));
+            Assert.False(root.TryGetProperty("review", out _));
+
+            var diets = root.TryGetProperty("suitableForDiet", out var d) ? d.EnumerateArray().Select(e => e.GetString()).ToList() : [];
+            Assert.Equal(
+                snapshot.Diets.Select(code => Diets.All.Single(e => e.Code == code).SchemaOrgDiet).OfType<string>().Select(m => "https://schema.org/" + m),
+                diets);
+        });
+
+    [Fact]
+    public void Each_issue_matches_what_is_missing() =>
+        Gen.Select(Snapshot, Context).Sample(iter: Iterations, assert: input =>
+        {
+            var (snapshot, context) = input;
+            var issues = RecipeJsonLd.Write(snapshot, context).Issues;
+            var facts = NutritionFacts.From(snapshot.Nutrition);
+
+            Assert.Equal(context.Images.Count == 0, issues.Contains(RecipeJsonLdIssue.ImageMissing));
+            Assert.Equal(snapshot.Yield is null && facts.HasNutrition, issues.Contains(RecipeJsonLdIssue.YieldMissingForNutrition));
+            Assert.Equal(snapshot.Yield is null && !facts.HasNutrition, issues.Contains(RecipeJsonLdIssue.YieldMissing));
+            Assert.Equal(snapshot.VideoUrl is not null, issues.Contains(RecipeJsonLdIssue.VideoNotDescribed));
+            Assert.Equal(facts.Facts.All(f => f.Nutrient != Nutrient.Calories), issues.Contains(RecipeJsonLdIssue.CaloriesMissing));
+            Assert.Equal(snapshot.Courses.Count == 0, issues.Contains(RecipeJsonLdIssue.CategoryMissing));
+            Assert.Equal(snapshot.Cuisines.Count == 0, issues.Contains(RecipeJsonLdIssue.CuisineMissing));
+            Assert.Equal(context.Author is null, issues.Contains(RecipeJsonLdIssue.AuthorMissing));
+            Assert.Equal(context.DatePublished is null, issues.Contains(RecipeJsonLdIssue.DatePublishedMissing));
+            Assert.Equal(string.IsNullOrWhiteSpace(snapshot.Summary), issues.Contains(RecipeJsonLdIssue.DescriptionMissing));
+
+            var (prep, cook, additional) = (snapshot.PrepMinutes, snapshot.CookMinutes, snapshot.AdditionalMinutes);
+            Assert.Equal(prep is null && cook is null && additional is null, issues.Contains(RecipeJsonLdIssue.TimesMissing));
+            Assert.Equal(prep is null && cook is not null, issues.Contains(RecipeJsonLdIssue.PrepTimeMissing));
+            Assert.Equal(cook is null && prep is not null, issues.Contains(RecipeJsonLdIssue.CookTimeMissing));
+
+            Assert.Equal(!snapshot.IngredientGroups.Any(g => g.Lines.Count > 0), issues.Contains(RecipeJsonLdIssue.IngredientsMissing));
+            Assert.Equal(!snapshot.StepGroups.Any(g => g.Steps.Count > 0), issues.Contains(RecipeJsonLdIssue.InstructionsMissing));
+
+            using var parsed = JsonDocument.Parse(RecipeJsonLd.Write(snapshot, context).Json);
+            Assert.Equal(!parsed.RootElement.TryGetProperty("keywords", out _), issues.Contains(RecipeJsonLdIssue.KeywordsMissing));
+        });
+
+    private static List<string> Steps(JsonElement instructions)
+    {
+        var texts = new List<string>();
+        foreach (var item in instructions.EnumerateArray())
+        {
+            if (item.GetProperty("@type").GetString() == "HowToSection")
             {
-                Assert.False(json.ContainsKey("nutrition"));
-                return;
+                texts.AddRange(item.GetProperty("itemListElement").EnumerateArray().Select(s => s.GetProperty("text").GetString()!));
             }
+            else
+            {
+                texts.Add(item.GetProperty("text").GetString()!);
+            }
+        }
 
-            var nutrition = json["nutrition"]!.AsObject();
-            var expected = facts.Facts
-                .Select(f => (RecipeJsonLd.PropertyOf(f.Nutrient), f.Nutrient == Nutrient.Calories ? f.Amount + " calories" : f.Text))
-                .ToList();
-            Assert.Equal(expected, nutrition.Where(p => p.Key is not ("@type" or "servingSize")).Select(p => (p.Key, (string)p.Value!)));
-            Assert.Equal(HasText(snapshot.Nutrition.ServingSize) ? snapshot.Nutrition.ServingSize : null, (string?)nutrition["servingSize"]);
-        });
+        return texts;
+    }
 
-    // Equipment and keywords are the blogger's own entries, blank ones left out, in order; keywords joined by ", ".
-    [Fact]
-    public void Tools_and_keywords_are_the_bloggers_entries() =>
-        Recipe.Sample(iter: Iterations, assert: snapshot =>
+    private static bool HasLoneSurrogate(string s)
+    {
+        for (var i = 0; i < s.Length; i++)
         {
-            var json = JsonNode.Parse(RecipeJsonLd.Write(snapshot, RecipeJsonLdPage.None).Json)!.AsObject();
-            var tools = snapshot.Equipment.Where(HasText).ToList();
-            var keywords = snapshot.Keywords.Where(HasText).ToList();
+            if (char.IsHighSurrogate(s[i]) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+            {
+                i++;
+            }
+            else if (char.IsSurrogate(s[i]))
+            {
+                return true;
+            }
+        }
 
-            Assert.Equal(tools, json["tool"]?.AsArray().Select(n => (string)n!) ?? []);
-            Assert.Equal(keywords.Count == 0 ? null : string.Join(RecipeJsonLd.ListSeparator, keywords), (string?)json["keywords"]);
-        });
-
-    // Whatever the blogger wrote, anywhere, the output holds nothing an HTML parser would act on inside a script element,
-    // and nothing outside printable ASCII (PP7.10).
-    [Fact]
-    public void Production_output_is_inert_in_html_for_any_recipe() =>
-        Gen.Select(Recipe, Page).Sample(iter: Iterations, assert: (snapshot, page) =>
-        {
-            var output = RecipeJsonLd.Write(snapshot, page).Json;
-            Assert.DoesNotContain('<', output);
-            Assert.DoesNotContain('>', output);
-            Assert.DoesNotContain('&', output);
-            Assert.All(output, c => Assert.True(c is >= ' ' and <= '~', $"U+{(int)c:X4} is not printable ASCII"));
-        });
-
-    [Fact]
-    public void The_same_recipe_always_makes_the_same_bytes() =>
-        Gen.Select(Recipe, Page).Sample(iter: Iterations, assert: (snapshot, page) =>
-        {
-            var first = RecipeJsonLd.Write(snapshot, page);
-            var again = RecipeJsonLd.Write(snapshot with { }, page with { });
-            Assert.Equal(first.Json, again.Json);
-            Assert.Equal(first.Gaps, again.Gaps);
-            Assert.All(first.Json, c => Assert.True(c is >= ' ' and <= '~'));
-        });
-
-    // Each gap is reported exactly when its field is absent from the output.
-    [Fact]
-    public void A_gap_is_reported_exactly_when_its_property_is_missing() =>
-        Gen.Select(Recipe, Page).Sample(iter: Iterations, assert: (snapshot, page) =>
-        {
-            var result = RecipeJsonLd.Write(snapshot, page);
-            var json = JsonNode.Parse(result.Json)!.AsObject();
-            var hasNutrition = NutritionFacts.From(snapshot.Nutrition).HasNutrition;
-            bool Lacks(RecipeJsonLdGap gap) => result.Gaps.Contains(gap);
-
-            Assert.Equal(!json.ContainsKey("name"), Lacks(RecipeJsonLdGap.Name));
-            Assert.Equal(!json.ContainsKey("image"), Lacks(RecipeJsonLdGap.Image));
-            Assert.Equal(!json.ContainsKey("recipeYield") && hasNutrition, Lacks(RecipeJsonLdGap.YieldForNutrition));
-            Assert.Equal(!json.ContainsKey("recipeYield") && !hasNutrition, Lacks(RecipeJsonLdGap.RecipeYield));
-            Assert.Equal(!json.ContainsKey("author"), Lacks(RecipeJsonLdGap.Author));
-            Assert.Equal(!json.ContainsKey("datePublished"), Lacks(RecipeJsonLdGap.DatePublished));
-            Assert.Equal(!json.ContainsKey("description"), Lacks(RecipeJsonLdGap.Description));
-            Assert.Equal(!json.ContainsKey("totalTime"), Lacks(RecipeJsonLdGap.Times));
-            Assert.Equal(json.ContainsKey("prepTime") != json.ContainsKey("cookTime"), Lacks(RecipeJsonLdGap.PrepAndCookTime));
-            Assert.Equal(!json.ContainsKey("recipeIngredient"), Lacks(RecipeJsonLdGap.Ingredients));
-            Assert.Equal(!json.ContainsKey("recipeInstructions"), Lacks(RecipeJsonLdGap.Instructions));
-            Assert.Equal(!json.ContainsKey("recipeCategory"), Lacks(RecipeJsonLdGap.Courses));
-            Assert.Equal(!json.ContainsKey("recipeCuisine"), Lacks(RecipeJsonLdGap.Cuisines));
-            Assert.Equal(!json.ContainsKey("keywords"), Lacks(RecipeJsonLdGap.Keywords));
-            Assert.Equal(json["nutrition"]?["calories"] is null, Lacks(RecipeJsonLdGap.Calories));
-            Assert.Equal(result.Gaps.Order().Distinct(), result.Gaps);
-        });
+        return false;
+    }
 }

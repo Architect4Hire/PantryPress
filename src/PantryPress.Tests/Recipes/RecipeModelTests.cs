@@ -21,6 +21,7 @@ public sealed class RecipeModelTests
                 RecipeConfiguration.YieldUnitConstraintName, RecipeConfiguration.TimesConstraintName,
                 RecipeConfiguration.AdditionalTimeLabelConstraintName, RecipeConfiguration.VideoUrlConstraintName,
                 RecipeConfiguration.NutritionConstraintName, RecipeConfiguration.UpdatedAtConstraintName,
+                RecipeConfiguration.ArchivedAtConstraintName,
                 .. QuantityConstraints(RecipeConfiguration.TableName, RecipeConfiguration.YieldPrefix),
             ]
         },
@@ -236,6 +237,41 @@ public sealed class RecipeModelTests
             Assert.Equal(RecipeLimits.NutritionScale, n.GetScale());
             Assert.True(n.IsNullable);
         });
+    }
+
+    // PP4.11a: the library reads a site's recipes most recently edited first, a page at a time by (UpdatedAt, Id), so its
+    // index leads with the site and then the order, and is not unique (two recipes may be edited in the same tick).
+    [Fact]
+    public void The_library_is_read_by_a_site_led_index_in_its_order()
+    {
+        using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
+        var index = Assert.Single(
+            Entity(db, typeof(Recipe)).GetIndexes(),
+            i => i.GetDatabaseName() == RecipeConfiguration.LibraryIndexName);
+
+        Assert.Equal(["SiteId", "UpdatedAt", "Id"], index.Properties.Select(p => p.Name));
+        Assert.False(index.IsUnique);
+        Assert.Null(index.GetFilter());
+    }
+
+    // PP4.11a: who made a recipe and when it was archived are optional bookkeeping: a recipe from the publishing API or an
+    // import has no maker, and a recipe in the library is not archived. Neither has a foreign key - a module never names
+    // another's entities (accounts) - and neither is generated.
+    [Fact]
+    public void Who_made_a_recipe_and_when_it_was_archived_are_optional_and_unreferenced()
+    {
+        using var db = new PantryPressDesignTimeFactory().CreateDbContext([]);
+        var entity = Entity(db, typeof(Recipe));
+
+        foreach (var name in new[] { nameof(Recipe.CreatedByAccountId), nameof(Recipe.ArchivedAt) })
+        {
+            var property = entity.FindProperty(name)!;
+            Assert.True(property.IsNullable);
+            Assert.Equal(ValueGenerated.Never, property.ValueGenerated);
+            Assert.Empty(property.GetContainingForeignKeys());
+        }
+
+        Assert.Equal("uniqueidentifier", entity.FindProperty(nameof(Recipe.CreatedByAccountId))!.GetColumnType());
     }
 
     // The recipe carries the concurrency token for the whole of it (PP4.11 moves UpdatedAt with every part's change).

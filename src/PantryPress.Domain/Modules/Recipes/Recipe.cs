@@ -1,4 +1,5 @@
 using PantryPress.Domain.Managers.Tenancy;
+using PantryPress.Domain.Modules.Accounts.Contracts;
 using PantryPress.Domain.Modules.Recipes.Business;
 using PantryPress.Domain.Modules.Recipes.Contracts;
 
@@ -95,6 +96,21 @@ public sealed class Recipe : ISiteOwned
     public decimal? ProteinGrams { get; set; }
 
     public DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>
+    /// The account that created the recipe in the editor, so an Author changes only their own (SITE-010; PP4.11a), or none
+    /// for a recipe no person made by hand (the publishing API, an import). Set once, when the recipe is made, and never
+    /// moved. Bookkeeping, not content: a revision does not freeze it. No foreign key to accounts, because a module never
+    /// names another's entities; erasing an account clears it (PP19.11a).
+    /// </summary>
+    public AccountId? CreatedByAccountId { get; init; }
+
+    /// <summary>
+    /// When the recipe was archived, or null while it is in the library (PP4.11a). A recipe with a revision is never
+    /// deleted (PP4.4), so archiving is how one leaves the library; restoring clears it. Bookkeeping, not content: a revision
+    /// does not freeze it, and archiving changes nothing a reader sees.
+    /// </summary>
+    public DateTimeOffset? ArchivedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }
 

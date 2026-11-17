@@ -20,6 +20,10 @@ internal sealed record RecipeWorkingCopy(
     IReadOnlyList<RecipeDiet> Diets,
     IReadOnlyList<RecipeAllergen> Allergens)
 {
+    /// <summary>The working copy of a recipe not yet saved: the recipe's row and no parts, nutrition as its columns hold it.</summary>
+    public static RecipeWorkingCopy New(Recipe recipe, RecipeSnapshotNutrition nutrition) =>
+        new(recipe, nutrition, [], [], [], [], [], [], [], [], [], [], []);
+
     /// <summary>
     /// The recipe as one snapshot, its parts in the order a reader sees them: by position, and - since a position may be
     /// shared while parts are being reordered - by id after it, or by code for a vocabulary choice, so the same rows always
